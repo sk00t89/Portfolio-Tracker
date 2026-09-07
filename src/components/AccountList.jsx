@@ -1,5 +1,4 @@
-
-function AccountList({ accounts, portfolioValue }) {
+function AccountList({accounts, portfolioValue, deleteAccount}) {
 
     return (
         <div>
@@ -7,12 +6,22 @@ function AccountList({ accounts, portfolioValue }) {
 
             {accounts.map((account) => {
                 return (
-                    <p key={account.id}>
-                        {account.name} : {account.value.toLocaleString("sv-SE")} kr - {((account.value / portfolioValue) * 100).toFixed(2)} %
-                    </p>
+                    <div key={account.id}>
+                        <p>
+                            {account.name} : {account.value.toLocaleString("sv-SE")} kr
+                            - {((account.value / portfolioValue) * 100).toFixed(2)} %
+                        </p>
+
+                        <button
+                        onClick={(event) => {
+                            deleteAccount(account.id);
+                        }}
+                        >Ta bort</button>
+                    </div>
                 );
             })}
         </div>
     )
 }
+
 export default AccountList;
