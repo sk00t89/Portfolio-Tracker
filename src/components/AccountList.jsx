@@ -1,5 +1,6 @@
 function AccountList({accounts, portfolioValue, deleteAccount}) {
 
+
     return (
         <div>
             <h2>Konton</h2>
