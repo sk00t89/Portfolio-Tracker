@@ -1,6 +1,6 @@
 function Allocation({ totalsByType, portfolioValue }) {
     return (
-        <div>
+        <div className="card">
             {Object.entries(totalsByType).map(([type, value]) => (
                 <p key={type}>
                     {type}: {value.toLocaleString("sv-SE")} kr -{" "}
