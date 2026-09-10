@@ -2,60 +2,15 @@ import AccountList from "../components/AccountList.jsx";
 import Allocation from "../components/Allocation.jsx";
 import AccountForm from "../components/AccountForm.jsx";
 import PortfolioSummary from "../components/PortfolioSummary.jsx";
-import {useState, useEffect} from "react";
 
 
-function Dashboard() {
+
+function Dashboard({ accounts, setAccounts }) {
 
     const investedCapital = 800000;
 
 
-    const [accounts, setAccounts] = useState(() => {
 
-        const savedAccounts = localStorage.getItem("accounts");
-
-        if (savedAccounts) {
-            return JSON.parse(savedAccounts)
-        }
-
-        return [
-            {
-                id: 1,
-                name: "Avanza",
-                type: "broker",
-                value: 500000,
-
-            },
-            {
-                id: 2,
-                name: "Nordnet",
-                type: "broker",
-                value: 200000,
-
-            },
-            {
-                id: 3,
-                name: "Lysa",
-                type: "fund",
-                value: 200000,
-
-            },
-            {
-                id: 4,
-                name: "Krypto",
-                type: "crypto",
-                value: 100000,
-
-            },
-            {
-                id: 5,
-                name: "Sparkonto",
-                type: "cash",
-                value: 150000,
-
-            }
-        ];
-    });
     const getNextId = (accounts) => {
         const ids = accounts.map((account) => {
             return account.id
@@ -75,9 +30,7 @@ function Dashboard() {
         ]);
     };
 
-    useEffect(() => {
-        localStorage.setItem("accounts", JSON.stringify(accounts));
-    }, [accounts]);
+
 
     const portfolioValue = accounts.reduce((total, account) => {
         return total + account.value;
