@@ -1,29 +1,45 @@
-function AccountList({accounts, portfolioValue, deleteAccount}) {
 
+function AccountList({
+                         accounts,
+                         portfolioValue,
+                         totalsByPlatform,
+                         deleteAccount
+                     }) {
 
     return (
         <div>
-            <h2>Konton</h2>
-
             {accounts.map((account) => {
+
+                const accountValue =
+                    account.type === "manual"
+                        ? account.value
+                        : totalsByPlatform[account.name] || 0;
+
+                const percentage =
+                    portfolioValue > 0
+                        ? (accountValue / portfolioValue) * 100
+                        : 0;
+
                 return (
-                    <div key={account.id} className="card">
+                    <div key={account.id}>
+                        <p>{account.name}</p>
+
                         <p>
-                            {account.name} : {account.value.toLocaleString("sv-SE")} kr
-                            - {((account.value / portfolioValue) * 100).toFixed(2)} %
-                            | {account.type}
+                            {accountValue.toLocaleString("sv-SE", {
+                                maximumFractionDigits: 0
+                            })} kr
                         </p>
 
-                        <button
-                            className="danger-button"
-                            onClick={() => deleteAccount(account.id)}>
+                        <p>{percentage.toFixed(2)} %</p>
+
+                        <button onClick={() => deleteAccount(account.id)}>
                             Ta bort
                         </button>
                     </div>
                 );
             })}
         </div>
-    )
+    );
 }
 
 export default AccountList;

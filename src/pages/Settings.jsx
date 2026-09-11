@@ -1,9 +1,17 @@
-function Settings({ resetAccounts }) {
+function Settings({ resetPortfolio }) {
+
+    const warning = () => {
+        if (confirm("Återställ portfölj?")) {
+            resetPortfolio();
+        }
+    };
     return (
         <div>
             <h1>Settings</h1>
 
-            <button onClick={resetAccounts}>
+            <button onClick={warning} type="button"
+
+            >
                 Återställ testdata
             </button>
         </div>

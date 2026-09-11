@@ -1,34 +1,42 @@
-function ImportPage() {
-
-    const avanzaRow =
-        "AbCellera Biologics;ABCL;555;61210,88;34,57;3,71;USD;US;CA00288U1066;XNAS;STOCK";
-    const avanzaData1 = avanzaRow.replaceAll(",",".").split(";");
+import parseCsv from "../parsers/parseCsv.js";
+import {useState} from "react";
 
 
-    console.log(avanzaData1);
+function ImportPage({importHoldings}) {
 
-    const holdings = [
-        {
-            name: avanzaData1[0],
-            ticker: avanzaData1[1],
-            quantity: Number(avanzaData1[2]),
-            valueSek: Number(avanzaData1[3]),
-            averagePriceSek: Number(avanzaData1[4]),
-            averagePrice: Number(avanzaData1[5]),
-            currency: avanzaData1[6],
-            country: avanzaData1[7],
-            isin: avanzaData1[8],
-            market: avanzaData1[9],
-            assetType: avanzaData1[10],
+    const [inputFile, setInputFile] = useState([]);
 
-        }
-    ]
+    const handleFile = async (event) => {
+        const file = event.target.files[0];
+        const text = await file.text();
+        const holdings = parseCsv(text);
 
-console.log(holdings);
+        setInputFile((previous) => [
+            ...previous,
+            file.name
+        ]);
+
+        console.log(holdings);
+
+        importHoldings(holdings);
+    };
+
 
     return (
         <div>
             <h1>Import</h1>
+            <input
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleFile}
+            />
+            {inputFile.map((item) => (
+                <p key={item.id}>
+                    Du har laddat upp {item}
+                </p>
+
+
+            ))}
         </div>
     );
 }

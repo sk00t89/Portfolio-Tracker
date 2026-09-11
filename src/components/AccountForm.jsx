@@ -6,14 +6,14 @@ function AccountForm({ addAccount}) {
 
     const [accountValue, setAccountValue] = useState("");
 
-    const [accountType, setAccountType] = useState("");
+    const [accountCategory, setAccountCategory] = useState("");
 
     const [alertVisible, setAlertVisibility] = useState(false);
 
     const isBtnDisabled =
 
         accountName.trim() === "" ||
-        accountType === "" ||
+        accountCategory === "" ||
         Number(accountValue) < 1
     ;
 
@@ -22,7 +22,7 @@ function AccountForm({ addAccount}) {
     const addNewAccount = (event) => {
         event.preventDefault();
         if (
-            accountType.trim() === "" ||
+            accountCategory.trim() === "" ||
             Number(accountValue) < 1 ||
             accountName.trim() === ""
         ) {
@@ -34,19 +34,20 @@ function AccountForm({ addAccount}) {
 
         const formattedName =
             cleanName.charAt(0).toUpperCase() +
-            cleanName.slice(1).toLowerCase();
+            cleanName.slice(1);
 
         const newAccount = {
             name: formattedName,
-            type: accountType,
-            value: Number(accountValue)
+            category: accountCategory,
+            value: Number(accountValue),
+            type: "manual"
         };
 
         addAccount(newAccount);
 
         setAccountValue("");
         setAccountName("");
-        setAccountType("");
+        setAccountCategory("");
         setAlertVisibility(false);
     };
 
@@ -57,9 +58,9 @@ function AccountForm({ addAccount}) {
 
                 {alertVisible && <p>Fel inmatning, försök igen!</p>}
                 <select
-                    value={accountType}
+                    value={accountCategory}
                     onChange={(event) => {
-                        setAccountType(event.target.value)
+                        setAccountCategory(event.target.value)
 
                     }}
                 >

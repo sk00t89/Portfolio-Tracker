@@ -2,47 +2,41 @@ import AccountList from "../components/AccountList.jsx";
 import Allocation from "../components/Allocation.jsx";
 import AccountForm from "../components/AccountForm.jsx";
 import PortfolioSummary from "../components/PortfolioSummary.jsx";
+import { calculatePortfolioValue,
+calculateTotalsByPlatform
+} from "../utils/calculations.js";
 
 
-
-function Dashboard({ accounts, setAccounts }) {
+function Dashboard({accounts, setAccounts, holdings}) {
 
     const investedCapital = 800000;
 
+    const portfolioValue = calculatePortfolioValue(holdings, accounts);
 
+    const totalsByPlatform = calculateTotalsByPlatform(holdings);
 
     const getNextId = (accounts) => {
         const ids = accounts.map((account) => {
-            return account.id
+            return account.id;
         });
+
         const highestId = Math.max(...ids);
 
         return highestId < 1 ? 1 : highestId + 1;
     };
 
     const addAccount = (newAccount) => {
-        setAccounts(previousAccount => [
-            ...previousAccount,
+        setAccounts((previousAccounts) => [
+            ...previousAccounts,
             {
-                id: getNextId(previousAccount),
+                id: getNextId(previousAccounts),
                 ...newAccount
             }
         ]);
     };
 
-
-
-    const portfolioValue = accounts.reduce((total, account) => {
-        return total + account.value;
-    }, 0);
-
-    const totalsByType = accounts.reduce((total, account) => {
-        total[account.type] = (total[account.type] || 0) + account.value;
-        return total;
-    }, {});
-
     const deleteAccount = (id) => {
-        setAccounts(previousAccounts => {
+        setAccounts((previousAccounts) => {
             return previousAccounts.filter((account) => {
                 return account.id !== id;
             });
@@ -61,10 +55,11 @@ function Dashboard({ accounts, setAccounts }) {
                 accounts={accounts}
                 portfolioValue={portfolioValue}
                 deleteAccount={deleteAccount}
+                totalsByPlatform={totalsByPlatform}
             />
 
             <Allocation
-                totalsByType={totalsByType}
+                totalsByType={totalsByPlatform}
                 portfolioValue={portfolioValue}
             />
 

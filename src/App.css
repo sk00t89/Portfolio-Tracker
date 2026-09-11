@@ -168,3 +168,36 @@ select {
 
   cursor: pointer;
 }
+.holdings-page {
+  padding: 24px;
+}
+
+.holdings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.holding-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  padding: 16px 20px;
+
+  background: #181818;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+}
+
+.holding-card h3 {
+  margin: 0 0 4px;
+}
+
+.holding-card p {
+  margin: 2px 0;
+  opacity: 0.7;
+}
+.holding-card > div:first-child {
+  text-align: left;
+}
