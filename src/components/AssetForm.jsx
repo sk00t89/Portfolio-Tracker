@@ -40,7 +40,7 @@ function AssetForm({ addAsset}) {
             name: formattedName,
             category: assetCategory,
             value: Number(assetValue),
-            type: "manual"
+            source: "manual"
         };
 
         addAsset(newAsset);

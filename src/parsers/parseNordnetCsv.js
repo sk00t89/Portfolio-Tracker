@@ -34,4 +34,5 @@ const parseNordnetCsv = (string) => {
 
 };
 
+
 export default parseNordnetCsv;

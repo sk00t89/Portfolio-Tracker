@@ -1,9 +1,11 @@
-function Allocation({ totalsByType, portfolioValue }) {
+import {formatSek} from "../utils/formatting.js";
+
+function Allocation({ portfolioValue, totalsByCategory }) {
     return (
         <div className="card">
-            {Object.entries(totalsByType).map(([type, value]) => (
+            {Object.entries(totalsByCategory).map(([type, value]) => (
                 <p key={type}>
-                    {type}: {value.toLocaleString("sv-SE")} kr -{" "}
+                    {type}: {formatSek(value)}  -{" "}
                     {((value / portfolioValue) * 100).toLocaleString("sv-SE", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2

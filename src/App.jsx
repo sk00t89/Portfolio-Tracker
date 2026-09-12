@@ -76,9 +76,9 @@ function App() {
     // Manual Assets funktioner
 
     const initialAssets = [
-        {id: 1, name: "Crypto", type: "manual", category:"crypto", value: 50000},
-        {id: 2, name: "Steam inventory", type: "manual", category: "other", value: 20000},
-        {id: 3, name: "Sparkonto", type: "manual", category: "cash", value: 200000},
+        {id: 1, name: "Crypto", source: "manual", category:"crypto", value: 50000},
+        {id: 2, name: "Steam inventory", source: "manual", category: "other", value: 20000},
+        {id: 3, name: "Sparkonto", source: "manual", category: "cash", value: 200000},
 
     ];
 
@@ -115,7 +115,6 @@ function App() {
                 />
                 <Route path="/holdings" element={
                     <Holdings
-                        assets={assets}
                         holdings={holdings}
                     />
                 }

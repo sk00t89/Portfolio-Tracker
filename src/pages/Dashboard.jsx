@@ -2,8 +2,10 @@ import AssetList from "../components/AssetList.jsx";
 import Allocation from "../components/Allocation.jsx";
 import AssetForm from "../components/AssetForm.jsx";
 import PortfolioSummary from "../components/PortfolioSummary.jsx";
-import { calculatePortfolioValue,
-calculateTotalsByPlatform
+import {
+    calculatePortfolioValue,
+    calculateTotalsByPlatform,
+    calculateTotalsByCategory
 } from "../utils/calculations.js";
 
 
@@ -14,6 +16,8 @@ function Dashboard({assets, setAssets, holdings}) {
     const portfolioValue = calculatePortfolioValue(holdings, assets);
 
     const totalsByPlatform = calculateTotalsByPlatform(holdings);
+
+    const totalsByCategory = calculateTotalsByCategory(holdings, assets);
 
     const getNextId = (assets) => {
         const ids = assets.map((asset) => {
@@ -61,6 +65,7 @@ function Dashboard({assets, setAssets, holdings}) {
             <Allocation
                 totalsByType={totalsByPlatform}
                 portfolioValue={portfolioValue}
+                totalsByCategory={totalsByCategory}
             />
 
             <AssetForm

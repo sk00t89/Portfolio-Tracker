@@ -8,31 +8,31 @@ function AssetList({
 
     return (
         <div>
-            {assets.map((assets) => {
+            {assets.map((asset) => {
 
-                const assetsValue =
-                    assets.type === "manual"
-                        ? assets.value
-                        : totalsByPlatform[assets.name] || 0;
+                const assetValue =
+                    asset.type === "manual"
+                        ? asset.value
+                        : totalsByPlatform[asset.name] || 0;
 
                 const percentage =
                     portfolioValue > 0
-                        ? (assetsValue / portfolioValue) * 100
+                        ? (assetValue / portfolioValue) * 100
                         : 0;
 
                 return (
-                    <div key={assets.id}>
-                        <p>{assets.name}</p>
+                    <div key={asset.id}>
+                        <p>{asset.name}</p>
 
                         <p>
-                            {assetsValue.toLocaleString("sv-SE", {
+                            {assetValue.toLocaleString("sv-SE", {
                                 maximumFractionDigits: 0
                             })} kr
                         </p>
 
                         <p>{percentage.toFixed(2)} %</p>
 
-                        <button onClick={() => deleteAsset(assets.id)}>
+                        <button onClick={() => deleteAsset(asset.id)}>
                             Ta bort
                         </button>
                     </div>
