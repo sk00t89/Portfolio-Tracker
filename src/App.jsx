@@ -12,6 +12,7 @@ import getInstrumentKey from "./utils/instrumentKey.js";
 
 function App() {
 
+
     // Holdings funktioner
     const [holdings, setHoldings] = useState(() => {
         const savedHoldings = localStorage.getItem("holdings");
@@ -21,6 +22,23 @@ function App() {
         }
         return [];
     });
+
+    const enrichHolding = (id, data) => {
+        setHoldings((prevHoldings) =>
+            prevHoldings.map((holding) =>
+                holding.id === id
+                    ? {
+                        ...holding,
+                        ticker: data.ticker ?? holding.ticker,
+                        isin: data.isin ?? holding.isin,
+                        assetType: data.assetType ?? holding.assetType,
+                        currency: data.currency ?? holding.currency,
+                        market: data.exchange ?? holding.market,
+                    }
+                    : holding
+            )
+        );
+    };
 
     const getNextId = (holdings) => {
         const ids = holdings.map((holding) => holding.id);
@@ -76,7 +94,7 @@ function App() {
     // Manual Assets funktioner
 
     const initialAssets = [
-        {id: 1, name: "Crypto", source: "manual", category:"crypto", value: 50000},
+        {id: 1, name: "Crypto", source: "manual", category: "crypto", value: 50000},
         {id: 2, name: "Steam inventory", source: "manual", category: "other", value: 20000},
         {id: 3, name: "Sparkonto", source: "manual", category: "cash", value: 200000},
 
@@ -116,6 +134,7 @@ function App() {
                 <Route path="/holdings" element={
                     <Holdings
                         holdings={holdings}
+                        enrichHolding={enrichHolding}
                     />
                 }
                 />

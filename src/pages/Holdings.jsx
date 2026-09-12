@@ -1,5 +1,7 @@
 import {formatSek} from "../utils/formatting.js";
-function Holdings({ holdings }) {
+import {searchInstrument} from "../services/marketData.js";
+
+function Holdings({holdings, enrichHolding}) {
     return (
         <div className="holdings-page">
             <h1>Innehav</h1>
@@ -18,8 +20,29 @@ function Holdings({ holdings }) {
                             </p>
 
                             <strong>
-                                {formatSek(holding.valueSek)} kr
+                                {formatSek(holding.valueSek)}
                             </strong>
+                            {holding.platform === "Nordnet" && !holding.assetType && (
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        try {
+                                            const data = await searchInstrument(holding.name);
+
+                                            if (!data || !data.assetType) {
+                                                console.log("Kunde inte berika:", holding.name);
+                                                return;
+                                            }
+
+                                            enrichHolding(holding.id, data);
+                                        } catch (error) {
+                                            console.error("Berikning misslyckades:", error);
+                                        }
+                                    }}
+                                >
+                                    Berika
+                                </button>
+                            )}
                         </div>
                     </div>
                 ))}
