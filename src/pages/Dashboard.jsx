@@ -1,23 +1,23 @@
-import AccountList from "../components/AccountList.jsx";
+import AssetList from "../components/AssetList.jsx";
 import Allocation from "../components/Allocation.jsx";
-import AccountForm from "../components/AccountForm.jsx";
+import AssetForm from "../components/AssetForm.jsx";
 import PortfolioSummary from "../components/PortfolioSummary.jsx";
 import { calculatePortfolioValue,
 calculateTotalsByPlatform
 } from "../utils/calculations.js";
 
 
-function Dashboard({accounts, setAccounts, holdings}) {
+function Dashboard({assets, setAssets, holdings}) {
 
     const investedCapital = 800000;
 
-    const portfolioValue = calculatePortfolioValue(holdings, accounts);
+    const portfolioValue = calculatePortfolioValue(holdings, assets);
 
     const totalsByPlatform = calculateTotalsByPlatform(holdings);
 
-    const getNextId = (accounts) => {
-        const ids = accounts.map((account) => {
-            return account.id;
+    const getNextId = (assets) => {
+        const ids = assets.map((asset) => {
+            return asset.id;
         });
 
         const highestId = Math.max(...ids);
@@ -25,20 +25,20 @@ function Dashboard({accounts, setAccounts, holdings}) {
         return highestId < 1 ? 1 : highestId + 1;
     };
 
-    const addAccount = (newAccount) => {
-        setAccounts((previousAccounts) => [
-            ...previousAccounts,
+    const addAsset = (newAsset) => {
+        setAssets((previousAssets) => [
+            ...previousAssets,
             {
-                id: getNextId(previousAccounts),
-                ...newAccount
+                id: getNextId(previousAssets),
+                ...newAsset
             }
         ]);
     };
 
-    const deleteAccount = (id) => {
-        setAccounts((previousAccounts) => {
-            return previousAccounts.filter((account) => {
-                return account.id !== id;
+    const deleteAsset = (id) => {
+        setAssets((previousAssets) => {
+            return previousAssets.filter((asset) => {
+                return asset.id !== id;
             });
         });
     };
@@ -51,10 +51,10 @@ function Dashboard({accounts, setAccounts, holdings}) {
                 investedCapital={investedCapital}
             />
 
-            <AccountList
-                accounts={accounts}
+            <AssetList
+                assets={assets}
                 portfolioValue={portfolioValue}
-                deleteAccount={deleteAccount}
+                deleteAsset={deleteAsset}
                 totalsByPlatform={totalsByPlatform}
             />
 
@@ -63,8 +63,8 @@ function Dashboard({accounts, setAccounts, holdings}) {
                 portfolioValue={portfolioValue}
             />
 
-            <AccountForm
-                addAccount={addAccount}
+            <AssetForm
+                addAsset={addAsset}
             />
         </div>
     );

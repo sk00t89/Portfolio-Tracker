@@ -47,14 +47,14 @@ select {
   margin-top: 0;
 }
 
-.account-form {
+.asset-form {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.account-form input,
-.account-form select {
+.asset-form input,
+.asset-form select {
   width: 100%;
   padding: 12px;
   border-radius: 10px;

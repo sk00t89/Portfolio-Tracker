@@ -12,6 +12,7 @@ import getInstrumentKey from "./utils/instrumentKey.js";
 
 function App() {
 
+    // Holdings funktioner
     const [holdings, setHoldings] = useState(() => {
         const savedHoldings = localStorage.getItem("holdings");
 
@@ -72,31 +73,32 @@ function App() {
         });
     };
 
-    const initialAccounts = [
-        {id: 1, name: "Avanza", type: "broker", value: 500000},
-        {id: 2, name: "Nordnet", type: "broker", value: 200000},
-        {id: 3, name: "Lysa", type: "fund", value: 200000},
-        {id: 4, name: "Krypto", type: "crypto", value: 100000},
-        {id: 5, name: "Sparkonto", type: "cash", value: 150000}
+    // Manual Assets funktioner
+
+    const initialAssets = [
+        {id: 1, name: "Crypto", type: "manual", category:"crypto", value: 50000},
+        {id: 2, name: "Steam inventory", type: "manual", category: "other", value: 20000},
+        {id: 3, name: "Sparkonto", type: "manual", category: "cash", value: 200000},
+
     ];
 
-    const [accounts, setAccounts] = useState(() => {
-        const savedAccounts = localStorage.getItem("accounts");
+    const [assets, setAssets] = useState(() => {
+        const savedAssets = localStorage.getItem("assets");
 
-        if (savedAccounts) {
-            return JSON.parse(savedAccounts);
+        if (savedAssets) {
+            return JSON.parse(savedAssets);
         }
 
-        return initialAccounts;
+        return initialAssets;
     });
 
     useEffect(() => {
-        localStorage.setItem("accounts", JSON.stringify(accounts));
-    }, [accounts]);
+        localStorage.setItem("assets", JSON.stringify(assets));
+    }, [assets]);
 
     const resetPortfolio = () => {
 
-        setAccounts(initialAccounts);
+        setAssets(initialAssets);
         setHoldings([]);
     }
 
@@ -106,14 +108,14 @@ function App() {
             <Routes>
                 <Route path="/" element={
                     <Dashboard
-                        accounts={accounts}
-                        setAccounts={setAccounts}
+                        assets={assets}
+                        setAssets={setAssets}
                         holdings={holdings}
                     />}
                 />
                 <Route path="/holdings" element={
                     <Holdings
-                        accounts={accounts}
+                        assets={assets}
                         holdings={holdings}
                     />
                 }
