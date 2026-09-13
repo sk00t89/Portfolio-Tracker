@@ -12,8 +12,17 @@ import getInstrumentKey from "./utils/instrumentKey.js";
 
 function App() {
 
+// Holdings funktioner
 
-    // Holdings funktioner
+
+    const [resolvedMatches, setResolvedMatches] = useState(() => {
+        const savedMatches = localStorage.getItem("resolvedMatches");
+
+        return savedMatches
+            ? JSON.parse(savedMatches)
+            : [];
+    });
+
     const [holdings, setHoldings] = useState(() => {
         const savedHoldings = localStorage.getItem("holdings");
 
@@ -40,6 +49,99 @@ function App() {
         );
     };
 
+    const findPossibleMatches = (holdings, resolvedMatches) => {
+        const result = [];
+
+        for (let i = 0; i < holdings.length; i++) {
+            for (let j = i + 1; j < holdings.length; j++) {
+                const firstHolding = holdings[i];
+                const secondHolding = holdings[j];
+
+                const alreadyResolved = resolvedMatches.some(
+                    (match) =>
+                        match.firstId === firstHolding.id &&
+                        match.secondId === secondHolding.id
+                );
+
+                if (alreadyResolved) {
+                    continue;
+                }
+
+                const sameIsin =
+                    firstHolding.isin &&
+                    secondHolding.isin &&
+                    firstHolding.isin === secondHolding.isin;
+
+                const sameName =
+                    firstHolding.name.toLowerCase().trim() ===
+                    secondHolding.name.toLowerCase().trim();
+
+                const sameTicker =
+                    firstHolding.ticker &&
+                    secondHolding.ticker &&
+                    firstHolding.ticker === secondHolding.ticker;
+
+                if (sameIsin || sameName || sameTicker) {
+                    result.push({
+                        firstId: firstHolding.id,
+                        secondId: secondHolding.id,
+                        firstName: firstHolding.name,
+                        secondName: secondHolding.name,
+                    });
+                }
+            }
+        }
+
+        return result;
+    };
+
+    const confirmMatch = (firstId, secondId) => {
+        setHoldings((prevHoldings) => {
+            const firstHolding = prevHoldings.find(
+                (holding) => holding.id === firstId
+            );
+
+            const secondHolding = prevHoldings.find(
+                (holding) => holding.id === secondId
+            );
+
+            const sourceHolding =
+                firstHolding.isin ? firstHolding : secondHolding;
+
+            const targetHolding =
+                firstHolding.isin ? secondHolding : firstHolding;
+
+            return prevHoldings.map((holding) => {
+                if (holding.id === targetHolding.id) {
+                    return {
+                        ...holding,
+                        isin: sourceHolding.isin ?? holding.isin,
+                        ticker: sourceHolding.ticker ?? holding.ticker,
+                        country: sourceHolding.country ?? holding.country,
+                        market: sourceHolding.market ?? holding.market,
+                        assetType: sourceHolding.assetType ?? holding.assetType,
+                    };
+                }
+
+                return holding;
+            });
+        });
+    };
+
+    const resolveMatch = (firstId, secondId) => {
+        setResolvedMatches((prev) => [
+            ...prev,
+            {firstId, secondId}
+        ]);
+    };
+
+
+    const possibleMatches = findPossibleMatches(
+        holdings,
+        resolvedMatches
+    );
+
+
     const getNextId = (holdings) => {
         const ids = holdings.map((holding) => holding.id);
         const highestId = ids.length > 0 ? Math.max(...ids) : 0;
@@ -50,6 +152,14 @@ function App() {
     useEffect(() => {
         localStorage.setItem("holdings", JSON.stringify(holdings));
     }, [holdings]);
+
+    useEffect(() => {
+        localStorage.setItem(
+            "resolvedMatches",
+            JSON.stringify(resolvedMatches)
+        );
+    }, [resolvedMatches]);
+
 
     const importHoldings = (newHoldings) => {
         setHoldings((previousHoldings) => {
@@ -91,6 +201,36 @@ function App() {
         });
     };
 
+
+    const groupHoldingsByInstrument = (holdings) => {
+        return holdings.reduce((groups, holding) => {
+            const instrumentKey =
+                holding.isin ||
+                holding.ticker ||
+                holding.name.toLowerCase().trim();
+
+            const existingGroup = groups.find(
+                (group) => group.instrumentKey === instrumentKey
+            );
+
+            if (!existingGroup) {
+                groups.push({
+                    instrumentKey,
+                    name: holding.name,
+                    totalValue: holding.valueSek,
+                    positions: [holding],
+                });
+            } else {
+                existingGroup.totalValue += holding.valueSek;
+                existingGroup.positions.push(holding);
+            }
+
+            return groups;
+        }, []);
+    };
+
+    console.log("grupperat", groupHoldingsByInstrument(holdings));
+
     // Manual Assets funktioner
 
     const initialAssets = [
@@ -122,6 +262,13 @@ function App() {
 
     return (
         <div className="app-shell">
+            <button
+                type="button"
+                onClick={() => {
+                    setResolvedMatches([]);
+                }}
+            > Resetta matches
+            </button>
             <Navbar/>
             <Routes>
                 <Route path="/" element={
@@ -135,6 +282,9 @@ function App() {
                     <Holdings
                         holdings={holdings}
                         enrichHolding={enrichHolding}
+                        possibleMatches={possibleMatches}
+                        confirmMatch={confirmMatch}
+                        resolveMatch={resolveMatch}
                     />
                 }
                 />
