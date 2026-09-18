@@ -9,11 +9,11 @@ import {
 } from "../utils/calculations.js";
 
 
-function Dashboard({assets, setAssets, holdings}) {
+function Dashboard({assets, setAssets, holdings, portfolioValue}) {
 
     const investedCapital = 800000;
 
-    const portfolioValue = calculatePortfolioValue(holdings, assets);
+
 
     const totalsByPlatform = calculateTotalsByPlatform(holdings);
 

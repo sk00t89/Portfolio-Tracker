@@ -2,21 +2,20 @@ import {formatSek} from "../utils/formatting.js";
 import {searchInstrument} from "../services/marketData.js";
 
 function Holdings({
-                      holdings,
                       enrichHolding,
                       possibleMatches,
                       confirmMatch,
-                      resolveMatch
-}) {
+                      resolveMatch,
+                      groupedHoldings,
+                      portfolioValue,
+                  }) {
     return (
         <div className="holdings-page">
             <h1>Innehav</h1>
+
             {possibleMatches.map((match) => (
                 <div key={`${match.firstId}-${match.secondId}`}>
-                    <p>
-                        Är detta samma värdepapper?
-                    </p>
-
+                    <p>Är detta samma värdepapper?</p>
                     <p>{match.firstName}</p>
                     <p>{match.secondName}</p>
 
@@ -40,46 +39,89 @@ function Holdings({
                     </button>
                 </div>
             ))}
+
             <div className="holdings-list">
-                {holdings.map((holding) => (
-                    <div className="holding-card" key={holding.id}>
-                        <div>
-                            <h3>{holding.name}</h3>
-                            <p>{holding.platform}</p>
-                            <p>{holding.isin}</p>
-                            <p>{holding.ticker}</p>
-                            <p>{holding.assetType}</p>
+                {groupedHoldings.map((group) => (
+                    <div
+                        className="holding-card"
+                        key={group.instrumentKey}
+                    >
+                        <div className="holding-card-header">
+                            <h3>{group.name}</h3>
+
+                            <div className="holding-summary">
+                                <strong>
+                                    {formatSek(group.totalValue)}
+                                </strong>
+
+                                <span>
+                                {(
+                                    (group.totalValue / portfolioValue) *
+                                    100
+                                ).toLocaleString("sv-SE", {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                })}{" "}
+                                    %
+                            </span>
+                            </div>
                         </div>
 
-                        <div>
-                            <p>
-                                {holding.quantity.toLocaleString("sv-SE")} st
-                            </p>
-
-                            <strong>
-                                {formatSek(holding.valueSek)}
-                            </strong>
-                            {holding.platform === "Nordnet" && !holding.assetType && (
-                                <button
-                                    type="button"
-                                    onClick={async () => {
-                                        try {
-                                            const data = await searchInstrument(holding.name);
-
-                                            if (!data || !data.assetType) {
-                                                console.log("Kunde inte berika:", holding.name);
-                                                return;
-                                            }
-
-                                            enrichHolding(holding.id, data);
-                                        } catch (error) {
-                                            console.error("Berikning misslyckades:", error);
-                                        }
-                                    }}
+                        <div className="holding-positions">
+                            {group.positions.map((position) => (
+                                <div
+                                    className="holding-position"
+                                    key={position.id}
                                 >
-                                    Berika
-                                </button>
-                            )}
+                                    <span>{position.platform}</span>
+
+                                    <span>
+                                    {position.quantity.toLocaleString("sv-SE")} st
+                                </span>
+
+                                    <strong>
+                                        {formatSek(position.valueSek)}
+                                    </strong>
+
+                                    {position.platform === "Nordnet" &&
+                                        !position.assetType && (
+                                            <button
+                                                type="button"
+                                                onClick={async () => {
+                                                    try {
+                                                        const data =
+                                                            await searchInstrument(
+                                                                position.name
+                                                            );
+
+                                                        if (
+                                                            !data ||
+                                                            !data.assetType
+                                                        ) {
+                                                            console.log(
+                                                                "Kunde inte berika:",
+                                                                position.name
+                                                            );
+                                                            return;
+                                                        }
+
+                                                        await enrichHolding(
+                                                            position.id,
+                                                            data
+                                                        );
+                                                    } catch (error) {
+                                                        console.error(
+                                                            "Berikning misslyckades:",
+                                                            error
+                                                        );
+                                                    }
+                                                }}
+                                            >
+                                                Berika
+                                            </button>
+                                        )}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 ))}

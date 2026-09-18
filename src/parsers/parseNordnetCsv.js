@@ -15,7 +15,12 @@ const parseNordnetCsv = (string) => {
         return true;
     });
 
+
+
     return refinedRows.map((row) => {
+        if (row[0] === "Evolution") {
+            console.log("EVOLUTION RAW ROW:", row);
+        }
         return {
             name: row[0],
             ticker: null,

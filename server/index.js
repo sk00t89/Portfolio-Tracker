@@ -38,6 +38,16 @@ app.get("/api/search/:query", async (req, res) => {
     res.json(normalized);
 });
 
+app.get("/api/currency/:from/:to", (req, res) => {
+    const { from, to } = req.params;
+
+    res.json({
+        from,
+        to,
+        rate: 10.5
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Backend kör på http://localhost:${PORT}`);
 });

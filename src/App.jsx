@@ -8,12 +8,55 @@ import Settings from "./pages/Settings.jsx";
 import {useEffect} from "react";
 import {useState} from "react";
 import getInstrumentKey from "./utils/instrumentKey.js";
+import{calculatePortfolioValue} from "./utils/calculations.js";
+import {getAveragePriceSek} from "./services/currencyData.js";
 
 
 function App() {
 
 // Holdings funktioner
 
+
+
+    const enrichMissingAveragePrices = async () => {
+        const updatedHoldings = await Promise.all(
+            holdings.map(async (holding) => {
+                if (
+                    holding.averagePriceSek === null &&
+                    holding.averagePrice &&
+                    holding.currency
+                ) {
+                    const averagePriceSek =
+                        await getAveragePriceSek(holding);
+
+                    console.log(
+                        "Berikar GAV:",
+                        holding.name,
+                        "→",
+                        averagePriceSek
+                    );
+
+                    return {
+                        ...holding,
+                        averagePriceSek:
+                            averagePriceSek ?? holding.averagePriceSek,
+                    };
+                }
+
+                console.log(
+                    holding.name,
+                    holding.averagePrice,
+                    holding.currency
+                );
+
+                return holding;
+            })
+        );
+
+        console.log("Holdings efter GAV-berikning:", updatedHoldings);
+
+        setHoldings(updatedHoldings);
+    };
 
     const [resolvedMatches, setResolvedMatches] = useState(() => {
         const savedMatches = localStorage.getItem("resolvedMatches");
@@ -22,6 +65,7 @@ function App() {
             ? JSON.parse(savedMatches)
             : [];
     });
+
 
     const [holdings, setHoldings] = useState(() => {
         const savedHoldings = localStorage.getItem("holdings");
@@ -32,17 +76,32 @@ function App() {
         return [];
     });
 
-    const enrichHolding = (id, data) => {
-        setHoldings((prevHoldings) =>
+    const enrichHolding = async (id, data) => {
+        const holding = holdings.find(
+            (holding) => holding.id === id
+        );
+
+        if (!holding) {
+            return;
+        }
+
+        const averagePriceSek = await getAveragePriceSek(holding);
+        console.log("Berikad holding:", holding.name);
+        console.log("GAV SEK:", averagePriceSek);
+
             prevHoldings.map((holding) =>
+                setHoldings((prevHoldings) =
+                >
                 holding.id === id
                     ? {
                         ...holding,
-                        ticker: data.ticker ?? holding.ticker,
-                        isin: data.isin ?? holding.isin,
-                        assetType: data.assetType ?? holding.assetType,
-                        currency: data.currency ?? holding.currency,
-                        market: data.exchange ?? holding.market,
+                        ticker: holding.ticker ?? data.ticker,
+                        isin: holding.isin ?? data.isin,
+                        assetType: holding.assetType ?? data.assetType,
+                        currency: holding.currency ?? data.currency,
+                        market: holding.market ?? data.exchange,
+                        averagePriceSek:
+                            averagePriceSek ?? holding.averagePriceSek,
                     }
                     : holding
             )
@@ -160,6 +219,11 @@ function App() {
         );
     }, [resolvedMatches]);
 
+    //Tillfällig useEffect
+    useEffect(() => {
+        console.log("Holdings efter uppdatering:", holdings);
+    }, [holdings]);
+
 
     const importHoldings = (newHoldings) => {
         setHoldings((previousHoldings) => {
@@ -229,7 +293,9 @@ function App() {
         }, []);
     };
 
-    console.log("grupperat", groupHoldingsByInstrument(holdings));
+
+
+    const groupedHoldings = groupHoldingsByInstrument(holdings);
 
     // Manual Assets funktioner
 
@@ -259,16 +325,11 @@ function App() {
         setAssets(initialAssets);
         setHoldings([]);
     }
+    const portfolioValue = calculatePortfolioValue(holdings, assets);
 
     return (
         <div className="app-shell">
-            <button
-                type="button"
-                onClick={() => {
-                    setResolvedMatches([]);
-                }}
-            > Resetta matches
-            </button>
+
             <Navbar/>
             <Routes>
                 <Route path="/" element={
@@ -276,6 +337,7 @@ function App() {
                         assets={assets}
                         setAssets={setAssets}
                         holdings={holdings}
+                        portfolioValue={portfolioValue}
                     />}
                 />
                 <Route path="/holdings" element={
@@ -285,6 +347,8 @@ function App() {
                         possibleMatches={possibleMatches}
                         confirmMatch={confirmMatch}
                         resolveMatch={resolveMatch}
+                        groupedHoldings={groupedHoldings}
+                        portfolioValue={portfolioValue}
                     />
                 }
                 />
@@ -297,6 +361,8 @@ function App() {
                 <Route path="/settings" element={
                     <Settings
                         resetPortfolio={resetPortfolio}
+                        setResolvedMatches={setResolvedMatches}
+                        enrichMissingAveragePrices={enrichMissingAveragePrices}
                     />}/>
             </Routes>
 
