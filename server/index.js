@@ -23,19 +23,21 @@ app.get("/api/search/:query", async (req, res) => {
     const response = await fetch(url);
     const data = await response.json();
 
-    const primary = data.find((item) => item.isPrimary) || data[0];
 
-    const normalized = {
-        ticker: primary?.Code ?? null,
-        exchange: primary?.Exchange ?? null,
-        name: primary?.Name ?? null,
-        assetType: primary?.Type ?? null,
-        currency: primary?.Currency ?? null,
-        isin: primary?.ISIN ?? null,
-        previousClose: primary?.previousClose ?? null
-    };
+
+    const normalized = data.map((item) => ({
+        ticker: item.Code ?? null,
+        exchange: item.Exchange ?? null,
+        name: item.Name ?? null,
+        assetType: item.Type ?? null,
+        currency: item.Currency ?? null,
+        isin: item.ISIN ?? null,
+        previousClose: item.previousClose ?? null,
+    }));
 
     res.json(normalized);
+
+
 });
 
 app.get("/api/currency/:from/:to", (req, res) => {

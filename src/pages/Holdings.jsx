@@ -1,6 +1,7 @@
 import {formatSek} from "../utils/formatting.js";
 import {searchInstrument} from "../services/marketData.js";
 
+
 function Holdings({
                       enrichHolding,
                       possibleMatches,
@@ -8,6 +9,7 @@ function Holdings({
                       resolveMatch,
                       groupedHoldings,
                       portfolioValue,
+                      enrichHoldingSmart
                   }) {
     return (
         <div className="holdings-page">
@@ -89,26 +91,7 @@ function Holdings({
                                                 type="button"
                                                 onClick={async () => {
                                                     try {
-                                                        const data =
-                                                            await searchInstrument(
-                                                                position.name
-                                                            );
-
-                                                        if (
-                                                            !data ||
-                                                            !data.assetType
-                                                        ) {
-                                                            console.log(
-                                                                "Kunde inte berika:",
-                                                                position.name
-                                                            );
-                                                            return;
-                                                        }
-
-                                                        await enrichHolding(
-                                                            position.id,
-                                                            data
-                                                        );
+                                                        await enrichHoldingSmart(position.id);
                                                     } catch (error) {
                                                         console.error(
                                                             "Berikning misslyckades:",

@@ -8,14 +8,68 @@ import Settings from "./pages/Settings.jsx";
 import {useEffect} from "react";
 import {useState} from "react";
 import getInstrumentKey from "./utils/instrumentKey.js";
-import{calculatePortfolioValue} from "./utils/calculations.js";
+import {calculatePortfolioValue} from "./utils/calculations.js";
 import {getAveragePriceSek} from "./services/currencyData.js";
+import {findMatchingHolding} from "./utils/holdingMatching.js";
 
 
 function App() {
 
 // Holdings funktioner
 
+
+    const enrichHoldingSmart = async (id) => {
+        const holding = holdings.find(
+            (holding) => holding.id === id
+        );
+
+        if (!holding) {
+            return;
+        }
+
+        const internalMatch = findMatchingHolding(
+            holding,
+            holdings
+        );
+
+        if (internalMatch) {
+            setHoldings((prevHoldings) =>
+                prevHoldings.map((item) =>
+                    item.id === id
+                        ? {
+                            ...item,
+                            ticker: item.ticker ?? internalMatch.ticker,
+                            isin: item.isin ?? internalMatch.isin,
+                            assetType: item.assetType ?? internalMatch.assetType,
+                            currency: item.currency ?? internalMatch.currency,
+                            market: item.market ?? internalMatch.market,
+                        }
+                        : item
+                )
+            );
+
+            return;
+        }
+
+        const query = holding.ticker ?? holding.name;
+
+        const candidates = await searchInstrument(query);
+
+        const data = candidates.find(
+            (candidate) =>
+                candidate.currency === holding.currency
+        );
+
+        if (!data) {
+            console.log(
+                "Kunde inte hitta säker match för:",
+                holding.name
+            );
+            return;
+        }
+
+        await enrichHolding(id, data);
+    };
 
 
     const enrichMissingAveragePrices = async () => {
@@ -86,12 +140,12 @@ function App() {
         }
 
         const averagePriceSek = await getAveragePriceSek(holding);
+
         console.log("Berikad holding:", holding.name);
         console.log("GAV SEK:", averagePriceSek);
 
+        setHoldings((prevHoldings) =>
             prevHoldings.map((holding) =>
-                setHoldings((prevHoldings) =
-                >
                 holding.id === id
                     ? {
                         ...holding,
@@ -294,7 +348,6 @@ function App() {
     };
 
 
-
     const groupedHoldings = groupHoldingsByInstrument(holdings);
 
     // Manual Assets funktioner
@@ -349,6 +402,7 @@ function App() {
                         resolveMatch={resolveMatch}
                         groupedHoldings={groupedHoldings}
                         portfolioValue={portfolioValue}
+                        enrichHoldingSmart={enrichHoldingSmart}
                     />
                 }
                 />
