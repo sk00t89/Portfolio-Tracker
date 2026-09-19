@@ -1,9 +1,8 @@
 import {formatSek} from "../utils/formatting.js";
-import {searchInstrument} from "../services/marketData.js";
 
 
 function Holdings({
-                      enrichHolding,
+
                       possibleMatches,
                       confirmMatch,
                       resolveMatch,

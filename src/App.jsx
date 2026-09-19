@@ -11,7 +11,9 @@ import getInstrumentKey from "./utils/instrumentKey.js";
 import {calculatePortfolioValue} from "./utils/calculations.js";
 import {getAveragePriceSek} from "./services/currencyData.js";
 import {findMatchingHolding} from "./utils/holdingMatching.js";
-
+import {searchInstrument} from "./services/marketData.js";
+import normalizeAssetType from "./utils/normalizeAssetType.js";
+import classifyHolding from "./utils/classifyHolding.js";
 
 function App() {
 
@@ -151,7 +153,9 @@ function App() {
                         ...holding,
                         ticker: holding.ticker ?? data.ticker,
                         isin: holding.isin ?? data.isin,
-                        assetType: holding.assetType ?? data.assetType,
+                        assetType:
+                            holding.assetType ??
+                            normalizeAssetType(data.assetType),
                         currency: holding.currency ?? data.currency,
                         market: holding.market ?? data.exchange,
                         averagePriceSek:
@@ -285,11 +289,19 @@ function App() {
             let finalHoldings = [...previousHoldings];
 
             newHoldings.forEach((newHolding) => {
-                const newKey = getInstrumentKey(newHolding);
+                const normalizedHolding = {
+                    ...newHolding,
+                    assetType: normalizeAssetType(newHolding.assetType),
+                };
+
+                const classifiedHolding =
+                    classifyHolding(normalizedHolding);
+
+                const newKey = getInstrumentKey(classifiedHolding);
 
                 const existingHolding = finalHoldings.find((oldHolding) => {
                     return (
-                        oldHolding.platform === newHolding.platform &&
+                        oldHolding.platform === classifiedHolding.platform &&
                         getInstrumentKey(oldHolding) === newKey
                     );
                 });
@@ -299,18 +311,17 @@ function App() {
                         if (holding.id === existingHolding.id) {
                             return {
                                 ...holding,
-                                ...newHolding,
+                                ...classifiedHolding,
                                 id: holding.id,
                             };
                         }
 
                         return holding;
                     });
-
                 } else {
                     finalHoldings.push({
-                        ...newHolding,
-                        id: getNextId(finalHoldings)
+                        ...classifiedHolding,
+                        id: getNextId(finalHoldings),
                     });
                 }
             });
@@ -352,12 +363,7 @@ function App() {
 
     // Manual Assets funktioner
 
-    const initialAssets = [
-        {id: 1, name: "Crypto", source: "manual", category: "crypto", value: 50000},
-        {id: 2, name: "Steam inventory", source: "manual", category: "other", value: 20000},
-        {id: 3, name: "Sparkonto", source: "manual", category: "cash", value: 200000},
-
-    ];
+    const initialAssets = [];
 
     const [assets, setAssets] = useState(() => {
         const savedAssets = localStorage.getItem("assets");
@@ -374,9 +380,9 @@ function App() {
     }, [assets]);
 
     const resetPortfolio = () => {
-
         setAssets(initialAssets);
         setHoldings([]);
+        setResolvedMatches([]);
     }
     const portfolioValue = calculatePortfolioValue(holdings, assets);
 
