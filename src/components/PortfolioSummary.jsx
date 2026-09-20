@@ -1,3 +1,4 @@
+import { formatSek} from "../utils/formatting.js";
 
 function PortfolioSummary({ portfolioValue, investedCapital }) {
 
@@ -6,12 +7,12 @@ function PortfolioSummary({ portfolioValue, investedCapital }) {
     return (
         <div className="card summary-card">
             <h2>Totalt portföljvärde</h2>
-            <p>{portfolioValue.toLocaleString("sv-SE")} kr</p>
-            <p>Insatt kapital {investedCapital.toLocaleString("sv-SE")} kr</p>
+            <p>{formatSek(portfolioValue)}</p>
+            <p>Insatt kapital {formatSek(investedCapital)}</p>
 
             <h2>Kapitalförändring</h2>
             <p>+ {profitPercent.toFixed(2)} %</p>
-            <p>+ {profit.toLocaleString("sv-SE")} kr</p>
+            <p>+ {formatSek(profit)} </p>
 
         </div>
     );

@@ -31,7 +31,7 @@ function ImportPage({importHoldings}) {
                 onChange={handleFile}
             />
             {inputFile.map((item) => (
-                <p key={item.id}>
+                <p key={item}>
                     Du har laddat upp {item}
                 </p>
 

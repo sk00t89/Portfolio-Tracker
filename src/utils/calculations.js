@@ -31,7 +31,7 @@ export const calculateTotalsByCategory = (holdings, assets) => {
     });
 
     holdings.forEach((holding) => {
-        const category = holding.assetType || "other";
+        const category = holding.category || "OTHER";
 
         totals[category] =
             (totals[category] || 0) + holding.valueSek;

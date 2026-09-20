@@ -3,7 +3,7 @@ import Allocation from "../components/Allocation.jsx";
 import AssetForm from "../components/AssetForm.jsx";
 import PortfolioSummary from "../components/PortfolioSummary.jsx";
 import {
-    calculatePortfolioValue,
+
     calculateTotalsByPlatform,
     calculateTotalsByCategory
 } from "../utils/calculations.js";
@@ -12,7 +12,6 @@ import {
 function Dashboard({assets, setAssets, holdings, portfolioValue}) {
 
     const investedCapital = 800000;
-
 
 
     const totalsByPlatform = calculateTotalsByPlatform(holdings);

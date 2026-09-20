@@ -36,42 +36,68 @@ function App() {
 
         if (internalMatch) {
             setHoldings((prevHoldings) =>
-                prevHoldings.map((item) =>
-                    item.id === id
-                        ? {
-                            ...item,
-                            ticker: item.ticker ?? internalMatch.ticker,
-                            isin: item.isin ?? internalMatch.isin,
-                            assetType: item.assetType ?? internalMatch.assetType,
-                            currency: item.currency ?? internalMatch.currency,
-                            market: item.market ?? internalMatch.market,
-                        }
-                        : item
-                )
+                prevHoldings.map((item) => {
+                    if (item.id !== id) {
+                        return item;
+                    }
+
+                    const updatedHolding = {
+                        ...item,
+                        ticker: item.ticker ?? internalMatch.ticker,
+                        isin: item.isin ?? internalMatch.isin,
+                        assetType: item.assetType ?? internalMatch.assetType,
+                        currency: item.currency ?? internalMatch.currency,
+                        market: item.market ?? internalMatch.market,
+                    };
+
+                    return classifyHolding(updatedHolding);
+                })
             );
 
             return;
         }
 
-        const query = holding.ticker ?? holding.name;
+
+
+        const query =
+            holding.ticker ?? holding.name;
 
         const candidates = await searchInstrument(query);
 
-        const data = candidates.find(
-            (candidate) =>
-                candidate.currency === holding.currency
-        );
+        setEnrichmentCandidates({
+            holdingId: holding.id,
+            holdingName: holding.name,
+            candidates,
+        });
+    };
 
-        if (!data) {
-            console.log(
-                "Kunde inte hitta säker match för:",
-                holding.name
-            );
+    const selectEnrichmentCandidate = async (candidate) => {
+        if (!enrichmentCandidates) {
             return;
         }
 
-        await enrichHolding(id, data);
+        await enrichHolding(
+            enrichmentCandidates.holdingId,
+            candidate
+        );
+
+        setEnrichmentCandidates(null);
     };
+
+    const searchEnrichmentCandidates = async (query) => {
+        if (!enrichmentCandidates || !query.trim()) {
+            return;
+        }
+
+        const candidates = await searchInstrument(query.trim());
+
+        setEnrichmentCandidates((previous) => ({
+            ...previous,
+            candidates,
+        }));
+    };
+
+
 
 
     const enrichMissingAveragePrices = async () => {
@@ -114,6 +140,8 @@ function App() {
         setHoldings(updatedHoldings);
     };
 
+    const [enrichmentCandidates, setEnrichmentCandidates] = useState(null);
+
     const [resolvedMatches, setResolvedMatches] = useState(() => {
         const savedMatches = localStorage.getItem("resolvedMatches");
 
@@ -147,24 +175,29 @@ function App() {
         console.log("GAV SEK:", averagePriceSek);
 
         setHoldings((prevHoldings) =>
-            prevHoldings.map((holding) =>
-                holding.id === id
-                    ? {
-                        ...holding,
-                        ticker: holding.ticker ?? data.ticker,
-                        isin: holding.isin ?? data.isin,
-                        assetType:
-                            holding.assetType ??
-                            normalizeAssetType(data.assetType),
-                        currency: holding.currency ?? data.currency,
-                        market: holding.market ?? data.exchange,
-                        averagePriceSek:
-                            averagePriceSek ?? holding.averagePriceSek,
-                    }
-                    : holding
-            )
+            prevHoldings.map((holding) => {
+                if (holding.id !== id) {
+                    return holding;
+                }
+
+                const updatedHolding = {
+                    ...holding,
+                    ticker: holding.ticker ?? data.ticker,
+                    isin: holding.isin ?? data.isin,
+                    assetType:
+                        holding.assetType ??
+                        normalizeAssetType(data.assetType),
+                    currency: holding.currency ?? data.currency,
+                    market: holding.market ?? data.exchange,
+                    averagePriceSek:
+                        averagePriceSek ?? holding.averagePriceSek,
+                };
+
+                return classifyHolding(updatedHolding);
+            })
         );
     };
+
 
     const findPossibleMatches = (holdings, resolvedMatches) => {
         const result = [];
@@ -211,6 +244,7 @@ function App() {
 
         return result;
     };
+
 
     const confirmMatch = (firstId, secondId) => {
         setHoldings((prevHoldings) => {
@@ -401,14 +435,15 @@ function App() {
                 />
                 <Route path="/holdings" element={
                     <Holdings
-                        holdings={holdings}
-                        enrichHolding={enrichHolding}
                         possibleMatches={possibleMatches}
                         confirmMatch={confirmMatch}
                         resolveMatch={resolveMatch}
                         groupedHoldings={groupedHoldings}
                         portfolioValue={portfolioValue}
                         enrichHoldingSmart={enrichHoldingSmart}
+                        enrichmentCandidates={enrichmentCandidates}
+                        selectEnrichmentCandidate={selectEnrichmentCandidate}
+                        searchEnrichmentCandidates={searchEnrichmentCandidates}
                     />
                 }
                 />

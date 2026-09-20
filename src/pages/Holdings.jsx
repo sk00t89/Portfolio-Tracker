@@ -1,15 +1,20 @@
+import {useState} from "react";
 import {formatSek} from "../utils/formatting.js";
 
 
 function Holdings({
-
                       possibleMatches,
                       confirmMatch,
                       resolveMatch,
                       groupedHoldings,
                       portfolioValue,
-                      enrichHoldingSmart
+                      enrichHoldingSmart,
+                      enrichmentCandidates,
+                      selectEnrichmentCandidate,
+                      searchEnrichmentCandidates
                   }) {
+    console.log("Candidates i Holdings:", enrichmentCandidates);
+    const [manualSearch, setManualSearch] = useState("");
     return (
         <div className="holdings-page">
             <h1>Innehav</h1>
@@ -70,38 +75,80 @@ function Holdings({
 
                         <div className="holding-positions">
                             {group.positions.map((position) => (
-                                <div
-                                    className="holding-position"
-                                    key={position.id}
-                                >
-                                    <span>{position.platform}</span>
+                                <div key={position.id}>
+                                    <div className="holding-position">
+                                        <span>{position.platform}</span>
 
-                                    <span>
-                                    {position.quantity.toLocaleString("sv-SE")} st
-                                </span>
+                                        <span>
+                {position.quantity.toLocaleString("sv-SE")} st
+            </span>
 
-                                    <strong>
-                                        {formatSek(position.valueSek)}
-                                    </strong>
+                                        <strong>
+                                            {formatSek(position.valueSek)}
+                                        </strong>
 
-                                    {position.platform === "Nordnet" &&
-                                        !position.assetType && (
-                                            <button
-                                                type="button"
-                                                onClick={async () => {
-                                                    try {
-                                                        await enrichHoldingSmart(position.id);
-                                                    } catch (error) {
-                                                        console.error(
-                                                            "Berikning misslyckades:",
-                                                            error
-                                                        );
+                                        {position.platform === "Nordnet" &&
+                                            !position.assetType && (
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        try {
+                                                            await enrichHoldingSmart(position.id);
+                                                        } catch (error) {
+                                                            console.error(
+                                                                "Berikning misslyckades:",
+                                                                error
+                                                            );
+                                                        }
+                                                    }}
+                                                >
+                                                    Berika
+                                                </button>
+                                            )}
+                                    </div>
+
+                                    {enrichmentCandidates?.holdingId === position.id && (
+                                        <div className="enrichment-candidates">
+                                            <h4>
+                                                Välj rätt instrument för{" "}
+                                                {enrichmentCandidates.holdingName}
+                                            </h4>
+
+                                            {enrichmentCandidates.candidates.map((candidate) => (
+                                                <button
+                                                    className="enrichment-candidate-button"
+                                                    key={`${candidate.ticker}-${candidate.exchange}`}
+                                                    type="button"
+                                                    onClick={() =>
+                                                        selectEnrichmentCandidate(candidate)
                                                     }
-                                                }}
-                                            >
-                                                Berika
-                                            </button>
-                                        )}
+                                                >
+                                                    {candidate.name} — {candidate.ticker} —{" "}
+                                                    {candidate.exchange} — {candidate.currency}
+                                                </button>
+                                            ))}
+
+                                            <div className="enrichment-manual-search">
+                                                <input
+                                                    type="text"
+                                                    value={manualSearch}
+                                                    placeholder="Sök själv, t.ex. BRK-B"
+                                                    onChange={(event) =>
+                                                        setManualSearch(event.target.value)
+                                                    }
+                                                />
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        searchEnrichmentCandidates(manualSearch)
+                                                    }
+                                                >
+                                                    Sök
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
