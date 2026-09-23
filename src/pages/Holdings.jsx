@@ -11,7 +11,8 @@ function Holdings({
                       enrichHoldingSmart,
                       enrichmentCandidates,
                       selectEnrichmentCandidate,
-                      searchEnrichmentCandidates
+                      searchEnrichmentCandidates,
+                      updateHoldingPrice
                   }) {
     console.log("Candidates i Holdings:", enrichmentCandidates);
     const [manualSearch, setManualSearch] = useState("");
@@ -86,6 +87,12 @@ function Holdings({
                                         <strong>
                                             {formatSek(position.valueSek)}
                                         </strong>
+                                        <button
+                                            type="button"
+                                            onClick={() => updateHoldingPrice(position.id)}
+                                        >
+                                            Uppdatera kurs
+                                        </button>
 
                                         {position.platform === "Nordnet" &&
                                             !position.assetType && (

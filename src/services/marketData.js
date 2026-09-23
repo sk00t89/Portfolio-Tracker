@@ -9,3 +9,13 @@ export const searchInstrument = async (query) => {
 
     return data;
 };
+
+export const getCurrentPrice = async (ticker, exchange) => {
+    const response = await fetch(
+        `http://localhost:3001/api/price/${encodeURIComponent(ticker)}/${encodeURIComponent(exchange)}`
+    );
+
+    const data = await response.json();
+
+    return data;
+};

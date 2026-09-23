@@ -39,3 +39,25 @@ export const calculateTotalsByCategory = (holdings, assets) => {
 
     return totals;
 };
+
+export const calculateInvestedCapital = (holdings) => {
+    return holdings.reduce((total, holding) => {
+        if (!holding.averagePriceSek || !holding.quantity) {
+            return total;
+        }
+
+        return total + holding.averagePriceSek * holding.quantity;
+    }, 0);
+};
+
+export const calculateCryptoExposure = (holdings) => {
+    return holdings
+        .filter((holding) => holding.category === "CRYPTO")
+        .reduce((totals, holding) => {
+            const key = holding.underlying ?? "INDEX";
+
+            totals[key] = (totals[key] ?? 0) + holding.valueSek;
+
+            return totals;
+        }, {});
+};

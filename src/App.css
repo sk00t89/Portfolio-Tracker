@@ -252,3 +252,22 @@ select {
 .enrichment-candidate-button:hover {
   background: #2a2f3a;
 }
+
+.crypto-overview {
+  padding: 20px;
+  border: 1px solid #2a2f3a;
+  border-radius: 14px;
+}
+
+.crypto-exposure-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 70px;
+  gap: 12px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.crypto-exposure-row span:nth-child(2),
+.crypto-exposure-row span:nth-child(3) {
+  text-align: right;
+}

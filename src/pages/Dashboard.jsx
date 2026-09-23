@@ -2,17 +2,24 @@ import AssetList from "../components/AssetList.jsx";
 import Allocation from "../components/Allocation.jsx";
 import AssetForm from "../components/AssetForm.jsx";
 import PortfolioSummary from "../components/PortfolioSummary.jsx";
+import CryptoOverview from "../components/CryptoOverview.jsx";
 import {
-
+    calculateInvestedCapital,
     calculateTotalsByPlatform,
-    calculateTotalsByCategory
+    calculateTotalsByCategory,
+    calculateCryptoExposure
 } from "../utils/calculations.js";
 
 
 function Dashboard({assets, setAssets, holdings, portfolioValue}) {
 
-    const investedCapital = 800000;
 
+
+    const investedCapital = calculateInvestedCapital(holdings);
+
+    const cryptoExposure = calculateCryptoExposure(holdings);
+
+    console.log(calculateCryptoExposure(holdings));
 
     const totalsByPlatform = calculateTotalsByPlatform(holdings);
 
@@ -66,6 +73,12 @@ function Dashboard({assets, setAssets, holdings, portfolioValue}) {
                 portfolioValue={portfolioValue}
                 totalsByCategory={totalsByCategory}
             />
+            {Object.keys(cryptoExposure).length > 0 && (
+                <CryptoOverview
+                    cryptoExposure={cryptoExposure}
+                    portfolioValue={portfolioValue}
+                />
+            )}
 
             <AssetForm
                 addAsset={addAsset}

@@ -11,7 +11,10 @@ import getInstrumentKey from "./utils/instrumentKey.js";
 import {calculatePortfolioValue} from "./utils/calculations.js";
 import {getAveragePriceSek} from "./services/currencyData.js";
 import {findMatchingHolding} from "./utils/holdingMatching.js";
-import {searchInstrument} from "./services/marketData.js";
+import {
+    searchInstrument,
+    getCurrentPrice
+} from "./services/marketData.js";
 import normalizeAssetType from "./utils/normalizeAssetType.js";
 import classifyHolding from "./utils/classifyHolding.js";
 
@@ -19,6 +22,41 @@ function App() {
 
 // Holdings funktioner
 
+    const updateHoldingPrice = async (id) => {
+        const holding = holdings.find(
+            (holding) => holding.id === id
+        );
+
+        if (
+            !holding ||
+            !holding.ticker ||
+            !holding.market ||
+            !holding.isin
+        ) {
+            return;
+        }
+
+        const data = await getCurrentPrice(
+            holding.ticker,
+            holding.market
+        );
+
+        console.log("Aktuell kurs:", data);
+
+        setHoldings((previousHoldings) =>
+            previousHoldings.map((item) => {
+                if (item.id !== id) {
+                    return item;
+                }
+
+                return {
+                    ...item,
+                    currentPrice: data.price,
+                    priceUpdatedAt: data.timestamp,
+                };
+            })
+        );
+    };
 
     const enrichHoldingSmart = async (id) => {
         const holding = holdings.find(
@@ -58,7 +96,6 @@ function App() {
         }
 
 
-
         const query =
             holding.ticker ?? holding.name;
 
@@ -96,8 +133,6 @@ function App() {
             candidates,
         }));
     };
-
-
 
 
     const enrichMissingAveragePrices = async () => {
@@ -263,18 +298,20 @@ function App() {
                 firstHolding.isin ? secondHolding : firstHolding;
 
             return prevHoldings.map((holding) => {
-                if (holding.id === targetHolding.id) {
-                    return {
-                        ...holding,
-                        isin: sourceHolding.isin ?? holding.isin,
-                        ticker: sourceHolding.ticker ?? holding.ticker,
-                        country: sourceHolding.country ?? holding.country,
-                        market: sourceHolding.market ?? holding.market,
-                        assetType: sourceHolding.assetType ?? holding.assetType,
-                    };
+                if (holding.id !== targetHolding.id) {
+                    return holding;
                 }
 
-                return holding;
+                const updatedHolding = {
+                    ...holding,
+                    isin: sourceHolding.isin ?? holding.isin,
+                    ticker: sourceHolding.ticker ?? holding.ticker,
+                    country: sourceHolding.country ?? holding.country,
+                    market: sourceHolding.market ?? holding.market,
+                    assetType: sourceHolding.assetType ?? holding.assetType,
+                };
+
+                return classifyHolding(updatedHolding);
             });
         });
     };
@@ -314,6 +351,12 @@ function App() {
     //Tillfällig useEffect
     useEffect(() => {
         console.log("Holdings efter uppdatering:", holdings);
+
+        const missingAveragePriceSek = holdings.filter((holding) => {
+            return holding.averagePriceSek == null;
+        });
+
+        console.log("Saknar GAV i SEK:", missingAveragePriceSek);
     }, [holdings]);
 
 
@@ -444,6 +487,7 @@ function App() {
                         enrichmentCandidates={enrichmentCandidates}
                         selectEnrichmentCandidate={selectEnrichmentCandidate}
                         searchEnrichmentCandidates={searchEnrichmentCandidates}
+                        updateHoldingPrice={updateHoldingPrice}
                     />
                 }
                 />
