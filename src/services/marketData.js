@@ -19,3 +19,13 @@ export const getCurrentPrice = async (ticker, exchange) => {
 
     return data;
 };
+
+export const getYahooPrice = async (symbol) => {
+    const response = await fetch(
+        `http://localhost:3001/api/yahoo-price/${encodeURIComponent(symbol)}`
+    );
+
+    const data = await response.json();
+
+    return data;
+};

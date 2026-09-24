@@ -12,7 +12,7 @@ app.use((req, res, next) => {
     next();
 });
 
-
+// EODHD ...
 app.get("/api/search/:query", async (req, res) => {
     const query = req.params.query;
 
@@ -101,6 +101,191 @@ app.get("/api/currency/:from/:to", async (req, res) => {
 
         res.status(500).json({
             error: "Kunde inte hämta valutakurs",
+        });
+    }
+});
+
+// YAHOO ...
+
+app.get("/api/yahoo-price/:symbol", async (req, res) => {
+    const symbol = req.params.symbol;
+
+    try {
+        const url =
+            `https://query1.finance.yahoo.com/v8/finance/chart/` +
+            `${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error("Kunde inte hämta Yahoo-kurs");
+        }
+
+        const data = await response.json();
+
+        const result = data.chart?.result?.[0];
+
+        if (!result) {
+            throw new Error("Yahoo returnerade inget instrument");
+        }
+
+        res.json({
+            symbol,
+            price: result.meta?.regularMarketPrice ?? null,
+            previousClose: result.meta?.chartPreviousClose ?? null,
+            currency: result.meta?.currency ?? null,
+            exchangeName: result.meta?.exchangeName ?? null,
+        });
+    } catch (error) {
+        console.error("Yahoo price error:", error);
+
+        res.status(500).json({
+            error: "Kunde inte hämta Yahoo-kurs",
+        });
+    }
+});
+
+// NORDNET ...
+
+app.get("/api/fund-price/:instrumentId", async (req, res) => {
+    const {instrumentId} = req.params;
+
+    try {
+        const url =
+            `https://www.nordnet.se/api/2/instrument_search/query/fundlist` +
+            `?apply_filters=instrument_id%3D${instrumentId}`;
+
+        const response = await fetch(url, {
+            headers: {
+                Accept: "application/json",
+                "Client-Id": "NEXT",
+                "X-Nn-Href": "https://www.nordnet.se/",
+                Referer: "https://www.nordnet.se/",
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error("Kunde inte hämta fonddata");
+        }
+
+        const data = await response.json();
+        const fund = data.results?.[0];
+
+        if (!fund) {
+            throw new Error("Ingen fond hittades");
+        }
+
+        res.json({
+            instrumentId: fund.instrument_info.instrument_id,
+            isin: fund.instrument_info.isin,
+            name: fund.instrument_info.name,
+            price: fund.price_info?.last?.price ?? null,
+            currency: fund.instrument_info.currency ?? null,
+            timestamp: fund.price_info?.tick_timestamp ?? null,
+        });
+    } catch (error) {
+        console.error("Fund price error:", error);
+
+        res.status(500).json({
+            error: "Kunde inte hämta fondpris",
+        });
+    }
+});
+
+
+app.get("/api/nordnet-price/:instrumentId", async (req, res) => {
+    const {instrumentId} = req.params;
+
+    try {
+        const url =
+            `https://www.nordnet.se/api/2/instruments/price/${instrumentId}` +
+            `?request_realtime=false`;
+
+        const response = await fetch(url, {
+            headers: {
+                Accept: "application/json",
+                "Client-Id": "NEXT",
+                Referer: "https://www.nordnet.se/",
+                "X-Nn-Href": "https://www.nordnet.se/",
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error("Kunde inte hämta Nordnet-kurs");
+        }
+
+        const data = await response.json();
+
+        const priceData = data[0];
+
+        if (!priceData) {
+            throw new Error("Ingen kursdata hittades");
+        }
+
+        res.json({
+            instrumentId: priceData.instrument_id,
+            price: priceData.last ?? null,
+            bid: priceData.bid ?? null,
+            ask: priceData.ask ?? null,
+            previousClose: priceData.close ?? null,
+            timestamp: priceData.tick_timestamp ?? null,
+            delay: priceData.delay ?? null,
+        });
+
+    } catch (error) {
+        console.error("Nordnet price error:", error);
+
+        res.status(500).json({
+            error: "Kunde inte hämta Nordnet-kurs",
+        });
+    }
+});
+
+app.get("/api/nordnet-search/:isin", async (req, res) => {
+    const {isin} = req.params;
+
+    try {
+        const url =
+            `https://www.nordnet.se/api/2/instrument_search/query/instrument` +
+            `?apply_filters=isin%3D${encodeURIComponent(isin)}`;
+
+        const response = await fetch(url, {
+            headers: {
+                Accept: "application/json",
+                "Client-Id": "NEXT",
+                Referer: "https://www.nordnet.se/",
+                "X-Nn-Href": "https://www.nordnet.se/",
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error("Kunde inte söka instrument hos Nordnet");
+        }
+
+        const data = await response.json();
+
+        const instrument = data.results?.[0];
+
+        if (!instrument) {
+            throw new Error("Inget instrument hittades");
+        }
+
+        res.json({
+            instrumentId: instrument.instrument_info.instrument_id,
+            name: instrument.instrument_info.name,
+            isin: instrument.instrument_info.isin,
+            currency: instrument.instrument_info.currency,
+            price: instrument.price_info?.last?.price ?? null,
+            previousClose: instrument.price_info?.close?.price ?? null,
+            timestamp: instrument.price_info?.tick_timestamp ?? null,
+            realtime: instrument.price_info?.realtime ?? false,
+        });
+
+    } catch (error) {
+        console.error("Nordnet search error:", error);
+
+        res.status(500).json({
+            error: "Kunde inte söka instrument hos Nordnet",
         });
     }
 });

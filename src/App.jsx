@@ -13,33 +13,66 @@ import {getAveragePriceSek} from "./services/currencyData.js";
 import {findMatchingHolding} from "./utils/holdingMatching.js";
 import {
     searchInstrument,
-    getCurrentPrice
+    getYahooPrice,
+    getNordnetPriceByIsin
 } from "./services/marketData.js";
 import normalizeAssetType from "./utils/normalizeAssetType.js";
 import classifyHolding from "./utils/classifyHolding.js";
+import getYahooSymbol from "./utils/getYahooSymbol.js";
 
 function App() {
 
 // Holdings funktioner
+
+
 
     const updateHoldingPrice = async (id) => {
         const holding = holdings.find(
             (holding) => holding.id === id
         );
 
-        if (
-            !holding ||
-            !holding.ticker ||
-            !holding.market ||
-            !holding.isin
-        ) {
+        if (!holding) {
             return;
         }
 
-        const data = await getCurrentPrice(
-            holding.ticker,
-            holding.market
-        );
+        console.log("Försöker uppdatera:", holding);
+
+        let data = null;
+
+        if (
+            holding.assetType === "FUND" ||
+            holding.assetType === "CERTIFICATE"
+        ) {
+            if (!holding.isin) {
+                console.log(
+                    "Saknar ISIN för Nordnet-pris:",
+                    holding.name
+                );
+
+                return;
+            }
+
+            data = await getNordnetPriceByIsin(
+                holding.isin
+            );
+        } else {
+            const yahooSymbol = getYahooSymbol(holding);
+
+            console.log("Yahoo-symbol:", yahooSymbol);
+
+            if (!yahooSymbol) {
+                console.log(
+                    "Kan inte skapa Yahoo-symbol för:",
+                    holding.name
+                );
+
+                return;
+            }
+
+            data = await getYahooPrice(
+                yahooSymbol
+            );
+        }
 
         console.log("Aktuell kurs:", data);
 
@@ -52,7 +85,8 @@ function App() {
                 return {
                     ...item,
                     currentPrice: data.price,
-                    priceUpdatedAt: data.timestamp,
+                    priceUpdatedAt:
+                        data.timestamp ?? Date.now(),
                 };
             })
         );
@@ -194,6 +228,8 @@ function App() {
         }
         return [];
     });
+
+
 
     const enrichHolding = async (id, data) => {
         const holding = holdings.find(
