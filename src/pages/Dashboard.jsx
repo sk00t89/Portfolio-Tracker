@@ -11,7 +11,7 @@ import {
 } from "../utils/calculations.js";
 
 
-function Dashboard({assets, setAssets, holdings, portfolioValue}) {
+function Dashboard({assets, setAssets, holdings, portfolioValue, lysaValue}) {
 
 
 
@@ -21,7 +21,11 @@ function Dashboard({assets, setAssets, holdings, portfolioValue}) {
 
     console.log(calculateCryptoExposure(holdings));
 
-    const totalsByPlatform = calculateTotalsByPlatform(holdings);
+    const totalsByPlatform =
+        calculateTotalsByPlatform(
+            holdings,
+            lysaValue
+            );
 
     const totalsByCategory = calculateTotalsByCategory(holdings, assets);
 
@@ -52,6 +56,7 @@ function Dashboard({assets, setAssets, holdings, portfolioValue}) {
             });
         });
     };
+
 
 
     return (

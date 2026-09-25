@@ -2,7 +2,11 @@ const getHoldingValue = (holding) => {
     return holding.currentValueSek ?? holding.valueSek;
 };
 
-export const calculatePortfolioValue = (holdings, assets) => {
+export const calculatePortfolioValue = (
+    holdings,
+    assets,
+    lysaValue = 0
+    ) => {
     const holdingsValue = holdings.reduce((total, holding) => {
         return total + getHoldingValue(holding);
     }, 0);
@@ -13,16 +17,26 @@ export const calculatePortfolioValue = (holdings, assets) => {
             return total + account.value;
         }, 0);
 
-    return holdingsValue + manualValue;
+    return holdingsValue + manualValue + lysaValue;
 };
 
-export const calculateTotalsByPlatform = (holdings) => {
-    return holdings.reduce((total, holding) => {
+export const calculateTotalsByPlatform = (
+    holdings,
+    lysaValue = 0
+) => {
+    const totals = holdings.reduce((total, holding) => {
         total[holding.platform] =
-            (total[holding.platform] || 0) + getHoldingValue(holding);
+            (total[holding.platform] || 0) +
+            getHoldingValue(holding);
 
         return total;
     }, {});
+
+    if (lysaValue > 0) {
+        totals.Lysa = lysaValue;
+    }
+
+    return totals;
 };
 
 export const calculateTotalsByCategory = (holdings, assets) => {
@@ -64,4 +78,69 @@ export const calculateCryptoExposure = (holdings) => {
 
             return totals;
         }, {});
+};
+
+export const calculateLysaDeposits = (transactions) => {
+    return transactions
+        .filter((transaction) => transaction.type === "Deposit")
+        .reduce((total, transaction) => {
+            return total + transaction.amountSek;
+        }, 0);
+};
+
+export const calculateLysaFundVolumes = (transactions) => {
+    const volumes = transactions.reduce((funds, transaction) => {
+        const {
+            fundName,
+            type,
+            volume
+        } = transaction;
+
+        if (!fundName || !volume) {
+            return funds;
+        }
+
+        const isBuy =
+            type === "Buy" ||
+            type === "Switch buy";
+
+        const isSell =
+            type === "Sell" ||
+            type === "Switch sell";
+
+        if (!isBuy && !isSell) {
+            return funds;
+        }
+
+        if (!funds[fundName]) {
+            funds[fundName] = 0;
+        }
+
+        funds[fundName] +=
+            isBuy
+                ? volume
+                : -volume;
+
+        return funds;
+    }, {});
+
+    Object.keys(volumes).forEach((fundName) => {
+        const roundedVolume =
+            Math.round(volumes[fundName] * 10000) / 10000;
+
+        volumes[fundName] =
+            Math.abs(roundedVolume) < 0.0001
+                ? 0
+                : roundedVolume;
+    });
+
+    return volumes;
+};
+
+export const getLatestLysaPerformance = (performance) => {
+    if (performance.length === 0) {
+        return null;
+    }
+
+    return performance[performance.length - 1];
 };

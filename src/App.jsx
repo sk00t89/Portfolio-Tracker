@@ -8,7 +8,12 @@ import Settings from "./pages/Settings.jsx";
 import {useEffect} from "react";
 import {useState} from "react";
 import getInstrumentKey from "./utils/instrumentKey.js";
-import {calculatePortfolioValue} from "./utils/calculations.js";
+import {
+    calculatePortfolioValue,
+    calculateLysaFundVolumes,
+    calculateLysaDeposits,
+    getLatestLysaPerformance
+} from "./utils/calculations.js";
 import {
     getAveragePriceSek,
     getExchangeRate
@@ -27,6 +32,21 @@ import getYahooSymbol from "./utils/getYahooSymbol.js";
 const PRICE_UPDATE_INTERVAL = 20 * 60 * 1000;
 
 function App() {
+
+
+
+// Transaktions funktioner
+
+    const addTransaction = (transaction) => {
+        setTransactions((previousTransactions) => [
+            ...previousTransactions,
+            {
+                id: Date.now(),
+                ...transaction,
+            }
+        ]);
+    };
+
 
 // Holdings funktioner
 
@@ -144,11 +164,9 @@ function App() {
 
 
     const updateAllHoldingPrices = async (
-        forceUpdate,
+        forceUpdate = false,
         now
     ) => {
-        const now = Date.now();
-
         const lastUpdate = Number(
             localStorage.getItem("lastPriceUpdate")
         ) || 0;
@@ -156,19 +174,19 @@ function App() {
         const pricesAreFresh =
             now - lastUpdate < PRICE_UPDATE_INTERVAL;
 
-        if (pricesAreFresh) {
+        if (pricesAreFresh && !forceUpdate) {
             console.log("Kurserna är fortfarande färska");
             return;
+        }
+
+        for (const holding of holdings) {
+            await updateHoldingPrice(holding.id);
         }
 
         localStorage.setItem(
             "lastPriceUpdate",
             String(now)
         );
-
-        for (const holding of holdings) {
-            await updateHoldingPrice(holding.id);
-        }
     };
 
 
@@ -289,6 +307,8 @@ function App() {
         setHoldings(updatedHoldings);
     };
 
+    // STATES
+
     const [enrichmentCandidates, setEnrichmentCandidates] = useState(null);
 
     const [resolvedMatches, setResolvedMatches] = useState(() => {
@@ -309,8 +329,36 @@ function App() {
         return [];
     });
 
+    const [transactions, setTransactions] = useState(() => {
+        const savedTransactions =
+            localStorage.getItem("transactions");
 
+        if (savedTransactions) {
+            return JSON.parse(savedTransactions);
+        }
 
+        return [];
+    });
+
+    const [lysaTransactions, setLysaTransactions] = useState(() => {
+        const saved =
+            localStorage.getItem("lysaTransactions");
+
+        return saved
+            ? JSON.parse(saved)
+            : [];
+    });
+
+    const [lysaPerformance, setLysaPerformance] = useState(() => {
+        const saved =
+            localStorage.getItem("lysaPerformance");
+
+        return saved
+            ? JSON.parse(saved)
+            : [];
+    });
+
+    // HOLDINGS FUNKTIONER
 
     const enrichHolding = async (id, data) => {
         const holding = holdings.find(
@@ -454,6 +502,8 @@ function App() {
         return highestId + 1;
     }
 
+    // USE-EFFECTER
+
     useEffect(() => {
         localStorage.setItem("holdings", JSON.stringify(holdings));
     }, [holdings]);
@@ -476,6 +526,50 @@ function App() {
         console.log("Saknar GAV i SEK:", missingAveragePriceSek);
     }, [holdings]);
 
+    useEffect(() => {
+        localStorage.setItem(
+            "lysaTransactions",
+            JSON.stringify(lysaTransactions)
+        );
+    }, [lysaTransactions]);
+
+    useEffect(() => {
+        localStorage.setItem(
+            "lysaPerformance",
+            JSON.stringify(lysaPerformance)
+        );
+    }, [lysaPerformance]);
+
+// LYSA ...
+    const importLysaTransactions = (transactions) => {
+        setLysaTransactions(transactions);
+    };
+
+    const importLysaPerformance = (performance) => {
+        setLysaPerformance(performance);
+    };
+
+    const latestLysaPerformance =
+        getLatestLysaPerformance(lysaPerformance);
+
+    const lysaValue =
+        latestLysaPerformance?.accountWorth ?? 0;
+
+    const lysaFundVolumes =
+        calculateLysaFundVolumes(lysaTransactions);
+
+    const lysaHoldings = Object.entries(lysaFundVolumes)
+        .filter(([, volume]) => volume > 0)
+        .map(([name, volume]) => ({
+            name,
+            quantity: volume,
+            platform: "Lysa",
+            assetType: "FUND",
+            category: "FUND",
+        }));
+
+
+ // Holdins ...
 
     const importHoldings = (newHoldings) => {
         setHoldings((previousHoldings) => {
@@ -541,8 +635,8 @@ function App() {
                     instrumentKey,
                     name: holding.name,
                     totalValue:
-                    holding.currentValueSek ??
-                    holding.valueSek,
+                        holding.currentValueSek ??
+                        holding.valueSek,
                     positions: [holding],
                 });
             } else {
@@ -588,12 +682,29 @@ function App() {
         );
     }, []);
 
+    useEffect(() => {
+        localStorage.setItem(
+            "transactions",
+            JSON.stringify(transactions)
+        );
+    }, [transactions]);
+
     const resetPortfolio = () => {
         setAssets(initialAssets);
         setHoldings([]);
         setResolvedMatches([]);
+        setLysaPerformance([]);
+        setLysaTransactions([]);
     }
-    const portfolioValue = calculatePortfolioValue(holdings, assets);
+    const portfolioValue = calculatePortfolioValue(
+        holdings,
+        assets,
+        lysaValue
+    );
+
+
+
+
 
     return (
         <div className="app-shell">
@@ -606,6 +717,7 @@ function App() {
                         setAssets={setAssets}
                         holdings={holdings}
                         portfolioValue={portfolioValue}
+                        lysaValue={lysaValue}
                     />}
                 />
                 <Route path="/holdings" element={
@@ -626,6 +738,8 @@ function App() {
                 <Route path="/import" element={
                     <ImportPage
                         importHoldings={importHoldings}
+                        importLysaTransactions={importLysaTransactions}
+                        importLysaPerformance={importLysaPerformance}
                     />
                 }
                 />

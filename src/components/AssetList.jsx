@@ -11,7 +11,7 @@ function AssetList({
             {assets.map((asset) => {
 
                 const assetValue =
-                    asset.type === "manual"
+                    asset.source === "manual"
                         ? asset.value
                         : totalsByPlatform[asset.name] || 0;
 
