@@ -9,21 +9,26 @@ import {useEffect} from "react";
 import {useState} from "react";
 import getInstrumentKey from "./utils/instrumentKey.js";
 import {calculatePortfolioValue} from "./utils/calculations.js";
-import {getAveragePriceSek} from "./services/currencyData.js";
+import {
+    getAveragePriceSek,
+    getExchangeRate
+} from "./services/currencyData.js";
 import {findMatchingHolding} from "./utils/holdingMatching.js";
 import {
     searchInstrument,
     getYahooPrice,
-    getNordnetPriceByIsin
+    getNordnetPriceByIsin,
+    getAvanzaPriceByIsin
 } from "./services/marketData.js";
 import normalizeAssetType from "./utils/normalizeAssetType.js";
 import classifyHolding from "./utils/classifyHolding.js";
 import getYahooSymbol from "./utils/getYahooSymbol.js";
 
+const PRICE_UPDATE_INTERVAL = 20 * 60 * 1000;
+
 function App() {
 
 // Holdings funktioner
-
 
 
     const updateHoldingPrice = async (id) => {
@@ -39,30 +44,54 @@ function App() {
 
         let data = null;
 
-        if (
-            holding.assetType === "FUND" ||
-            holding.assetType === "CERTIFICATE"
-        ) {
-            if (!holding.isin) {
-                console.log(
-                    "Saknar ISIN för Nordnet-pris:",
-                    holding.name
+        // 1. Nordnet
+        if (holding.isin) {
+            try {
+                data = await getNordnetPriceByIsin(
+                    holding.isin
                 );
 
-                return;
+                if (!data?.price) {
+                    data = null;
+                }
+            } catch (error) {
+                console.log(
+                    "Nordnet hittade inget pris:",
+                    holding.name,
+                    "error:",
+                    error
+                );
             }
+        }
 
-            data = await getNordnetPriceByIsin(
-                holding.isin
-            );
-        } else {
+// 2. Avanza
+        if (!data && holding.isin) {
+            try {
+                data = await getAvanzaPriceByIsin(
+                    holding.isin
+                );
+
+                if (!data?.price) {
+                    data = null;
+                }
+            } catch (error) {
+                console.log(
+                    "Avanza hittade inget pris:",
+                    holding.name,
+                    "error:",
+                    error
+                );
+            }
+        }
+
+// 3. Yahoo
+
+        if (!data) {
             const yahooSymbol = getYahooSymbol(holding);
-
-            console.log("Yahoo-symbol:", yahooSymbol);
 
             if (!yahooSymbol) {
                 console.log(
-                    "Kan inte skapa Yahoo-symbol för:",
+                    "Ingen priskälla hittades för:",
                     holding.name
                 );
 
@@ -76,6 +105,26 @@ function App() {
 
         console.log("Aktuell kurs:", data);
 
+        let currentValueSek = null;
+
+        if (data.price && holding.quantity) {
+            if (data.currency === "SEK") {
+                currentValueSek =
+                    holding.quantity * data.price;
+            } else if (data.currency) {
+                const exchangeRate =
+                    await getExchangeRate(
+                        data.currency,
+                        "SEK"
+                    );
+
+                currentValueSek =
+                    holding.quantity *
+                    data.price *
+                    exchangeRate;
+            }
+        }
+
         setHoldings((previousHoldings) =>
             previousHoldings.map((item) => {
                 if (item.id !== id) {
@@ -85,12 +134,43 @@ function App() {
                 return {
                     ...item,
                     currentPrice: data.price,
+                    currentValueSek,
                     priceUpdatedAt:
                         data.timestamp ?? Date.now(),
                 };
             })
         );
     };
+
+
+    const updateAllHoldingPrices = async (
+        forceUpdate,
+        now
+    ) => {
+        const now = Date.now();
+
+        const lastUpdate = Number(
+            localStorage.getItem("lastPriceUpdate")
+        ) || 0;
+
+        const pricesAreFresh =
+            now - lastUpdate < PRICE_UPDATE_INTERVAL;
+
+        if (pricesAreFresh) {
+            console.log("Kurserna är fortfarande färska");
+            return;
+        }
+
+        localStorage.setItem(
+            "lastPriceUpdate",
+            String(now)
+        );
+
+        for (const holding of holdings) {
+            await updateHoldingPrice(holding.id);
+        }
+    };
+
 
     const enrichHoldingSmart = async (id) => {
         const holding = holdings.find(
@@ -228,6 +308,7 @@ function App() {
         }
         return [];
     });
+
 
 
 
@@ -459,11 +540,15 @@ function App() {
                 groups.push({
                     instrumentKey,
                     name: holding.name,
-                    totalValue: holding.valueSek,
+                    totalValue:
+                    holding.currentValueSek ??
+                    holding.valueSek,
                     positions: [holding],
                 });
             } else {
-                existingGroup.totalValue += holding.valueSek;
+                existingGroup.totalValue +=
+                    holding.currentValueSek ??
+                    holding.valueSek;
                 existingGroup.positions.push(holding);
             }
 
@@ -491,6 +576,17 @@ function App() {
     useEffect(() => {
         localStorage.setItem("assets", JSON.stringify(assets));
     }, [assets]);
+
+    useEffect(() => {
+        if (holdings.length === 0) {
+            return;
+        }
+
+        updateAllHoldingPrices(
+            false,
+            Date.now()
+        );
+    }, []);
 
     const resetPortfolio = () => {
         setAssets(initialAssets);
@@ -538,6 +634,7 @@ function App() {
                         resetPortfolio={resetPortfolio}
                         setResolvedMatches={setResolvedMatches}
                         enrichMissingAveragePrices={enrichMissingAveragePrices}
+                        updateAllHoldingPrices={updateAllHoldingPrices}
                     />}/>
             </Routes>
 

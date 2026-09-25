@@ -29,3 +29,23 @@ export const getYahooPrice = async (symbol) => {
 
     return data;
 };
+
+export const getNordnetPriceByIsin = async (isin) => {
+    const response = await fetch(
+        `http://localhost:3001/api/nordnet-search/${encodeURIComponent(isin)}`
+    );
+
+    const data = await response.json();
+
+    return data;
+};
+
+export const getAvanzaPriceByIsin = async (isin) => {
+    const response = await fetch(
+        `http://localhost:3001/api/avanza-search/${encodeURIComponent(isin)}`
+    );
+
+    const data = await response.json();
+
+    return data;
+};

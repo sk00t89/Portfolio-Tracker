@@ -290,6 +290,80 @@ app.get("/api/nordnet-search/:isin", async (req, res) => {
     }
 });
 
+
+// AVANZA ...
+
+
+
+app.get("/api/avanza-search/:isin", async (req, res) => {
+    const {isin} = req.params;
+
+    try {
+        const response = await fetch(
+            "https://www.avanza.se/_api/search/filtered-search",
+            {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                    Referer: "https://www.avanza.se/",
+                },
+                body: JSON.stringify({
+                    query: isin,
+                    searchFilter: {
+                        types: [],
+                    },
+                    screenSize: "DESKTOP",
+                    pagination: {
+                        from: 0,
+                        size: 30,
+                    },
+                    originPath: "/",
+                    originPlatform: "PWA",
+                    searchSessionId: crypto.randomUUID(),
+                }),
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Kunde inte söka instrument hos Avanza");
+        }
+
+        const data = await response.json();
+
+        const hit = data.hits?.[0];
+
+        if (!hit) {
+            throw new Error("Inget instrument hittades hos Avanza");
+        }
+
+        const price =
+            hit.price?.last
+                ? Number(
+                    hit.price.last
+                        .replace(/\s/g, "")
+                        .replace(",", ".")
+                )
+                : null;
+
+        res.json({
+            name: hit.title,
+            type: hit.type,
+            orderBookId: hit.orderBookId,
+            price,
+            currency: hit.price?.currency ?? null,
+        });
+
+    } catch (error) {
+        console.error("Avanza search error:", error);
+
+        res.status(500).json({
+            error: "Kunde inte söka instrument hos Avanza",
+        });
+    }
+});
+
+
 app.listen(PORT, () => {
     console.log(`Backend kör på http://localhost:${PORT}`);
 });

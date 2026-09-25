@@ -1,7 +1,10 @@
-export const calculatePortfolioValue = (holdings, assets) => {
+const getHoldingValue = (holding) => {
+    return holding.currentValueSek ?? holding.valueSek;
+};
 
+export const calculatePortfolioValue = (holdings, assets) => {
     const holdingsValue = holdings.reduce((total, holding) => {
-        return total + holding.valueSek;
+        return total + getHoldingValue(holding);
     }, 0);
 
     const manualValue = assets
@@ -16,7 +19,7 @@ export const calculatePortfolioValue = (holdings, assets) => {
 export const calculateTotalsByPlatform = (holdings) => {
     return holdings.reduce((total, holding) => {
         total[holding.platform] =
-            (total[holding.platform] || 0) + holding.valueSek;
+            (total[holding.platform] || 0) + getHoldingValue(holding);
 
         return total;
     }, {});
@@ -34,7 +37,7 @@ export const calculateTotalsByCategory = (holdings, assets) => {
         const category = holding.category || "OTHER";
 
         totals[category] =
-            (totals[category] || 0) + holding.valueSek;
+            (totals[category] || 0) + getHoldingValue(holding);
     });
 
     return totals;
@@ -56,7 +59,8 @@ export const calculateCryptoExposure = (holdings) => {
         .reduce((totals, holding) => {
             const key = holding.underlying ?? "INDEX";
 
-            totals[key] = (totals[key] ?? 0) + holding.valueSek;
+            totals[key] =
+                (totals[key] ?? 0) + getHoldingValue(holding);
 
             return totals;
         }, {});

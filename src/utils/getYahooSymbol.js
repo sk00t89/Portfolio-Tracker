@@ -17,6 +17,10 @@ const getYahooSymbol = (holding) => {
         return `${ticker}.ST`;
     }
 
+    if (holding.market === "LSE") {
+        return `${holding.ticker}.L`;
+    }
+
     return holding.ticker;
 };
 

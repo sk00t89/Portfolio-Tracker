@@ -1,4 +1,4 @@
-function Settings({resetPortfolio, setResolvedMatches, enrichMissingAveragePrices}) {
+function Settings({resetPortfolio, setResolvedMatches, enrichMissingAveragePrices, updateAllHoldingPrices}) {
 
     const warning = () => {
         if (confirm("Återställ portfölj?")) {
@@ -31,6 +31,16 @@ function Settings({resetPortfolio, setResolvedMatches, enrichMissingAveragePrice
             <div className="settings-btn-card">
                 <button onClick={enrichMissingAveragePrices}>
                     Berika saknade GAV
+                </button>
+            </div>
+
+            <div className="settings-btn-card">
+                <button
+                    onClick={() =>
+                        updateAllHoldingPrices(true, Date.now())
+                    }
+                >
+                    Uppdatera portfölj till aktuellt värde
                 </button>
             </div>
         </div>

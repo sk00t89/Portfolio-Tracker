@@ -16,9 +16,37 @@ function Holdings({
                   }) {
     console.log("Candidates i Holdings:", enrichmentCandidates);
     const [manualSearch, setManualSearch] = useState("");
+    const [sortBy, setSortBy] = useState("alphabetical");
+
+    const sortedHoldings = [...groupedHoldings].sort((a, b) => {
+        if (sortBy === "alphabetical") {
+            return a.name.localeCompare(b.name, "sv");
+        }
+
+        if (sortBy === "largest") {
+            return b.totalValue - a.totalValue;
+        }
+
+        if (sortBy === "smallest") {
+            return a.totalValue - b.totalValue;
+        }
+
+        return 0;
+    });
+
     return (
         <div className="holdings-page">
             <h1>Innehav</h1>
+            <div className="select-div">
+                <select
+                    value={sortBy}
+                    onChange={(event) => setSortBy(event.target.value)}
+                >
+                    <option value="alphabetical">Alfabetiskt</option>
+                    <option value="largest">Störst först</option>
+                    <option value="smallest">Minst först</option>
+                </select>
+            </div>
 
             {possibleMatches.map((match) => (
                 <div key={`${match.firstId}-${match.secondId}`}>
@@ -48,7 +76,7 @@ function Holdings({
             ))}
 
             <div className="holdings-list">
-                {groupedHoldings.map((group) => (
+                {sortedHoldings.map((group) => (
                     <div
                         className="holding-card"
                         key={group.instrumentKey}
@@ -84,18 +112,11 @@ function Holdings({
                 {position.quantity.toLocaleString("sv-SE")} st
             </span>
 
-                                        <strong>
-                                            {formatSek(position.valueSek)}
-                                        </strong>
-                                        <button
-                                            type="button"
-                                            onClick={() => updateHoldingPrice(position.id)}
-                                        >
-                                            Uppdatera kurs
-                                        </button>
+
+
 
                                         {position.platform === "Nordnet" &&
-                                            !position.assetType && (
+                                            (!position.isin || !position.ticker || !position.assetType) && (
                                                 <button
                                                     type="button"
                                                     onClick={async () => {
