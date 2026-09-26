@@ -135,7 +135,8 @@ function Holdings({
                                             )}
                                     </div>
 
-                                    {enrichmentCandidates?.holdingId === position.id && (
+                                    {enrichmentCandidates &&
+                                        enrichmentCandidates.holdingId === position.id && (
                                         <div className="enrichment-candidates">
                                             <h4>
                                                 Välj rätt instrument för{" "}

@@ -1,12 +1,17 @@
 const getHoldingValue = (holding) => {
-    return holding.currentValueSek ?? holding.valueSek;
+    return (
+        holding.currentValueSek ??
+        holding.valueSek ??
+        0
+
+    );
 };
 
 export const calculatePortfolioValue = (
     holdings,
     assets,
     lysaValue = 0
-    ) => {
+) => {
     const holdingsValue = holdings.reduce((total, holding) => {
         return total + getHoldingValue(holding);
     }, 0);
@@ -39,7 +44,7 @@ export const calculateTotalsByPlatform = (
     return totals;
 };
 
-export const calculateTotalsByCategory = (holdings, assets) => {
+export const calculateTotalsByCategory = (holdings, assets, lysaValue) => {
     const totals = {};
 
     assets.forEach((asset) => {
@@ -53,6 +58,11 @@ export const calculateTotalsByCategory = (holdings, assets) => {
         totals[category] =
             (totals[category] || 0) + getHoldingValue(holding);
     });
+
+    if (lysaValue > 0) {
+        totals.FUND =
+            (totals.FUND || 0) + lysaValue;
+    }
 
     return totals;
 };

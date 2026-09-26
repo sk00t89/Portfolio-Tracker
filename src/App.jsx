@@ -329,6 +329,8 @@ function App() {
         return [];
     });
 
+
+
     const [transactions, setTransactions] = useState(() => {
         const savedTransactions =
             localStorage.getItem("transactions");
@@ -561,6 +563,7 @@ function App() {
     const lysaHoldings = Object.entries(lysaFundVolumes)
         .filter(([, volume]) => volume > 0)
         .map(([name, volume]) => ({
+            id:`lysa-${name}`,
             name,
             quantity: volume,
             platform: "Lysa",
@@ -568,6 +571,10 @@ function App() {
             category: "FUND",
         }));
 
+    const holdingsForDisplay = [
+        ...holdings,
+        ...lysaHoldings
+    ];
 
  // Holdins ...
 
@@ -636,13 +643,15 @@ function App() {
                     name: holding.name,
                     totalValue:
                         holding.currentValueSek ??
-                        holding.valueSek,
+                        holding.valueSek ??
+                    0,
                     positions: [holding],
                 });
             } else {
                 existingGroup.totalValue +=
                     holding.currentValueSek ??
-                    holding.valueSek;
+                    holding.valueSek ??
+                    0;
                 existingGroup.positions.push(holding);
             }
 
@@ -651,7 +660,7 @@ function App() {
     };
 
 
-    const groupedHoldings = groupHoldingsByInstrument(holdings);
+    const groupedHoldings = groupHoldingsByInstrument(holdingsForDisplay);
 
     // Manual Assets funktioner
 
@@ -715,7 +724,7 @@ function App() {
                     <Dashboard
                         assets={assets}
                         setAssets={setAssets}
-                        holdings={holdings}
+                        holdings={holdingsForDisplay}
                         portfolioValue={portfolioValue}
                         lysaValue={lysaValue}
                     />}

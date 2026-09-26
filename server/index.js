@@ -290,6 +290,88 @@ app.get("/api/nordnet-search/:isin", async (req, res) => {
     }
 });
 
+app.get("/api/nordnet-search-query/:query", async (req, res) => {
+    const {query} = req.params;
+
+    try {
+        const url =
+            `https://www.nordnet.se/api/2/main_search` +
+            `?query=${encodeURIComponent(query)}` +
+            `&search_space=ALL` +
+            `&limit=10`;
+
+        const response = await fetch(url, {
+            headers: {
+                Accept: "application/json",
+                "Client-Id": "NEXT",
+                Referer: "https://www.nordnet.se/",
+                "X-Nn-Href": "https://www.nordnet.se/",
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                "Kunde inte söka instrument hos Nordnet"
+            );
+        }
+
+        const data = await response.json();
+
+        const allowedAssetTypes = [
+            "STOCK",
+            "MUTUAL_FUND",
+            "EXCHANGE_TRADED_FUND",
+            "TRACKER",
+        ];
+
+        const normalized = data
+            .flatMap((group) => {
+                return group.results ?? [];
+            })
+            .filter((instrument) => {
+                return instrument.instrument_id != null;
+            })
+            .filter((instrument) => {
+                return allowedAssetTypes.includes(
+                    instrument.instrument_class
+                );
+            })
+            .map((instrument) => ({
+                instrumentId: instrument.instrument_id,
+                name: instrument.display_name,
+                ticker: instrument.display_symbol ?? null,
+                assetType:
+                    instrument.instrument_class ??
+                    instrument.instrument_type_display_name ??
+                    null,
+                currency: instrument.currency ?? null,
+                price: instrument.last_price?.price ?? null,
+                previousClose:
+                    instrument.close_price?.price ?? null,
+                country:
+                    instrument.exchange_country ?? null,
+                instrumentType:
+                    instrument.instrument_type ?? null,
+                instrumentTypeName:
+                    instrument.instrument_type_display_name ?? null,
+                provider: "Nordnet",
+                isin: null,
+            }));
+
+        res.json(normalized);
+
+    } catch (error) {
+        console.error(
+            "Nordnet text search error:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Kunde inte söka instrument hos Nordnet",
+        });
+    }
+});
+
 
 // AVANZA ...
 

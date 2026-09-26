@@ -9,10 +9,10 @@ import {
     calculateTotalsByCategory,
     calculateCryptoExposure
 } from "../utils/calculations.js";
+import AddHoldingForm from "../components/AddHoldingForm.jsx";
 
 
 function Dashboard({assets, setAssets, holdings, portfolioValue, lysaValue}) {
-
 
 
     const investedCapital = calculateInvestedCapital(holdings);
@@ -25,9 +25,9 @@ function Dashboard({assets, setAssets, holdings, portfolioValue, lysaValue}) {
         calculateTotalsByPlatform(
             holdings,
             lysaValue
-            );
+        );
 
-    const totalsByCategory = calculateTotalsByCategory(holdings, assets);
+    const totalsByCategory = calculateTotalsByCategory(holdings, assets, lysaValue);
 
     const getNextId = (assets) => {
         const ids = assets.map((asset) => {
@@ -58,7 +58,6 @@ function Dashboard({assets, setAssets, holdings, portfolioValue, lysaValue}) {
     };
 
 
-
     return (
         <div className="dashboard-grid">
             <PortfolioSummary
@@ -87,6 +86,8 @@ function Dashboard({assets, setAssets, holdings, portfolioValue, lysaValue}) {
 
             <AssetForm
                 addAsset={addAsset}
+            />
+            <AddHoldingForm
             />
         </div>
     );
