@@ -22,13 +22,11 @@ export const getCryptoPrice = async (coinId) => {
     return response.json();
 };
 
-export const getCryptoPrices = async (symbols) => {
-    const cleanSymbols = symbols
-        .map((symbol) => symbol.toLowerCase())
-        .join(",");
+export const getCryptoPrices = async (coinIds) => {
+    const cleanIds = coinIds.join(",");
 
     const response = await fetch(
-        `http://localhost:3001/api/crypto-prices?symbols=${encodeURIComponent(cleanSymbols)}`
+        `http://localhost:3001/api/crypto-prices?ids=${encodeURIComponent(cleanIds)}`
     );
 
     if (!response.ok) {

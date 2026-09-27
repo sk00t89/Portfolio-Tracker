@@ -641,18 +641,18 @@ app.get("/api/crypto-price/:coinId", async (req, res) => {
 });
 
 app.get("/api/crypto-prices", async (req, res) => {
-    const symbols = req.query.symbols;
+    const ids = req.query.ids;
 
-    if (!symbols) {
+    if (!ids) {
         return res.status(400).json({
-            error: "Symbols saknas",
+            error: "Ids saknas",
         });
     }
 
     try {
         const response = await fetch(
             `https://api.coingecko.com/api/v3/simple/price` +
-            `?symbols=${encodeURIComponent(symbols)}` +
+            `?ids=${encodeURIComponent(ids)}` +
             `&vs_currencies=sek`,
             {
                 headers: {

@@ -1,6 +1,7 @@
 import {useEffect, useState} from "react";
 import {formatSek} from "../utils/formatting.js";
 import {getCryptoPrices} from "../services/cryptoData.js";
+import {cryptoCoinIds} from "../utils/cryptoCoinIds.js";
 
 function CryptoOverview({cryptoExposure, portfolioValue}) {
     const totalCryptoValue = Object.values(cryptoExposure).reduce(
@@ -11,17 +12,19 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
     const [cryptoPrices, setCryptoPrices] = useState({});
 
     useEffect(() => {
-        const symbols = Object.keys(cryptoExposure)
-            .filter((coin) => coin !== "INDEX");
+        const coinIds = Object.keys(cryptoExposure)
+            .filter((coin) => coin !== "INDEX")
+            .map((coin) => cryptoCoinIds[coin])
+            .filter(Boolean);
 
-        if (symbols.length === 0) {
+        if (coinIds.length === 0) {
             return;
         }
 
         const loadCryptoPrices = async () => {
             try {
                 const prices =
-                    await getCryptoPrices(symbols);
+                    await getCryptoPrices(coinIds);
 
                 setCryptoPrices(prices);
             } catch (error) {
@@ -58,8 +61,12 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
                 {Object.entries(cryptoExposure)
                     .sort(([, valueA], [, valueB]) => valueB - valueA)
                     .map(([coin, value]) => {
+                        const coinId = cryptoCoinIds[coin];
+
                         const coinPrice =
-                            cryptoPrices[coin.toLowerCase()]?.sek;
+                            coinId
+                                ? cryptoPrices[coinId]?.sek
+                                : null;
 
                         const equivalentCoins =
                             coinPrice
