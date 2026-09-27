@@ -5,13 +5,11 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Holdings from "./pages/Holdings.jsx";
 import ImportPage from "./pages/ImportPage.jsx";
 import Settings from "./pages/Settings.jsx";
-import {useEffect} from "react";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import getInstrumentKey from "./utils/instrumentKey.js";
 import {
     calculatePortfolioValue,
     calculateLysaFundVolumes,
-    calculateLysaDeposits,
     getLatestLysaPerformance
 } from "./utils/calculations.js";
 import {
@@ -35,21 +33,9 @@ function App() {
 
 
 
-// Transaktions funktioner
-
-    const addTransaction = (transaction) => {
-        setTransactions((previousTransactions) => [
-            ...previousTransactions,
-            {
-                id: Date.now(),
-                ...transaction,
-            }
-        ]);
-    };
-
-
-// Holdings funktioner
-
+    // =========================================
+    // HOLDINGS: priser, berikning och matchning
+    // =========================================
 
     const updateHoldingPrice = async (id) => {
         const holding = holdings.find(
@@ -307,7 +293,9 @@ function App() {
         setHoldings(updatedHoldings);
     };
 
-    // STATES
+    // =========================================
+    // STATE
+    // =========================================
 
     const [enrichmentCandidates, setEnrichmentCandidates] = useState(null);
 
@@ -331,17 +319,6 @@ function App() {
 
 
 
-    const [transactions, setTransactions] = useState(() => {
-        const savedTransactions =
-            localStorage.getItem("transactions");
-
-        if (savedTransactions) {
-            return JSON.parse(savedTransactions);
-        }
-
-        return [];
-    });
-
     const [lysaTransactions, setLysaTransactions] = useState(() => {
         const saved =
             localStorage.getItem("lysaTransactions");
@@ -360,7 +337,9 @@ function App() {
             : [];
     });
 
-    // HOLDINGS FUNKTIONER
+    // =========================================
+    // HOLDINGS: import och instrumentdata
+    // =========================================
 
     const enrichHolding = async (id, data) => {
         const holding = holdings.find(
@@ -504,7 +483,9 @@ function App() {
         return highestId + 1;
     }
 
-    // USE-EFFECTER
+    // =========================================
+    // LOCAL STORAGE / STARTUP
+    // =========================================
 
     useEffect(() => {
         localStorage.setItem("holdings", JSON.stringify(holdings));
@@ -516,17 +497,6 @@ function App() {
             JSON.stringify(resolvedMatches)
         );
     }, [resolvedMatches]);
-
-    //Tillfällig useEffect
-    useEffect(() => {
-        console.log("Holdings efter uppdatering:", holdings);
-
-        const missingAveragePriceSek = holdings.filter((holding) => {
-            return holding.averagePriceSek == null;
-        });
-
-        console.log("Saknar GAV i SEK:", missingAveragePriceSek);
-    }, [holdings]);
 
     useEffect(() => {
         localStorage.setItem(
@@ -542,7 +512,9 @@ function App() {
         );
     }, [lysaPerformance]);
 
-// LYSA ...
+    // =========================================
+    // LYSA: importerad historik och visningsdata
+    // =========================================
     const importLysaTransactions = (transactions) => {
         setLysaTransactions(transactions);
     };
@@ -576,7 +548,9 @@ function App() {
         ...lysaHoldings
     ];
 
- // Holdins ...
+    // =========================================
+    // HOLDINGS: import, gruppering och borttagning
+    // =========================================
 
     const importHoldings = (newHoldings) => {
         setHoldings((previousHoldings) => {
@@ -662,7 +636,9 @@ function App() {
 
     const groupedHoldings = groupHoldingsByInstrument(holdingsForDisplay);
 
-    // Manual Assets funktioner
+    // =========================================
+    // MANUELLA TILLGÅNGAR
+    // =========================================
 
     const initialAssets = [];
 
@@ -690,13 +666,6 @@ function App() {
             Date.now()
         );
     }, []);
-
-    useEffect(() => {
-        localStorage.setItem(
-            "transactions",
-            JSON.stringify(transactions)
-        );
-    }, [transactions]);
 
     const deleteHolding = (id) => {
         setHoldings((previousHoldings) =>
@@ -749,7 +718,6 @@ function App() {
                         enrichmentCandidates={enrichmentCandidates}
                         selectEnrichmentCandidate={selectEnrichmentCandidate}
                         searchEnrichmentCandidates={searchEnrichmentCandidates}
-                        updateHoldingPrice={updateHoldingPrice}
                         deleteHolding={deleteHolding}
                     />
                 }
