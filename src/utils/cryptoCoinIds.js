@@ -11,4 +11,9 @@ export const cryptoCoinIds = {
     DOT: "polkadot",
     LINK: "chainlink",
     ADA: "cardano",
+    BNB: "binancecoin",
+    XLM: "stellar",
+    HYPE: "hyperliquid",
+    BCH: "bitcoin-cash",
+    CC: "canton-network",
 };

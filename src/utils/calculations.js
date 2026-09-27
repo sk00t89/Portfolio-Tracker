@@ -1,3 +1,6 @@
+import { getCryptoIndexDefinition} from "./getCryptoIndexDefenitions.js";
+
+
 const getHoldingValue = (holding) => {
     return (
         holding.currentValueSek ??
@@ -78,17 +81,83 @@ export const calculateInvestedCapital = (holdings) => {
 };
 
 export const calculateCryptoExposure = (holdings) => {
-    return holdings
+    const summary = {};
+    const details = {};
+
+    holdings
         .filter((holding) => holding.category === "CRYPTO")
-        .reduce((totals, holding) => {
-            const key = holding.underlying ?? "INDEX";
+        .forEach((holding) => {
+            const holdingValue = getHoldingValue(holding);
 
-            totals[key] =
-                (totals[key] ?? 0) + getHoldingValue(holding);
+            const summaryKey =
+                holding.productType === "INDEX"
+                    ? "INDEX"
+                    : holding.underlying ?? "INDEX";
 
-            return totals;
-        }, {});
+            summary[summaryKey] =
+                (summary[summaryKey] ?? 0) +
+                holdingValue;
+
+            if (holding.productType === "INDEX") {
+                const indexDefinition =
+                    getCryptoIndexDefinition(holding);
+
+                if (indexDefinition) {
+                    indexDefinition.components.forEach((component) => {
+                        if (!details[component.symbol]) {
+                            details[component.symbol] = {
+                                total: 0,
+                                direct: 0,
+                                etp: 0,
+                                index: 0,
+                            };
+                        }
+
+                        const componentValue =
+                            holdingValue * component.weight;
+
+                        details[component.symbol].index +=
+                            componentValue;
+
+                        details[component.symbol].total +=
+                            componentValue;
+                    });
+                }
+
+                return;
+            }
+
+            const coin =
+                holding.underlying ?? holding.ticker;
+
+            if (!coin) {
+                return;
+            }
+
+            if (!details[coin]) {
+                details[coin] = {
+                    total: 0,
+                    direct: 0,
+                    etp: 0,
+                    index: 0,
+                };
+            }
+
+            if (holding.productType === "DIRECT_CRYPTO") {
+                details[coin].direct += holdingValue;
+            } else {
+                details[coin].etp += holdingValue;
+            }
+
+            details[coin].total += holdingValue;
+        });
+
+    return {
+        summary,
+        details,
+    };
 };
+
 
 export const calculateLysaDeposits = (transactions) => {
     return transactions

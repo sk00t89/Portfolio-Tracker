@@ -4,16 +4,20 @@ import {getCryptoPrices} from "../services/cryptoData.js";
 import {cryptoCoinIds} from "../utils/cryptoCoinIds.js";
 
 function CryptoOverview({cryptoExposure, portfolioValue}) {
-    const totalCryptoValue = Object.values(cryptoExposure).reduce(
+    const summary = cryptoExposure.summary ?? {};
+    const details = cryptoExposure.details ?? {};
+
+    const totalCryptoValue = Object.values(summary).reduce(
         (total, value) => total + value,
         0
     );
 
     const [cryptoPrices, setCryptoPrices] = useState({});
+    const [showDetails, setShowDetails] = useState(false);
 
     useEffect(() => {
-        const coinIds = Object.keys(cryptoExposure)
-            .filter((coin) => coin !== "INDEX")
+        const coinIds = Object.keys(details)
+
             .map((coin) => cryptoCoinIds[coin])
             .filter(Boolean);
 
@@ -36,7 +40,7 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
         };
 
         loadCryptoPrices();
-    }, [cryptoExposure]);
+    }, [details]);
 
     const portfolioPercentage =
         portfolioValue > 0
@@ -44,7 +48,9 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
             : 0;
 
     return (
-        <section className="card crypto-overview">
+        <section className="card crypto-overview"
+                 onClick={() => setShowDetails((current) => !current)}
+        >
             <div className="section-heading">
                 <div>
                     <span className="eyebrow">Underliggande</span>
@@ -55,50 +61,109 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
                     <strong>{formatSek(totalCryptoValue)}</strong>
                     <span>{portfolioPercentage.toFixed(2)} % av portföljen</span>
                 </div>
+                <span className="crypto-details-toggle">
+                    {showDetails ? "Dölj detaljer" : "Visa detaljer"}
+                </span>
             </div>
 
             <div className="data-list">
-                {Object.entries(cryptoExposure)
-                    .sort(([, valueA], [, valueB]) => valueB - valueA)
-                    .map(([coin, value]) => {
-                        const coinId = cryptoCoinIds[coin];
+                {showDetails ? (
+                    Object.entries(details)
+                        .sort(([, valueA], [, valueB]) =>
+                            valueB.total - valueA.total
+                        )
+                        .map(([coin, value]) => {
+                            const coinId = cryptoCoinIds[coin];
 
-                        const coinPrice =
-                            coinId
-                                ? cryptoPrices[coinId]?.sek
-                                : null;
+                            const coinPrice =
+                                coinId
+                                    ? cryptoPrices[coinId]?.sek
+                                    : null;
 
-                        const equivalentCoins =
-                            coinPrice
-                                ? value / coinPrice
-                                : null;
-                        const percentage =
-                            totalCryptoValue > 0
-                                ? (value / totalCryptoValue) * 100
-                                : 0;
+                            const equivalentCoins =
+                                coinPrice
+                                    ? value.total / coinPrice
+                                    : null;
 
-                        return (
-                            <div className="data-row" key={coin}>
-                                <span>{coin}</span>
-                                <strong>{formatSek(value)}</strong>
-                                <span className="muted">
-                                    {percentage.toFixed(2)} %
-                                </span>
-                                {equivalentCoins !== null && (
-                                    <span className="crypto-equivalent">
-                                                 ≈{" "}
-                                        {equivalentCoins.toLocaleString(
-                                            "sv-SE",
-                                            {
-                                                maximumFractionDigits: 4,
-                                            }
-                                        )}{" "}
-                                        {coin}
-                                 </span>
-                                )}
-                            </div>
-                        );
-                    })}
+                            const percentage =
+                                totalCryptoValue > 0
+                                    ? (value.total / totalCryptoValue) * 100
+                                    : 0;
+
+                            return (
+                                <div className="data-row" key={coin}>
+                                    <span>{coin}</span>
+
+                                    <strong>
+                                        {formatSek(value.total)}
+                                    </strong>
+
+                                    <span className="muted">
+                            {percentage.toFixed(2)} %
+                                     </span>
+                                    {showDetails && (
+                                        <div className="crypto-breakdown">
+                                            {value.direct > 0 && (
+                                                <span>
+                                                    Direkt
+                                                <strong>{formatSek(value.direct)}</strong>
+                                                </span>
+                                            )}
+
+                                            {value.etp > 0 && (
+                                                <span>
+                                                    ETP
+                                                <strong>{formatSek(value.etp)}</strong>
+                                                </span>
+                                            )}
+
+                                            {value.index > 0 && (
+                                                <span>
+                                                Via index
+                                                <strong>{formatSek(value.index)}</strong>
+                                                </span>
+                                            )}
+
+                                            {equivalentCoins !== null && (
+                                                <span className="crypto-equivalent">
+                                                         ≈{" "}
+                                                    {equivalentCoins.toLocaleString("sv-SE", {
+                                                        maximumFractionDigits: 4,
+                                                    })}{" "}
+                                                    {coin} exponering
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                ) : (
+                    Object.entries(summary)
+                        .sort(([, valueA], [, valueB]) =>
+                            valueB - valueA
+                        )
+                        .map(([coin, value]) => {
+                            const percentage =
+                                totalCryptoValue > 0
+                                    ? (value / totalCryptoValue) * 100
+                                    : 0;
+
+                            return (
+                                <div className="data-row" key={coin}>
+                                    <span>{coin}</span>
+
+                                    <strong>
+                                        {formatSek(value)}
+                                    </strong>
+
+                                    <span className="muted">
+                            {percentage.toFixed(2)} %
+                        </span>
+                                </div>
+                            );
+                        })
+                )}
             </div>
         </section>
     );
