@@ -11,10 +11,12 @@ function Holdings({
     enrichmentCandidates,
     selectEnrichmentCandidate,
     searchEnrichmentCandidates,
-    deleteHolding
+    deleteHolding,
+    handleTransaction
 }) {
     const [manualSearch, setManualSearch] = useState("");
     const [sortBy, setSortBy] = useState("largest");
+    const [selectedPosition, setSelectedPosition] = useState(null);
 
     const sortedHoldings = [...groupedHoldings].sort((a, b) => {
         if (sortBy === "alphabetical") {
@@ -102,11 +104,13 @@ function Holdings({
                                 >
                                     Olika
                                 </button>
+
                             </div>
                         </div>
                     ))}
                 </section>
             )}
+
 
             <div className="holdings-list">
                 {sortedHoldings.map((group) => {
@@ -187,6 +191,55 @@ function Holdings({
                                                 >
                                                     Ta bort
                                                 </button>
+
+                                            )}
+                                            <button
+                                                className="ghost-button small-button"
+                                                type="button"
+                                                onClick={() => setSelectedPosition((current) =>
+                                                current?.id === position.id
+                                                ? null
+                                                : position
+                                                )
+                                            }
+                                            >
+                                                Köp / Sälj
+                                            </button>
+                                            {selectedPosition?.id === position.id && (
+                                                <div className="transaction-form">
+                                                    <select defaultValue="BUY">
+                                                        <option value="BUY">Köp</option>
+                                                        <option value="SELL">Sälj</option>
+                                                    </select>
+
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Antal"
+                                                    />
+
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Pris"
+                                                    />
+
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Valuta, t.ex. SEK"
+                                                        defaultValue={position.currency ?? "SEK"}
+                                                    />
+
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Avgift/courtage (valfritt)"
+                                                    />
+
+                                                    <button
+                                                        className="primary-button small-button"
+                                                        type="button"
+                                                    >
+                                                        Spara transaktion
+                                                    </button>
+                                                </div>
                                             )}
 
                                             {position.platform === "Nordnet" &&

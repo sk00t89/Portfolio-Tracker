@@ -26,15 +26,18 @@ import {
 import normalizeAssetType from "./utils/normalizeAssetType.js";
 import classifyHolding from "./utils/classifyHolding.js";
 import getYahooSymbol from "./utils/getYahooSymbol.js";
+import {
+    createTransaction,
+    applyTransactionToHolding,
+} from "./utils/transactions.js";
 
 const PRICE_UPDATE_INTERVAL = 20 * 60 * 1000;
 
 function App() {
 
 
-
     // =========================================
-    // HOLDINGS: priser, berikning och matchning
+    // HOLDINGS: priser, berikning, matchning och transaktioner
     // =========================================
     const updateHoldingPrice = async (id) => {
         const holding = holdings.find(
@@ -277,6 +280,29 @@ function App() {
         );
         setHoldings(updatedHoldings);
     };
+    const handleTransaction = (holdingId, transactionData) => {
+        const transaction = createTransaction({
+            holdingId,
+            ...transactionData,
+        });
+
+        setHoldings((currentHoldings) =>
+            currentHoldings.map((holding) =>
+                holding.id === holdingId
+                    ? applyTransactionToHolding(
+                        holding,
+                        transaction
+                    )
+                    : holding
+            )
+        );
+
+        setTransactions((currentTransactions) => [
+            ...currentTransactions,
+            transaction,
+        ]);
+    };
+
 
     // =========================================
     // STATE
@@ -303,7 +329,6 @@ function App() {
     });
 
 
-
     const [lysaTransactions, setLysaTransactions] = useState(() => {
         const saved =
             localStorage.getItem("lysaTransactions");
@@ -321,6 +346,8 @@ function App() {
             ? JSON.parse(saved)
             : [];
     });
+
+    const [transactions, setTransactions] = useState([]);
 
     // =========================================
     // HOLDINGS: import och instrumentdata
@@ -600,7 +627,7 @@ function App() {
                     totalValue:
                         holding.currentValueSek ??
                         holding.valueSek ??
-                    0,
+                        0,
                     positions: [holding],
                 });
             } else {
@@ -672,9 +699,6 @@ function App() {
     );
 
 
-
-
-
     return (
         <div className="app-shell">
 
@@ -702,6 +726,7 @@ function App() {
                         selectEnrichmentCandidate={selectEnrichmentCandidate}
                         searchEnrichmentCandidates={searchEnrichmentCandidates}
                         deleteHolding={deleteHolding}
+                        handleTransaction={handleTransaction}
                     />
                 }
                 />
