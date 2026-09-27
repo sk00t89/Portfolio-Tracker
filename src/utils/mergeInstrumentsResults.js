@@ -10,19 +10,41 @@ export const mergeInstrumentsResults = (
     const uniqueResults = [];
 
     allData.forEach((instrument) => {
-        const alreadyExists = uniqueResults.some((existingInstrument) => {
-            if (
-                instrument.isin &&
-                existingInstrument.isin
-            ) {
-                return instrument.isin === existingInstrument.isin;
-            }
+        const alreadyExists = uniqueResults.some(
+            (existingInstrument) => {
 
-            return (
-                instrument.name === existingInstrument.name &&
-                instrument.currency === existingInstrument.currency
-            );
-        });
+                if (
+                    instrument.isin &&
+                    existingInstrument.isin
+                ) {
+                    return (
+                        instrument.isin ===
+                        existingInstrument.isin
+                    );
+                }
+
+                if (
+                    instrument.ticker &&
+                    existingInstrument.ticker &&
+                    instrument.currency &&
+                    existingInstrument.currency
+                ) {
+                    return (
+                        instrument.ticker ===
+                        existingInstrument.ticker &&
+                        instrument.currency ===
+                        existingInstrument.currency
+                    );
+                }
+
+                return (
+                    instrument.name ===
+                    existingInstrument.name &&
+                    instrument.currency ===
+                    existingInstrument.currency
+                );
+            }
+        );
 
         if (!alreadyExists) {
             uniqueResults.push(instrument);

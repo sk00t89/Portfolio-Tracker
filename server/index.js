@@ -445,6 +445,248 @@ app.get("/api/avanza-search/:isin", async (req, res) => {
     }
 });
 
+app.get("/api/avanza-search-query/:query", async (req, res) => {
+    const {query} = req.params;
+
+    try {
+        const response = await fetch(
+            "https://www.avanza.se/_api/search/filtered-search",
+            {
+                method: "POST",
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                    Referer: "https://www.avanza.se/",
+                },
+                body: JSON.stringify({
+                    query,
+                    searchFilter: {
+                        types: [],
+                    },
+                    screenSize: "DESKTOP",
+                    pagination: {
+                        from: 0,
+                        size: 30,
+                    },
+                    originPath: "/",
+                    originPlatform: "PWA",
+                    searchSessionId: crypto.randomUUID(),
+                }),
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                "Kunde inte söka instrument hos Avanza"
+            );
+        }
+
+        const data = await response.json();
+
+        const getTickerFromTitle = (title) => {
+            const matches =
+                [...title.matchAll(/\(([^()]*)\)/g)];
+
+            if (matches.length === 0) {
+                return null;
+            }
+
+            return matches[matches.length - 1][1].trim();
+        };
+
+        const isLeveragedProduct = (hit) => {
+            const name = hit.title.toUpperCase();
+
+            return (
+                name.startsWith("BULL ") ||
+                name.startsWith("BEAR ") ||
+                name.startsWith("MINI ") ||
+                name.startsWith("TURBO ")
+            );
+        };
+
+        const normalized = (data.hits ?? [])
+            .filter((hit) => {
+                if (
+                    hit.type === "CERTIFICATE" &&
+                    isLeveragedProduct(hit)
+                ) {
+                    return false;
+                }
+
+                return true;
+            })
+            .map((hit) => {
+                const price =
+                    hit.price?.last
+                        ? Number(
+                            hit.price.last
+                                .replace(/\s/g, "")
+                                .replace(",", ".")
+                        )
+                        : null;
+
+                return {
+                    instrumentId: hit.orderBookId,
+                    name: hit.title,
+                    ticker: getTickerFromTitle(hit.title),
+                    assetType: hit.type ?? null,
+                    currency: hit.price?.currency ?? null,
+                    price,
+                    provider: "Avanza",
+                    isin: hit.isin ?? null,
+                };
+            });
+
+        res.json(normalized);
+
+    } catch (error) {
+        console.error(
+            "Avanza text search error:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Kunde inte söka instrument hos Avanza",
+        });
+    }
+});
+
+// CRYPTO ...
+
+app.get("/api/crypto-search/:query", async (req, res) => {
+    const {query} = req.params;
+
+    try {
+        const response = await fetch(
+            `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(query)}`,
+            {
+                headers: {
+                    Accept: "application/json",
+                    "x-cg-demo-api-key": process.env.COINGECKO_API_KEY,
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Kunde inte söka krypto");
+        }
+
+        const data = await response.json();
+
+        const normalized = (data.coins ?? [])
+            .slice(0, 10)
+            .map((coin) => ({
+                id: coin.id,
+                name: coin.name,
+                symbol: coin.symbol?.toUpperCase() ?? null,
+                marketCapRank: coin.market_cap_rank ?? null,
+                image: coin.large ?? coin.thumb ?? null,
+                provider: "CoinGecko",
+            }));
+
+        res.json(normalized);
+
+    } catch (error) {
+        console.error("Crypto search error:", error);
+
+        res.status(500).json({
+            error: "Kunde inte söka krypto",
+        });
+    }
+});
+
+
+app.get("/api/crypto-price/:coinId", async (req, res) => {
+    const {coinId} = req.params;
+
+    try {
+        const response = await fetch(
+            `https://api.coingecko.com/api/v3/simple/price` +
+            `?ids=${encodeURIComponent(coinId)}` +
+            `&vs_currencies=sek`,
+            {
+                headers: {
+                    Accept: "application/json",
+                    "x-cg-demo-api-key": process.env.COINGECKO_API_KEY,
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Kunde inte hämta kryptopris");
+        }
+
+        const data = await response.json();
+
+        const price = data[coinId]?.sek ?? null;
+
+        if (price === null) {
+            throw new Error("Ingen kryptokurs hittades");
+        }
+
+        res.json({
+            coinId,
+            price,
+            currency: "SEK",
+        });
+
+    } catch (error) {
+        console.error("Crypto price error:", error);
+
+        res.status(500).json({
+            error: "Kunde inte hämta kryptopris",
+        });
+    }
+});
+
+app.get("/api/crypto-prices", async (req, res) => {
+    const symbols = req.query.symbols;
+
+    if (!symbols) {
+        return res.status(400).json({
+            error: "Symbols saknas",
+        });
+    }
+
+    try {
+        const response = await fetch(
+            `https://api.coingecko.com/api/v3/simple/price` +
+            `?symbols=${encodeURIComponent(symbols)}` +
+            `&vs_currencies=sek`,
+            {
+                headers: {
+                    Accept: "application/json",
+                    "x-cg-demo-api-key":
+                    process.env.COINGECKO_API_KEY,
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                "Kunde inte hämta kryptopriser"
+            );
+        }
+
+        const data = await response.json();
+
+        res.json(data);
+
+    } catch (error) {
+        console.error(
+            "Crypto prices error:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Kunde inte hämta kryptopriser",
+        });
+    }
+});
+
+
+
 
 app.listen(PORT, () => {
     console.log(`Backend kör på http://localhost:${PORT}`);

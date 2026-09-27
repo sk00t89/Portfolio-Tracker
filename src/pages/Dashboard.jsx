@@ -93,6 +93,7 @@ function Dashboard({
 
             <AssetForm
                 addAsset={addAsset}
+                importHoldings={importHoldings}
             />
             <AddHoldingForm
                 importHoldings={importHoldings}

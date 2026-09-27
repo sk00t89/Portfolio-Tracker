@@ -1,6 +1,12 @@
 import {useState} from "react";
-import {searchNordnetInstruments} from "../services/instrumentSearch.js";
+import {
+    searchNordnetInstruments,
+    searchAvanzaInstruments
+} from "../services/instrumentSearch.js";
 import {getExchangeRate} from "../services/currencyData.js";
+import {
+    mergeInstrumentsResults
+} from "../utils/mergeInstrumentsResults.js";
 
 function AddHoldingForm({importHoldings}) {
     const [searchQuery, setSearchQuery] = useState("");
@@ -21,8 +27,20 @@ function AddHoldingForm({importHoldings}) {
         setErrorMessage("");
 
         try {
+            const [
+                nordnetResults,
+                avanzaResults
+            ] = await Promise.all([
+                searchNordnetInstruments(searchQuery.trim()),
+                searchAvanzaInstruments(searchQuery.trim()),
+            ]);
+
             const results =
-                await searchNordnetInstruments(searchQuery.trim());
+                mergeInstrumentsResults(
+                    nordnetResults,
+                    avanzaResults
+                );
+
 
             setSearchResults(results);
             setSelectedInstrument(null);
@@ -130,7 +148,10 @@ function AddHoldingForm({importHoldings}) {
                     <h2>Lägg till värdepapper</h2>
                 </div>
 
-                <span className="section-badge">Nordnet-sök</span>
+                <div className="provider-badges">
+                    <span className="section-badge">Nordnet-sök</span>
+                    <span className="section-badge">Avanza-sök</span>
+                </div>
             </div>
 
             <div className="instrument-search">
@@ -156,6 +177,24 @@ function AddHoldingForm({importHoldings}) {
                 >
                     {isSearching ? "Söker..." : "Sök"}
                 </button>
+
+                {(searchQuery || searchResults.length > 0 || selectedInstrument) && (
+                    <button
+                        className="ghost-button"
+                        type="button"
+                        onClick={() => {
+                            setSearchQuery("");
+                            setSearchResults([]);
+                            setSelectedInstrument(null);
+                            setPlatform("");
+                            setQuantity("");
+                            setAveragePrice("");
+                            setErrorMessage("");
+                        }}
+                    >
+                        Avbryt
+                    </button>
+                )}
             </div>
 
             {errorMessage && (
@@ -177,6 +216,7 @@ function AddHoldingForm({importHoldings}) {
                             type="button"
                             onClick={() => {
                                 setSelectedInstrument(instrument);
+                                setSearchResults([]);
                                 setErrorMessage("");
                             }}
                         >

@@ -1,10 +1,39 @@
+import {useEffect, useState} from "react";
 import {formatSek} from "../utils/formatting.js";
+import {getCryptoPrices} from "../services/cryptoData.js";
 
 function CryptoOverview({cryptoExposure, portfolioValue}) {
     const totalCryptoValue = Object.values(cryptoExposure).reduce(
         (total, value) => total + value,
         0
     );
+
+    const [cryptoPrices, setCryptoPrices] = useState({});
+
+    useEffect(() => {
+        const symbols = Object.keys(cryptoExposure)
+            .filter((coin) => coin !== "INDEX");
+
+        if (symbols.length === 0) {
+            return;
+        }
+
+        const loadCryptoPrices = async () => {
+            try {
+                const prices =
+                    await getCryptoPrices(symbols);
+
+                setCryptoPrices(prices);
+            } catch (error) {
+                console.error(
+                    "Kunde inte hämta kryptopriser:",
+                    error
+                );
+            }
+        };
+
+        loadCryptoPrices();
+    }, [cryptoExposure]);
 
     const portfolioPercentage =
         portfolioValue > 0
@@ -29,6 +58,13 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
                 {Object.entries(cryptoExposure)
                     .sort(([, valueA], [, valueB]) => valueB - valueA)
                     .map(([coin, value]) => {
+                        const coinPrice =
+                            cryptoPrices[coin.toLowerCase()]?.sek;
+
+                        const equivalentCoins =
+                            coinPrice
+                                ? value / coinPrice
+                                : null;
                         const percentage =
                             totalCryptoValue > 0
                                 ? (value / totalCryptoValue) * 100
@@ -41,6 +77,18 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
                                 <span className="muted">
                                     {percentage.toFixed(2)} %
                                 </span>
+                                {equivalentCoins !== null && (
+                                    <span className="crypto-equivalent">
+                                                 ≈{" "}
+                                        {equivalentCoins.toLocaleString(
+                                            "sv-SE",
+                                            {
+                                                maximumFractionDigits: 4,
+                                            }
+                                        )}{" "}
+                                        {coin}
+                                 </span>
+                                )}
                             </div>
                         );
                     })}

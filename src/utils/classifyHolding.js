@@ -1,3 +1,5 @@
+import{getCryptoUnderlying} from "./getCryptoUnderlying.js";
+
 const classifyHolding = (holding) => {
     const name = holding.name.toUpperCase();
 
@@ -36,97 +38,9 @@ const classifyHolding = (holding) => {
         name.includes("VALOUR") ||
         name.includes("VIRTUNE")
     ) {
-        let underlying = null;
         let productType = "SINGLE_ASSET";
-
-        // Bitcoin
-        if (
-            name.includes("BITCOIN") ||
-            name.includes("BTC")
-        ) {
-            underlying = "BTC";
-        }
-
-        // Ethereum
-        else if (
-            name.includes("ETHEREUM") ||
-            name.includes("ETH")
-        ) {
-            underlying = "ETH";
-        }
-
-        // Avalanche
-        else if (
-            name.includes("AVALANCHE") ||
-            name.includes("AVAX")
-        ) {
-            underlying = "AVAX";
-        }
-
-        // Solana
-        else if (
-            name.includes("SOLANA") ||
-            name.includes("SOL")
-        ) {
-            underlying = "SOL";
-        }
-
-        // Polkadot
-        else if (
-            name.includes("POLKADOT") ||
-            name.includes("DOT")
-        ) {
-            underlying = "DOT";
-        }
-
-        // Cardano
-        else if (
-            name.includes("CARDANO") ||
-            name.includes("ADA")
-        ) {
-            underlying = "ADA";
-        }
-
-        // Chainlink
-        else if (
-            name.includes("CHAINLINK") ||
-            name.includes("LINK")
-        ) {
-            underlying = "LINK";
-        }
-
-        // XRP
-        else if (name.includes("XRP")) {
-            underlying = "XRP";
-        }
-
-        // SUI
-        else if (name.includes("SUI")) {
-            underlying = "SUI";
-        }
-
-        // Sonic
-        else if (
-            name.includes("SONIC") ||
-            name.includes("(S)")
-        ) {
-            underlying = "S";
-        }
-
-        // Arweave
-        else if (
-            name.includes("ARWEAVE") ||
-            name.includes("(AR)")
-        ) {
-            underlying = "AR";
-        }
-
-        // Gram
-        else if (
-            name.includes("GRAM")
-        ) {
-            underlying = "GRAM";
-        }
+        let underlying =
+            getCryptoUnderlying(holding);
 
         // Indexprodukter
         if (

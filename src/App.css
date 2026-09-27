@@ -474,6 +474,18 @@ p {
   grid-column: 1 / -1;
 }
 
+.provider-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.crypto-equivalent {
+  grid-column: 2 / -1;
+  text-align: right;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
 
 /* =========================================
    INSTRUMENT SEARCH
