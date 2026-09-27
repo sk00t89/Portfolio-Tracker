@@ -2,10 +2,6 @@ import {useState} from "react";
 import {searchNordnetInstruments} from "../services/instrumentSearch.js";
 import {getExchangeRate} from "../services/currencyData.js";
 
-
-
-
-
 function AddHoldingForm({importHoldings}) {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
@@ -13,6 +9,39 @@ function AddHoldingForm({importHoldings}) {
     const [platform, setPlatform] = useState("");
     const [quantity, setQuantity] = useState("");
     const [averagePrice, setAveragePrice] = useState("");
+    const [isSearching, setIsSearching] = useState(false);
+    const [errorMessage, setErrorMessage] = useState("");
+
+    const handleSearch = async () => {
+        if (!searchQuery.trim()) {
+            return;
+        }
+
+        setIsSearching(true);
+        setErrorMessage("");
+
+        try {
+            const results =
+                await searchNordnetInstruments(searchQuery.trim());
+
+            setSearchResults(results);
+            setSelectedInstrument(null);
+
+            if (results.length === 0) {
+                setErrorMessage("Inga värdepapper hittades.");
+            }
+        } catch (error) {
+            console.error(
+                "Instrument-sökningen misslyckades:",
+                error
+            );
+            setErrorMessage(
+                "Sökningen misslyckades. Kontrollera att backend kör."
+            );
+        } finally {
+            setIsSearching(false);
+        }
+    };
 
     const handleSubmit = async () => {
         if (
@@ -21,11 +50,24 @@ function AddHoldingForm({importHoldings}) {
             !quantity ||
             !averagePrice
         ) {
+            setErrorMessage(
+                "Välj instrument och fyll i plattform, antal och GAV."
+            );
             return;
         }
 
         const quantityNumber = Number(quantity);
         const averagePriceNumber = Number(averagePrice);
+
+        if (
+            quantityNumber <= 0 ||
+            averagePriceNumber < 0
+        ) {
+            setErrorMessage(
+                "Antal måste vara större än 0 och GAV kan inte vara negativt."
+            );
+            return;
+        }
 
         let currentValueSek = null;
         let averagePriceSek = null;
@@ -35,8 +77,7 @@ function AddHoldingForm({importHoldings}) {
                 currentValueSek =
                     quantityNumber * selectedInstrument.price;
 
-                averagePriceSek =
-                    averagePriceNumber;
+                averagePriceSek = averagePriceNumber;
             } else {
                 const exchangeRate = await getExchangeRate(
                     selectedInstrument.currency,
@@ -61,13 +102,10 @@ function AddHoldingForm({importHoldings}) {
             assetType: selectedInstrument.assetType,
             currency: selectedInstrument.currency,
             country: selectedInstrument.country,
-
             platform: platform.trim(),
-
             quantity: quantityNumber,
             averagePrice: averagePriceNumber,
             averagePriceSek,
-
             currentPrice: selectedInstrument.price,
             currentValueSek,
             priceUpdatedAt: Date.now(),
@@ -81,32 +119,21 @@ function AddHoldingForm({importHoldings}) {
         setPlatform("");
         setQuantity("");
         setAveragePrice("");
+        setErrorMessage("");
     };
-
-    const handleSearch = async () => {
-        if (!searchQuery.trim()) {
-            return;
-        }
-
-        try {
-            const results =
-                await searchNordnetInstruments(searchQuery);
-
-            setSearchResults(results);
-        } catch (error) {
-            console.error(
-                "Instrument-sökningen misslyckades:",
-                error
-            );
-        }
-    };
-
 
     return (
-        <div>
-            <h2>Lägg till värdepapper</h2>
+        <section className="card add-holding-card">
+            <div className="section-heading">
+                <div>
+                    <span className="eyebrow">Manuellt innehav</span>
+                    <h2>Lägg till värdepapper</h2>
+                </div>
 
-            <div>
+                <span className="section-badge">Nordnet-sök</span>
+            </div>
+
+            <div className="instrument-search">
                 <input
                     type="text"
                     value={searchQuery}
@@ -114,95 +141,134 @@ function AddHoldingForm({importHoldings}) {
                     onChange={(event) =>
                         setSearchQuery(event.target.value)
                     }
+                    onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                            handleSearch();
+                        }
+                    }}
                 />
 
                 <button
+                    className="primary-button"
                     type="button"
                     onClick={handleSearch}
+                    disabled={isSearching}
                 >
-                    Sök
+                    {isSearching ? "Söker..." : "Sök"}
                 </button>
             </div>
 
-            <div>
-                {searchResults.map((instrument) => (
-                    <button
-                        key={`${instrument.provider}-${instrument.instrumentId}`}
-                        type="button"
-                        onClick={() =>
-                            setSelectedInstrument(instrument)
-                        }
-                    >
-                        <strong>
-                            {instrument.name}
-                        </strong>
+            {errorMessage && (
+                <p className="form-message">
+                    {errorMessage}
+                </p>
+            )}
 
-                        {" — "}
-                        {instrument.ticker}
+            {searchResults.length > 0 && (
+                <div className="instrument-results">
+                    {searchResults.map((instrument) => (
+                        <button
+                            className={
+                                selectedInstrument?.instrumentId === instrument.instrumentId
+                                    ? "instrument-result selected"
+                                    : "instrument-result"
+                            }
+                            key={`${instrument.provider}-${instrument.instrumentId}`}
+                            type="button"
+                            onClick={() => {
+                                setSelectedInstrument(instrument);
+                                setErrorMessage("");
+                            }}
+                        >
+                            <span className="instrument-result-main">
+                                <strong>{instrument.name}</strong>
+                                <small>
+                                    {instrument.ticker || "Ingen ticker"} ·{" "}
+                                    {instrument.instrumentTypeName || instrument.assetType}
+                                </small>
+                            </span>
 
-                        {" — "}
-                        {instrument.instrumentTypeName}
-
-                        {" — "}
-                        {instrument.currency}
-                    </button>
-                ))}
-            </div>
+                            <span className="instrument-result-price">
+                                {instrument.price != null
+                                    ? `${instrument.price.toLocaleString("sv-SE")} ${instrument.currency ?? ""}`
+                                    : "Kurs saknas"}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            )}
 
             {selectedInstrument && (
-                <div>
-                    <h3>
-                        Vald: {selectedInstrument.name}
-                    </h3>
+                <div className="selected-instrument">
+                    <div className="selected-instrument-header">
+                        <div>
+                            <span className="eyebrow">Valt instrument</span>
+                            <h3>{selectedInstrument.name}</h3>
+                            <p>
+                                {selectedInstrument.ticker} ·{" "}
+                                {selectedInstrument.instrumentTypeName}
+                            </p>
+                        </div>
 
-                    <p>
-                        {selectedInstrument.ticker}
-                    </p>
+                        <strong>
+                            {selectedInstrument.price != null
+                                ? `${selectedInstrument.price.toLocaleString("sv-SE")} ${selectedInstrument.currency ?? ""}`
+                                : "Kurs saknas"}
+                        </strong>
+                    </div>
 
-                    <p>
-                        {selectedInstrument.instrumentTypeName}
-                    </p>
+                    <div className="form-grid">
+                        <label>
+                            Plattform
+                            <input
+                                type="text"
+                                placeholder="T.ex. Länsförsäkringar"
+                                value={platform}
+                                onChange={(event) =>
+                                    setPlatform(event.target.value)
+                                }
+                            />
+                        </label>
 
-                    <p>
-                        Kurs: {selectedInstrument.price}{" "}
-                        {selectedInstrument.currency}
-                    </p>
+                        <label>
+                            Antal
+                            <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                placeholder="0"
+                                value={quantity}
+                                onChange={(event) =>
+                                    setQuantity(event.target.value)
+                                }
+                            />
+                        </label>
 
-                    <input
-                        type="text"
-                        placeholder="Plattform, t.ex. Länsförsäkringar"
-                        value={platform}
-                        onChange={(event) =>
-                            setPlatform(event.target.value)
-                        }
-                    />
+                        <label>
+                            GAV ({selectedInstrument.currency ?? "valuta"})
+                            <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                placeholder="0"
+                                value={averagePrice}
+                                onChange={(event) =>
+                                    setAveragePrice(event.target.value)
+                                }
+                            />
+                        </label>
+                    </div>
 
-                    <input
-                        type="number"
-                        placeholder="Antal"
-                        value={quantity}
-                        onChange={(event) =>
-                            setQuantity(event.target.value)
-                        }
-                    />
-
-                    <input
-                        type="number"
-                        placeholder="GAV"
-                        value={averagePrice}
-                        onChange={(event) =>
-                            setAveragePrice(event.target.value)
-                        }
-                    />
                     <button
+                        className="primary-button"
                         type="button"
                         onClick={handleSubmit}
-                        >
+                    >
                         Lägg till innehav
                     </button>
                 </div>
             )}
-        </div>
+        </section>
     );
 }
 
