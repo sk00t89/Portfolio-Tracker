@@ -67,7 +67,7 @@ function App() {
             }
         }
 
-// 2. Avanza
+        // 2. Avanza
         if (!data && holding.isin) {
             try {
                 data = await getAvanzaPriceByIsin(
@@ -87,7 +87,7 @@ function App() {
             }
         }
 
-// 3. Yahoo
+        // 3. Yahoo
 
         if (!data) {
             const yahooSymbol = getYahooSymbol(holding);
@@ -546,6 +546,10 @@ function App() {
 
                 const classifiedHolding =
                     classifyHolding(normalizedHolding);
+
+                const newKey =
+                    getInstrumentKey(classifiedHolding);
+
                 const existingHolding = finalHoldings.find((oldHolding) => {
                     return (
                         oldHolding.platform === classifiedHolding.platform &&
