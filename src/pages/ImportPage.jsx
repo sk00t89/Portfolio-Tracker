@@ -12,16 +12,13 @@ function ImportPage({
 
     const handleFile = async (event) => {
         const file = event.target.files[0];
-        const text = await file.text();
-
-
-        const result = parseCsv(text);
-
-        console.log(result);
 
         if (!file) {
             return;
         }
+
+        const text = await file.text();
+        const result = parseCsv(text);
 
         if (result.type === "HOLDINGS") {
             importHoldings(result.data);
@@ -29,10 +26,6 @@ function ImportPage({
 
         if (result.type === "LYSA_TRANSACTIONS") {
             importLysaTransactions(result.data);
-            console.log(
-                "Lysa transactions:",
-                result.data
-            );
         }
 
         if (result.type === "LYSA_PERFORMANCE") {
@@ -47,8 +40,14 @@ function ImportPage({
 
 
     return (
-        <div>
-            <h1>Import</h1>
+        <main className="page import-page">
+            <div className="page-heading">
+                <span className="eyebrow">CSV-import</span>
+                <h1>Importera portfölj</h1>
+                <p>Ladda upp exportfiler från Avanza, Nordnet eller Lysa.</p>
+            </div>
+
+            <section className="card import-card">
 
             <input
                 type="file"
@@ -56,12 +55,15 @@ function ImportPage({
                 onChange={handleFile}
             />
 
-            {inputFile.map((item) => (
-                <p key={item}>
-                    Du har laddat upp {item}
-                </p>
-            ))}
-        </div>
+                <div className="import-history">
+                    {inputFile.map((item) => (
+                        <p key={item}>
+                            ✓ {item}
+                        </p>
+                    ))}
+                </div>
+            </section>
+        </main>
     );
 }
 
