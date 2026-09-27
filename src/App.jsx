@@ -36,7 +36,6 @@ function App() {
     // =========================================
     // HOLDINGS: priser, berikning och matchning
     // =========================================
-
     const updateHoldingPrice = async (id) => {
         const holding = holdings.find(
             (holding) => holding.id === id
@@ -45,8 +44,6 @@ function App() {
         if (!holding) {
             return;
         }
-
-        console.log("Försöker uppdatera:", holding);
 
         let data = null;
 
@@ -109,7 +106,13 @@ function App() {
             );
         }
 
-        console.log("Aktuell kurs:", data);
+        if (!data?.price) {
+            console.warn(
+                "Ingen giltig kurs hittades för:",
+                holding.name
+            );
+            return;
+        }
 
         let currentValueSek = null;
 
@@ -263,33 +266,15 @@ function App() {
                 ) {
                     const averagePriceSek =
                         await getAveragePriceSek(holding);
-
-                    console.log(
-                        "Berikar GAV:",
-                        holding.name,
-                        "→",
-                        averagePriceSek
-                    );
-
                     return {
                         ...holding,
                         averagePriceSek:
                             averagePriceSek ?? holding.averagePriceSek,
                     };
                 }
-
-                console.log(
-                    holding.name,
-                    holding.averagePrice,
-                    holding.currency
-                );
-
                 return holding;
             })
         );
-
-        console.log("Holdings efter GAV-berikning:", updatedHoldings);
-
         setHoldings(updatedHoldings);
     };
 
@@ -351,10 +336,6 @@ function App() {
         }
 
         const averagePriceSek = await getAveragePriceSek(holding);
-
-        console.log("Berikad holding:", holding.name);
-        console.log("GAV SEK:", averagePriceSek);
-
         setHoldings((prevHoldings) =>
             prevHoldings.map((holding) => {
                 if (holding.id !== id) {
@@ -481,7 +462,7 @@ function App() {
         const highestId = ids.length > 0 ? Math.max(...ids) : 0;
 
         return highestId + 1;
-    }
+    };
 
     // =========================================
     // LOCAL STORAGE / STARTUP
@@ -535,7 +516,7 @@ function App() {
     const lysaHoldings = Object.entries(lysaFundVolumes)
         .filter(([, volume]) => volume > 0)
         .map(([name, volume]) => ({
-            id:`lysa-${name}`,
+            id: `lysa-${name}`,
             name,
             quantity: volume,
             platform: "Lysa",
@@ -565,9 +546,6 @@ function App() {
 
                 const classifiedHolding =
                     classifyHolding(normalizedHolding);
-
-                const newKey = getInstrumentKey(classifiedHolding);
-
                 const existingHolding = finalHoldings.find((oldHolding) => {
                     return (
                         oldHolding.platform === classifiedHolding.platform &&
@@ -681,7 +659,8 @@ function App() {
         setResolvedMatches([]);
         setLysaPerformance([]);
         setLysaTransactions([]);
-    }
+    };
+
     const portfolioValue = calculatePortfolioValue(
         holdings,
         assets,
