@@ -12,14 +12,17 @@ import {
 import AddHoldingForm from "../components/AddHoldingForm.jsx";
 
 
-function Dashboard({assets, setAssets, holdings, portfolioValue, lysaValue, importHoldings}) {
-
-
+function Dashboard({
+    assets,
+    setAssets,
+    holdings,
+    portfolioValue,
+    lysaValue,
+    importHoldings
+}) {
     const investedCapital = calculateInvestedCapital(holdings);
 
     const cryptoExposure = calculateCryptoExposure(holdings);
-
-    console.log(calculateCryptoExposure(holdings));
 
     const totalsByPlatform =
         calculateTotalsByPlatform(
@@ -27,7 +30,11 @@ function Dashboard({assets, setAssets, holdings, portfolioValue, lysaValue, impo
             lysaValue
         );
 
-    const totalsByCategory = calculateTotalsByCategory(holdings, assets, lysaValue);
+    const totalsByCategory = calculateTotalsByCategory(
+        holdings,
+        assets,
+        lysaValue
+    );
 
     const getNextId = (assets) => {
         const ids = assets.map((asset) => {
