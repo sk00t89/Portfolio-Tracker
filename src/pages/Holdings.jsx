@@ -1,23 +1,20 @@
 import {useState} from "react";
 import {formatSek} from "../utils/formatting.js";
 
-
 function Holdings({
-                      possibleMatches,
-                      confirmMatch,
-                      resolveMatch,
-                      groupedHoldings,
-                      portfolioValue,
-                      enrichHoldingSmart,
-                      enrichmentCandidates,
-                      selectEnrichmentCandidate,
-                      searchEnrichmentCandidates,
-                      updateHoldingPrice,
-                      deleteHolding
-                  }) {
-    console.log("Candidates i Holdings:", enrichmentCandidates);
+    possibleMatches,
+    confirmMatch,
+    resolveMatch,
+    groupedHoldings,
+    portfolioValue,
+    enrichHoldingSmart,
+    enrichmentCandidates,
+    selectEnrichmentCandidate,
+    searchEnrichmentCandidates,
+    deleteHolding
+}) {
     const [manualSearch, setManualSearch] = useState("");
-    const [sortBy, setSortBy] = useState("alphabetical");
+    const [sortBy, setSortBy] = useState("largest");
 
     const sortedHoldings = [...groupedHoldings].sort((a, b) => {
         if (sortBy === "alphabetical") {
@@ -36,163 +33,252 @@ function Holdings({
     });
 
     return (
-        <div className="holdings-page">
-            <h1>Innehav</h1>
-            <div className="select-div">
+        <main className="page holdings-page">
+            <div className="page-heading page-heading-row">
+                <div>
+                    <span className="eyebrow">Portfölj</span>
+                    <h1>Innehav</h1>
+                    <p>
+                        Alla positioner samlade över dina plattformar.
+                    </p>
+                </div>
+
                 <select
+                    className="compact-select"
                     value={sortBy}
-                    onChange={(event) => setSortBy(event.target.value)}
+                    onChange={(event) =>
+                        setSortBy(event.target.value)
+                    }
                 >
                     <option value="alphabetical">Alfabetiskt</option>
-                    <option selected="true" value="largest">Störst först</option>
+                    <option value="largest">Störst först</option>
                     <option value="smallest">Minst först</option>
                 </select>
             </div>
 
-            {possibleMatches.map((match) => (
-                <div key={`${match.firstId}-${match.secondId}`}>
-                    <p>Är detta samma värdepapper?</p>
-                    <p>{match.firstName}</p>
-                    <p>{match.secondName}</p>
+            {possibleMatches.length > 0 && (
+                <section className="match-panel">
+                    <span className="eyebrow">Behöver din hjälp</span>
+                    <h2>Möjliga dubbletter</h2>
 
-                    <button
-                        type="button"
-                        onClick={() => {
-                            confirmMatch(match.firstId, match.secondId);
-                            resolveMatch(match.firstId, match.secondId);
-                        }}
-                    >
-                        Ja
-                    </button>
+                    {possibleMatches.map((match) => (
+                        <div
+                            className="match-row"
+                            key={`${match.firstId}-${match.secondId}`}
+                        >
+                            <div>
+                                <strong>{match.firstName}</strong>
+                                <span> ↔ </span>
+                                <strong>{match.secondName}</strong>
+                            </div>
 
-                    <button
-                        type="button"
-                        onClick={() => {
-                            resolveMatch(match.firstId, match.secondId);
-                        }}
-                    >
-                        Nej
-                    </button>
-                </div>
-            ))}
+                            <div className="button-row">
+                                <button
+                                    className="primary-button small-button"
+                                    type="button"
+                                    onClick={() => {
+                                        confirmMatch(
+                                            match.firstId,
+                                            match.secondId
+                                        );
+                                        resolveMatch(
+                                            match.firstId,
+                                            match.secondId
+                                        );
+                                    }}
+                                >
+                                    Samma
+                                </button>
 
-            <div className="holdings-list">
-                {sortedHoldings.map((group) => (
-                    <div
-                        className="holding-card"
-                        key={group.instrumentKey}
-                    >
-                        <div className="holding-card-header">
-                            <h3>{group.name}</h3>
-
-                            <div className="holding-summary">
-                                <strong>
-                                    {formatSek(group.totalValue)}
-                                </strong>
-
-                                <span>
-                                {(
-                                    (group.totalValue / portfolioValue) *
-                                    100
-                                ).toLocaleString("sv-SE", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                })}{" "}
-                                    %
-                            </span>
+                                <button
+                                    className="ghost-button small-button"
+                                    type="button"
+                                    onClick={() =>
+                                        resolveMatch(
+                                            match.firstId,
+                                            match.secondId
+                                        )
+                                    }
+                                >
+                                    Olika
+                                </button>
                             </div>
                         </div>
+                    ))}
+                </section>
+            )}
 
-                        <div className="holding-positions">
-                            {group.positions.map((position) => (
-                                <div key={position.id}>
-                                    <div className="holding-position">
-                                        <span>{position.platform}</span>
+            <div className="holdings-list">
+                {sortedHoldings.map((group) => {
+                    const isLysaOnly =
+                        group.positions.every(
+                            (position) =>
+                                position.platform === "Lysa"
+                        );
+
+                    const percentage =
+                        portfolioValue > 0
+                            ? (group.totalValue / portfolioValue) * 100
+                            : 0;
+
+                    return (
+                        <article
+                            className="holding-card"
+                            key={group.instrumentKey}
+                        >
+                            <div className="holding-card-header">
+                                <div>
+                                    <h3>{group.name}</h3>
+                                    <span className="holding-meta">
+                                        {group.positions.length}{" "}
+                                        {group.positions.length === 1
+                                            ? "position"
+                                            : "positioner"}
+                                    </span>
+                                </div>
+
+                                <div className="holding-summary">
+                                    {isLysaOnly && group.totalValue === 0 ? (
+                                        <>
+                                            <strong>Ingår i Lysa-total</strong>
+                                            <span>Andelar visas nedan</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <strong>
+                                                {formatSek(group.totalValue)}
+                                            </strong>
+                                            <span>
+                                                {percentage.toFixed(2)} %
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="holding-positions">
+                                {group.positions.map((position) => (
+                                    <div
+                                        className="holding-position"
+                                        key={position.id}
+                                    >
+                                        <span className="platform-pill">
+                                            {position.platform}
+                                        </span>
 
                                         <span>
-                {position.quantity.toLocaleString("sv-SE")} st
-            </span>
-                                        {position.platform !== "Lysa" && (
-                                            <button
-                                                type="button"
-                                                onClick={() => deleteHolding(position.id)}
-                                            >
-                                                Ta bort
-                                            </button>
-                                        )}
+                                            {position.quantity.toLocaleString(
+                                                "sv-SE",
+                                                {
+                                                    maximumFractionDigits: 4
+                                                }
+                                            )}{" "}
+                                            st
+                                        </span>
 
-
-                                        {position.platform === "Nordnet" &&
-                                            (!position.isin || !position.ticker || !position.assetType) && (
+                                        <div className="position-actions">
+                                            {position.platform !== "Lysa" && (
                                                 <button
+                                                    className="ghost-button danger-text small-button"
                                                     type="button"
-                                                    onClick={async () => {
-                                                        try {
-                                                            await enrichHoldingSmart(position.id);
-                                                        } catch (error) {
-                                                            console.error(
-                                                                "Berikning misslyckades:",
-                                                                error
-                                                            );
-                                                        }
-                                                    }}
+                                                    onClick={() =>
+                                                        deleteHolding(position.id)
+                                                    }
                                                 >
-                                                    Berika
+                                                    Ta bort
                                                 </button>
                                             )}
-                                    </div>
 
-                                    {enrichmentCandidates &&
-                                        enrichmentCandidates.holdingId === position.id && (
-                                            <div className="enrichment-candidates">
-                                                <h4>
-                                                    Välj rätt instrument för{" "}
-                                                    {enrichmentCandidates.holdingName}
-                                                </h4>
-
-                                                {enrichmentCandidates.candidates.map((candidate) => (
+                                            {position.platform === "Nordnet" &&
+                                                (!position.isin ||
+                                                    !position.ticker ||
+                                                    !position.assetType) && (
                                                     <button
-                                                        className="enrichment-candidate-button"
-                                                        key={`${candidate.ticker}-${candidate.exchange}`}
+                                                        className="ghost-button small-button"
                                                         type="button"
-                                                        onClick={() =>
-                                                            selectEnrichmentCandidate(candidate)
-                                                        }
+                                                        onClick={async () => {
+                                                            try {
+                                                                await enrichHoldingSmart(
+                                                                    position.id
+                                                                );
+                                                            } catch (error) {
+                                                                console.error(
+                                                                    "Berikning misslyckades:",
+                                                                    error
+                                                                );
+                                                            }
+                                                        }}
                                                     >
-                                                        {candidate.name} — {candidate.ticker} —{" "}
-                                                        {candidate.exchange} — {candidate.currency}
+                                                        Berika
                                                     </button>
-                                                ))}
+                                                )}
+                                        </div>
 
-                                                <div className="enrichment-manual-search">
-                                                    <input
-                                                        type="text"
-                                                        value={manualSearch}
-                                                        placeholder="Sök själv, t.ex. BRK-B"
-                                                        onChange={(event) =>
-                                                            setManualSearch(event.target.value)
+                                        {enrichmentCandidates &&
+                                            enrichmentCandidates.holdingId ===
+                                                position.id && (
+                                                <div className="enrichment-candidates">
+                                                    <h4>
+                                                        Välj rätt instrument för{" "}
+                                                        {
+                                                            enrichmentCandidates.holdingName
                                                         }
-                                                    />
+                                                    </h4>
 
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            searchEnrichmentCandidates(manualSearch)
-                                                        }
-                                                    >
-                                                        Sök
-                                                    </button>
+                                                    {enrichmentCandidates.candidates.map(
+                                                        (candidate) => (
+                                                            <button
+                                                                className="enrichment-candidate-button"
+                                                                key={`${candidate.ticker}-${candidate.exchange}`}
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    selectEnrichmentCandidate(
+                                                                        candidate
+                                                                    )
+                                                                }
+                                                            >
+                                                                {candidate.name} —{" "}
+                                                                {candidate.ticker} —{" "}
+                                                                {candidate.exchange} —{" "}
+                                                                {candidate.currency}
+                                                            </button>
+                                                        )
+                                                    )}
 
+                                                    <div className="enrichment-manual-search">
+                                                        <input
+                                                            type="text"
+                                                            value={manualSearch}
+                                                            placeholder="Sök själv, t.ex. BRK-B"
+                                                            onChange={(event) =>
+                                                                setManualSearch(
+                                                                    event.target.value
+                                                                )
+                                                            }
+                                                        />
+
+                                                        <button
+                                                            className="primary-button small-button"
+                                                            type="button"
+                                                            onClick={() =>
+                                                                searchEnrichmentCandidates(
+                                                                    manualSearch
+                                                                )
+                                                            }
+                                                        >
+                                                            Sök
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ))}
+                                            )}
+                                    </div>
+                                ))}
+                            </div>
+                        </article>
+                    );
+                })}
             </div>
-        </div>
+        </main>
     );
 }
 
