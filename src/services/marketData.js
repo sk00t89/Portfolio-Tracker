@@ -3,11 +3,11 @@ export const searchInstrument = async (query) => {
         `http://localhost:3001/api/search/${encodeURIComponent(query)}`
     );
 
-    const data = await response.json();
+    if (!response.ok) {
+        throw new Error("Instrumentsökningen misslyckades");
+    }
 
-    console.log("Market data:", data);
-
-    return data;
+    return response.json();
 };
 
 export const getCurrentPrice = async (ticker, exchange) => {
@@ -15,9 +15,11 @@ export const getCurrentPrice = async (ticker, exchange) => {
         `http://localhost:3001/api/price/${encodeURIComponent(ticker)}/${encodeURIComponent(exchange)}`
     );
 
-    const data = await response.json();
+    if (!response.ok) {
+        throw new Error("Kursförfrågan misslyckades");
+    }
 
-    return data;
+    return response.json();
 };
 
 export const getYahooPrice = async (symbol) => {
@@ -25,9 +27,11 @@ export const getYahooPrice = async (symbol) => {
         `http://localhost:3001/api/yahoo-price/${encodeURIComponent(symbol)}`
     );
 
-    const data = await response.json();
+    if (!response.ok) {
+        throw new Error("Yahoo-kursen kunde inte hämtas");
+    }
 
-    return data;
+    return response.json();
 };
 
 export const getNordnetPriceByIsin = async (isin) => {
@@ -35,9 +39,11 @@ export const getNordnetPriceByIsin = async (isin) => {
         `http://localhost:3001/api/nordnet-search/${encodeURIComponent(isin)}`
     );
 
-    const data = await response.json();
+    if (!response.ok) {
+        throw new Error("Nordnet-kursen kunde inte hämtas");
+    }
 
-    return data;
+    return response.json();
 };
 
 export const getAvanzaPriceByIsin = async (isin) => {
@@ -45,7 +51,9 @@ export const getAvanzaPriceByIsin = async (isin) => {
         `http://localhost:3001/api/avanza-search/${encodeURIComponent(isin)}`
     );
 
-    const data = await response.json();
+    if (!response.ok) {
+        throw new Error("Avanza-kursen kunde inte hämtas");
+    }
 
-    return data;
+    return response.json();
 };
