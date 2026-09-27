@@ -12,7 +12,8 @@ function Holdings({
                       enrichmentCandidates,
                       selectEnrichmentCandidate,
                       searchEnrichmentCandidates,
-                      updateHoldingPrice
+                      updateHoldingPrice,
+                      deleteHolding
                   }) {
     console.log("Candidates i Holdings:", enrichmentCandidates);
     const [manualSearch, setManualSearch] = useState("");
@@ -43,7 +44,7 @@ function Holdings({
                     onChange={(event) => setSortBy(event.target.value)}
                 >
                     <option value="alphabetical">Alfabetiskt</option>
-                    <option value="largest">Störst först</option>
+                    <option selected="true" value="largest">Störst först</option>
                     <option value="smallest">Minst först</option>
                 </select>
             </div>
@@ -111,8 +112,14 @@ function Holdings({
                                         <span>
                 {position.quantity.toLocaleString("sv-SE")} st
             </span>
-
-
+                                        {position.platform !== "Lysa" && (
+                                            <button
+                                                type="button"
+                                                onClick={() => deleteHolding(position.id)}
+                                            >
+                                                Ta bort
+                                            </button>
+                                        )}
 
 
                                         {position.platform === "Nordnet" &&
@@ -137,47 +144,48 @@ function Holdings({
 
                                     {enrichmentCandidates &&
                                         enrichmentCandidates.holdingId === position.id && (
-                                        <div className="enrichment-candidates">
-                                            <h4>
-                                                Välj rätt instrument för{" "}
-                                                {enrichmentCandidates.holdingName}
-                                            </h4>
+                                            <div className="enrichment-candidates">
+                                                <h4>
+                                                    Välj rätt instrument för{" "}
+                                                    {enrichmentCandidates.holdingName}
+                                                </h4>
 
-                                            {enrichmentCandidates.candidates.map((candidate) => (
-                                                <button
-                                                    className="enrichment-candidate-button"
-                                                    key={`${candidate.ticker}-${candidate.exchange}`}
-                                                    type="button"
-                                                    onClick={() =>
-                                                        selectEnrichmentCandidate(candidate)
-                                                    }
-                                                >
-                                                    {candidate.name} — {candidate.ticker} —{" "}
-                                                    {candidate.exchange} — {candidate.currency}
-                                                </button>
-                                            ))}
+                                                {enrichmentCandidates.candidates.map((candidate) => (
+                                                    <button
+                                                        className="enrichment-candidate-button"
+                                                        key={`${candidate.ticker}-${candidate.exchange}`}
+                                                        type="button"
+                                                        onClick={() =>
+                                                            selectEnrichmentCandidate(candidate)
+                                                        }
+                                                    >
+                                                        {candidate.name} — {candidate.ticker} —{" "}
+                                                        {candidate.exchange} — {candidate.currency}
+                                                    </button>
+                                                ))}
 
-                                            <div className="enrichment-manual-search">
-                                                <input
-                                                    type="text"
-                                                    value={manualSearch}
-                                                    placeholder="Sök själv, t.ex. BRK-B"
-                                                    onChange={(event) =>
-                                                        setManualSearch(event.target.value)
-                                                    }
-                                                />
+                                                <div className="enrichment-manual-search">
+                                                    <input
+                                                        type="text"
+                                                        value={manualSearch}
+                                                        placeholder="Sök själv, t.ex. BRK-B"
+                                                        onChange={(event) =>
+                                                            setManualSearch(event.target.value)
+                                                        }
+                                                    />
 
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        searchEnrichmentCandidates(manualSearch)
-                                                    }
-                                                >
-                                                    Sök
-                                                </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            searchEnrichmentCandidates(manualSearch)
+                                                        }
+                                                    >
+                                                        Sök
+                                                    </button>
+
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
                                 </div>
                             ))}
                         </div>

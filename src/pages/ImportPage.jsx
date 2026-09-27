@@ -14,9 +14,14 @@ function ImportPage({
         const file = event.target.files[0];
         const text = await file.text();
 
+
         const result = parseCsv(text);
 
         console.log(result);
+
+        if (!file) {
+            return;
+        }
 
         if (result.type === "HOLDINGS") {
             importHoldings(result.data);

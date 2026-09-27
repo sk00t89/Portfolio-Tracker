@@ -698,6 +698,14 @@ function App() {
         );
     }, [transactions]);
 
+    const deleteHolding = (id) => {
+        setHoldings((previousHoldings) =>
+            previousHoldings.filter(
+                (holding) => holding.id !== id
+            )
+        );
+    };
+
     const resetPortfolio = () => {
         setAssets(initialAssets);
         setHoldings([]);
@@ -724,9 +732,10 @@ function App() {
                     <Dashboard
                         assets={assets}
                         setAssets={setAssets}
-                        holdings={holdingsForDisplay}
+                        holdings={holdings}
                         portfolioValue={portfolioValue}
                         lysaValue={lysaValue}
+                        importHoldings={importHoldings}
                     />}
                 />
                 <Route path="/holdings" element={
@@ -741,6 +750,7 @@ function App() {
                         selectEnrichmentCandidate={selectEnrichmentCandidate}
                         searchEnrichmentCandidates={searchEnrichmentCandidates}
                         updateHoldingPrice={updateHoldingPrice}
+                        deleteHolding={deleteHolding}
                     />
                 }
                 />

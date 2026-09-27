@@ -12,7 +12,7 @@ import {
 import AddHoldingForm from "../components/AddHoldingForm.jsx";
 
 
-function Dashboard({assets, setAssets, holdings, portfolioValue, lysaValue}) {
+function Dashboard({assets, setAssets, holdings, portfolioValue, lysaValue, importHoldings}) {
 
 
     const investedCapital = calculateInvestedCapital(holdings);
@@ -88,6 +88,7 @@ function Dashboard({assets, setAssets, holdings, portfolioValue, lysaValue}) {
                 addAsset={addAsset}
             />
             <AddHoldingForm
+                importHoldings={importHoldings}
             />
         </div>
     );

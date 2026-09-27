@@ -33,7 +33,7 @@ const parseCsv = (string) => {
         console.log("Lysa Transactions CSV");
         return {
             type: "LYSA_TRANSACTIONS",
-            data:parseLysaTransactionsCsv(string) ,
+            data: parseLysaTransactionsCsv(string),
         }
     }
 
@@ -50,7 +50,10 @@ const parseCsv = (string) => {
         };
     }
 
-    return "Unknown CSV format";
+    return {
+        type: "UNKNOWN",
+        data: null
+    };
 };
 
 export default parseCsv;

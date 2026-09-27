@@ -1,14 +1,87 @@
 import {useState} from "react";
 import {searchNordnetInstruments} from "../services/instrumentSearch.js";
+import {getExchangeRate} from "../services/currencyData.js";
 
 
-function AddHoldingForm() {
+
+
+
+function AddHoldingForm({importHoldings}) {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [selectedInstrument, setSelectedInstrument] = useState(null);
     const [platform, setPlatform] = useState("");
     const [quantity, setQuantity] = useState("");
     const [averagePrice, setAveragePrice] = useState("");
+
+    const handleSubmit = async () => {
+        if (
+            !selectedInstrument ||
+            !platform.trim() ||
+            !quantity ||
+            !averagePrice
+        ) {
+            return;
+        }
+
+        const quantityNumber = Number(quantity);
+        const averagePriceNumber = Number(averagePrice);
+
+        let currentValueSek = null;
+        let averagePriceSek = null;
+
+        if (selectedInstrument.currency) {
+            if (selectedInstrument.currency === "SEK") {
+                currentValueSek =
+                    quantityNumber * selectedInstrument.price;
+
+                averagePriceSek =
+                    averagePriceNumber;
+            } else {
+                const exchangeRate = await getExchangeRate(
+                    selectedInstrument.currency,
+                    "SEK"
+                );
+
+                currentValueSek =
+                    quantityNumber *
+                    selectedInstrument.price *
+                    exchangeRate;
+
+                averagePriceSek =
+                    averagePriceNumber *
+                    exchangeRate;
+            }
+        }
+
+        const newHolding = {
+            name: selectedInstrument.name,
+            ticker: selectedInstrument.ticker,
+            isin: selectedInstrument.isin,
+            assetType: selectedInstrument.assetType,
+            currency: selectedInstrument.currency,
+            country: selectedInstrument.country,
+
+            platform: platform.trim(),
+
+            quantity: quantityNumber,
+            averagePrice: averagePriceNumber,
+            averagePriceSek,
+
+            currentPrice: selectedInstrument.price,
+            currentValueSek,
+            priceUpdatedAt: Date.now(),
+        };
+
+        importHoldings([newHolding]);
+
+        setSelectedInstrument(null);
+        setSearchResults([]);
+        setSearchQuery("");
+        setPlatform("");
+        setQuantity("");
+        setAveragePrice("");
+    };
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) {
@@ -27,6 +100,7 @@ function AddHoldingForm() {
             );
         }
     };
+
 
     return (
         <div>
@@ -120,6 +194,12 @@ function AddHoldingForm() {
                             setAveragePrice(event.target.value)
                         }
                     />
+                    <button
+                        type="button"
+                        onClick={handleSubmit}
+                        >
+                        Lägg till innehav
+                    </button>
                 </div>
             )}
         </div>
