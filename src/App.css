@@ -749,7 +749,34 @@ p {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
 }
+.transaction-form {
+  grid-column: 1 / -1;
+}
 
+.position-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.transaction-position-summary {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.transaction-position-summary span {
+  display: flex;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.transaction-position-summary strong {
+  color: inherit;
+}
 
 /* =========================================
    IMPORT / SETTINGS

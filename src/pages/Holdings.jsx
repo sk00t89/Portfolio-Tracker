@@ -1,22 +1,31 @@
 import {useState} from "react";
-import {formatSek} from "../utils/formatting.js";
+import {
+    formatSek,
+    formatCurrency
+} from "../utils/formatting.js";
 
 function Holdings({
-    possibleMatches,
-    confirmMatch,
-    resolveMatch,
-    groupedHoldings,
-    portfolioValue,
-    enrichHoldingSmart,
-    enrichmentCandidates,
-    selectEnrichmentCandidate,
-    searchEnrichmentCandidates,
-    deleteHolding,
-    handleTransaction
-}) {
+                      possibleMatches,
+                      confirmMatch,
+                      resolveMatch,
+                      groupedHoldings,
+                      portfolioValue,
+                      enrichHoldingSmart,
+                      enrichmentCandidates,
+                      selectEnrichmentCandidate,
+                      searchEnrichmentCandidates,
+                      deleteHolding,
+                      handleTransaction
+                  }) {
     const [manualSearch, setManualSearch] = useState("");
     const [sortBy, setSortBy] = useState("largest");
     const [selectedPosition, setSelectedPosition] = useState(null);
+
+    const [transactionType, setTransactionType] = useState("BUY");
+    const [transactionQuantity, setTransactionQuantity] = useState("");
+    const [transactionPrice, setTransactionPrice] = useState("");
+    const [transactionCurrency, setTransactionCurrency] = useState("SEK");
+    const [transactionFee, setTransactionFee] = useState("");
 
     const sortedHoldings = [...groupedHoldings].sort((a, b) => {
         if (sortBy === "alphabetical") {
@@ -33,6 +42,7 @@ function Holdings({
 
         return 0;
     });
+
 
     return (
         <main className="page holdings-page">
@@ -174,11 +184,11 @@ function Holdings({
                                             {position.quantity.toLocaleString(
                                                 "sv-SE",
                                                 {
-                                                    maximumFractionDigits: 4
+                                                    maximumFractionDigits: 4,
                                                 }
                                             )}{" "}
                                             st
-                                        </span>
+                                            </span>
 
                                         <div className="position-actions">
                                             {position.platform !== "Lysa" && (
@@ -191,56 +201,21 @@ function Holdings({
                                                 >
                                                     Ta bort
                                                 </button>
-
                                             )}
+
                                             <button
                                                 className="ghost-button small-button"
                                                 type="button"
-                                                onClick={() => setSelectedPosition((current) =>
-                                                current?.id === position.id
-                                                ? null
-                                                : position
-                                                )
-                                            }
+                                                onClick={() =>
+                                                    setSelectedPosition((current) =>
+                                                        current?.id === position.id
+                                                            ? null
+                                                            : position
+                                                    )
+                                                }
                                             >
                                                 Köp / Sälj
                                             </button>
-                                            {selectedPosition?.id === position.id && (
-                                                <div className="transaction-form">
-                                                    <select defaultValue="BUY">
-                                                        <option value="BUY">Köp</option>
-                                                        <option value="SELL">Sälj</option>
-                                                    </select>
-
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Antal"
-                                                    />
-
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Pris"
-                                                    />
-
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Valuta, t.ex. SEK"
-                                                        defaultValue={position.currency ?? "SEK"}
-                                                    />
-
-                                                    <input
-                                                        type="number"
-                                                        placeholder="Avgift/courtage (valfritt)"
-                                                    />
-
-                                                    <button
-                                                        className="primary-button small-button"
-                                                        type="button"
-                                                    >
-                                                        Spara transaktion
-                                                    </button>
-                                                </div>
-                                            )}
 
                                             {position.platform === "Nordnet" &&
                                                 (!position.isin ||
@@ -267,9 +242,120 @@ function Holdings({
                                                 )}
                                         </div>
 
+                                        {selectedPosition?.id === position.id && (
+                                            <div className="transaction-form">
+                                                <div className="transaction-position-summary">
+                                                    <span>
+                                                        Värde:
+                                                        <strong>
+                                                            {formatSek(position.currentValueSek ?? 0)}
+                                                        </strong>
+                                                    </span>
+
+                                                        <span>
+                                                        GAV:
+                                                        <strong>
+                                                           {formatCurrency(
+                                                               position.averagePriceSek ?? 0,
+                                                               "SEK"
+                                                           )}
+                                                        </strong>
+                                                    </span>
+
+                                                        <span>
+                                                        Antal:
+                                                        <strong>
+                                                            {position.quantity.toLocaleString("sv-SE", {
+                                                                maximumFractionDigits: 4,
+                                                            })}
+                                                        </strong>
+                                                    </span>
+                                                    <span>
+                                                        Senast:
+                                                        <strong>
+                                                            {position.currentPrice != null
+                                                                ? formatCurrency(
+                                                                    position.currentPrice,
+                                                                    position.currency ?? "SEK"
+                                                                )
+                                                                : "Saknas"}
+                                                        </strong>
+                                                    </span>
+                                                </div>
+                                                <select
+                                                value={transactionType}
+                                                onChange={(event) =>
+                                                    setTransactionType(event.target.value)}
+                                                >
+                                                    <option value="BUY">
+                                                        Köp
+                                                    </option>
+
+                                                    <option value="SELL">
+                                                        Sälj
+                                                    </option>
+                                                </select>
+
+                                                <input
+                                                    type="number"
+                                                    placeholder="Antal"
+                                                    value={transactionQuantity}
+                                                    onChange={(event) =>
+                                                setTransactionQuantity(event.target.value)}
+                                                />
+
+                                                <input
+                                                    type="number"
+                                                    placeholder="Pris"
+                                                    value={transactionPrice}
+                                                    onChange={(event) =>
+                                                setTransactionPrice(event.target.value)}
+                                                />
+
+                                                <input
+                                                    type="text"
+                                                    placeholder="Valuta, t.ex. SEK"
+                                                    value={transactionCurrency}
+                                                    onChange={(event) =>
+                                                setTransactionCurrency(event.target.value)}
+
+                                                />
+
+                                                <input
+                                                    type="number"
+                                                    placeholder="Avgift/courtage (valfritt)"
+                                                    value={transactionFee}
+                                                    onChange={(event) =>
+                                                setTransactionFee(event.target.value)}
+                                                />
+
+                                                <button
+                                                    className="primary-button small-button"
+                                                    type="button"
+                                                    onClick={() => {
+                                                        handleTransaction(position.id, {
+                                                            type: transactionType,
+                                                            quantity: transactionQuantity,
+                                                            price: transactionPrice,
+                                                            currency: transactionCurrency,
+                                                            feeSek: transactionFee || 0,
+                                                        })
+                                                        setSelectedPosition(null);
+                                                        setTransactionType("BUY");
+                                                        setTransactionQuantity("");
+                                                        setTransactionPrice("");
+                                                        setTransactionCurrency("SEK");
+                                                        setTransactionFee("");
+                                                    }}
+                                                >
+                                                    Spara transaktion
+                                                </button>
+                                            </div>
+                                        )}
+
                                         {enrichmentCandidates &&
                                             enrichmentCandidates.holdingId ===
-                                                position.id && (
+                                            position.id && (
                                                 <div className="enrichment-candidates">
                                                     <h4>
                                                         Välj rätt instrument för{" "}

@@ -8,12 +8,23 @@ export const createTransaction = ({
           feeSek = 0,
           date = new Date().toISOString(),
       }) => {
+    const quantityNumber = Number(quantity);
+    const priceNumber = Number(price);
+
+    if (quantityNumber <= 0) {
+        throw new Error("Antal måste vara större än 0");
+    }
+
+    if (priceNumber <= 0) {
+        throw new Error("Pris måste vara större än 0");
+    }
+
     return {
         id: crypto.randomUUID(),
         holdingId,
         type,
-        quantity: Number(quantity),
-        price: Number(price),
+        quantity: quantityNumber,
+        price: priceNumber,
         currency,
         fxRateToSek,
         feeSek,
@@ -45,6 +56,14 @@ export const applyTransactionToHolding = (holding, transaction) => {
     const transactionQuantity = Number(transaction.quantity);
     const transactionValueSek = getTransactionValueSek(transaction);
 
+    const currentValueSek =
+        Number(holding.currentValueSek ?? 0);
+
+    const currentValuePerUnit =
+        quantity > 0
+    ? currentValueSek / quantity
+            : 0;
+
     if (transaction.type === "BUY") {
         const oldInvestedValue =
             quantity * averagePriceSek;
@@ -64,6 +83,8 @@ export const applyTransactionToHolding = (holding, transaction) => {
             ...holding,
             quantity: newQuantity,
             averagePriceSek: newAveragePriceSek,
+            currentValueSek:
+            currentValuePerUnit * newQuantity
         };
     }
 
@@ -80,6 +101,8 @@ export const applyTransactionToHolding = (holding, transaction) => {
         return {
             ...holding,
             quantity: newQuantity,
+            currentValueSek:
+                currentValuePerUnit * newQuantity,
         };
     }
 
