@@ -26,6 +26,7 @@ function Holdings({
     const [transactionPrice, setTransactionPrice] = useState("");
     const [transactionCurrency, setTransactionCurrency] = useState("SEK");
     const [transactionFee, setTransactionFee] = useState("");
+    const [pendingTransaction, setPendingTransaction] = useState(null);
 
     const sortedHoldings = [...groupedHoldings].sort((a, b) => {
         if (sortBy === "alphabetical") {
@@ -206,13 +207,17 @@ function Holdings({
                                             <button
                                                 className="ghost-button small-button"
                                                 type="button"
-                                                onClick={() =>
+                                                onClick={() => {
                                                     setSelectedPosition((current) =>
                                                         current?.id === position.id
                                                             ? null
                                                             : position
-                                                    )
-                                                }
+                                                    );
+
+                                                    setTransactionCurrency(
+                                                        position.currency ?? "SEK"
+                                                    );
+                                                }}
                                             >
                                                 Köp / Sälj
                                             </button>
@@ -252,7 +257,7 @@ function Holdings({
                                                         </strong>
                                                     </span>
 
-                                                        <span>
+                                                    <span>
                                                         GAV:
                                                         <strong>
                                                            {formatCurrency(
@@ -262,7 +267,7 @@ function Holdings({
                                                         </strong>
                                                     </span>
 
-                                                        <span>
+                                                    <span>
                                                         Antal:
                                                         <strong>
                                                             {position.quantity.toLocaleString("sv-SE", {
@@ -283,9 +288,9 @@ function Holdings({
                                                     </span>
                                                 </div>
                                                 <select
-                                                value={transactionType}
-                                                onChange={(event) =>
-                                                    setTransactionType(event.target.value)}
+                                                    value={transactionType}
+                                                    onChange={(event) =>
+                                                        setTransactionType(event.target.value)}
                                                 >
                                                     <option value="BUY">
                                                         Köp
@@ -301,7 +306,7 @@ function Holdings({
                                                     placeholder="Antal"
                                                     value={transactionQuantity}
                                                     onChange={(event) =>
-                                                setTransactionQuantity(event.target.value)}
+                                                        setTransactionQuantity(event.target.value)}
                                                 />
 
                                                 <input
@@ -309,7 +314,7 @@ function Holdings({
                                                     placeholder="Pris"
                                                     value={transactionPrice}
                                                     onChange={(event) =>
-                                                setTransactionPrice(event.target.value)}
+                                                        setTransactionPrice(event.target.value)}
                                                 />
 
                                                 <input
@@ -317,7 +322,7 @@ function Holdings({
                                                     placeholder="Valuta, t.ex. SEK"
                                                     value={transactionCurrency}
                                                     onChange={(event) =>
-                                                setTransactionCurrency(event.target.value)}
+                                                        setTransactionCurrency(event.target.value)}
 
                                                 />
 
@@ -326,11 +331,15 @@ function Holdings({
                                                     placeholder="Avgift/courtage (valfritt)"
                                                     value={transactionFee}
                                                     onChange={(event) =>
-                                                setTransactionFee(event.target.value)}
+                                                        setTransactionFee(event.target.value)}
                                                 />
 
                                                 <button
                                                     className="primary-button small-button"
+                                                    disabled={
+                                                        Number(transactionQuantity) <= 0 ||
+                                                        Number(transactionPrice) <= 0
+                                                    }
                                                     type="button"
                                                     onClick={() => {
                                                         handleTransaction(position.id, {

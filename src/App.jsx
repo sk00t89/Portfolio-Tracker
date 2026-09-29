@@ -280,21 +280,41 @@ function App() {
         );
         setHoldings(updatedHoldings);
     };
-    const handleTransaction = (holdingId, transactionData) => {
+
+
+    const handleTransaction = async (
+        holdingId,
+        transactionData
+    ) => {
+        let fxRateToSek = 1;
+
+        if (
+            transactionData.currency &&
+            transactionData.currency !== "SEK"
+        ) {
+            fxRateToSek = await getExchangeRate(
+                transactionData.currency,
+                "SEK"
+            );
+        }
+
         const transaction = createTransaction({
             holdingId,
             ...transactionData,
+            fxRateToSek,
         });
 
         setHoldings((currentHoldings) =>
-            currentHoldings.map((holding) =>
-                holding.id === holdingId
-                    ? applyTransactionToHolding(
-                        holding,
-                        transaction
-                    )
-                    : holding
-            )
+            currentHoldings
+                .map((holding) =>
+                    holding.id === holdingId
+                        ? applyTransactionToHolding(
+                            holding,
+                            transaction
+                        )
+                        : holding
+                )
+                .filter((holding) => holding.quantity > 0)
         );
 
         setTransactions((currentTransactions) => [
