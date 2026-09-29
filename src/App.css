@@ -777,7 +777,75 @@ p {
 .transaction-position-summary strong {
   color: inherit;
 }
+.transaction-preview {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+}
 
+.transaction-preview h4 {
+  margin: 0 0 14px;
+  font-size: 0.95rem;
+}
+
+.transaction-preview-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 16px;
+
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.transaction-preview-row:last-of-type {
+  border-bottom: none;
+}
+
+.transaction-preview-row span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.transaction-preview-row strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.transaction-preview .button-row {
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+.transaction-preview-values {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 24px minmax(90px, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.transaction-preview-values strong:first-child {
+  color: var(--muted);
+}
+
+.transaction-preview-values strong:last-child {
+  text-align: right;
+}
+
+.transaction-arrow {
+  text-align: center;
+  color: var(--muted);
+}
+
+.transaction-error {
+  grid-column: 1 / -1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 80, 80, 0.08);
+  border: 1px solid rgba(255, 80, 80, 0.2);
+  font-size: 0.9rem;
+}
 /* =========================================
    IMPORT / SETTINGS
    ========================================= */

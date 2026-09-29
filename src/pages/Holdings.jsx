@@ -1,8 +1,14 @@
 import {useState} from "react";
 import {
     formatSek,
-    formatCurrency
+    formatCurrency,
 } from "../utils/formatting.js";
+import {
+    createTransaction,
+    applyTransactionToHolding
+} from "../utils/transactions.js";
+import {getExchangeRate} from "../services/currencyData.js";
+
 
 function Holdings({
                       possibleMatches,
@@ -27,6 +33,60 @@ function Holdings({
     const [transactionCurrency, setTransactionCurrency] = useState("SEK");
     const [transactionFee, setTransactionFee] = useState("");
     const [pendingTransaction, setPendingTransaction] = useState(null);
+    const [transactionError, setTransactionError] = useState("");
+
+    const prepareTransactionPreview = async (position) => {
+        setTransactionError("");
+
+        try {
+            let fxRateToSek = 1;
+
+            if (
+                transactionCurrency &&
+                transactionCurrency !== "SEK"
+            ) {
+                fxRateToSek = await getExchangeRate(
+                    transactionCurrency,
+                    "SEK"
+                );
+            }
+
+            const previewTransaction = createTransaction({
+                holdingId: position.id,
+                type: transactionType,
+                quantity: transactionQuantity,
+                price: transactionPrice,
+                currency: transactionCurrency,
+                feeSek: transactionFee || 0,
+                fxRateToSek,
+            });
+
+            const previewHolding = applyTransactionToHolding(
+                position,
+                previewTransaction
+            );
+
+            setPendingTransaction({
+                transaction: previewTransaction,
+
+                before: {
+                    quantity: position.quantity,
+                    averagePrice: position.averagePrice,
+                    averagePriceSek: position.averagePriceSek,
+                    valueSek: position.currentValueSek,
+                },
+
+                after: {
+                    quantity: previewHolding.quantity,
+                    averagePrice: previewHolding.averagePrice,
+                    averagePriceSek: previewHolding.averagePriceSek,
+                    valueSek: previewHolding.currentValueSek,
+                },
+            });
+        } catch (error) {
+            setTransactionError(error.message);
+        }
+    };
 
     const sortedHoldings = [...groupedHoldings].sort((a, b) => {
         if (sortBy === "alphabetical") {
@@ -196,9 +256,10 @@ function Holdings({
                                                 <button
                                                     className="ghost-button danger-text small-button"
                                                     type="button"
-                                                    onClick={() =>
-                                                        deleteHolding(position.id)
-                                                    }
+                                                    onClick={() => {
+                                                        deleteHolding(position.id);
+                                                        setTransactionError("");
+                                                    }}
                                                 >
                                                     Ta bort
                                                 </button>
@@ -208,11 +269,20 @@ function Holdings({
                                                 className="ghost-button small-button"
                                                 type="button"
                                                 onClick={() => {
-                                                    setSelectedPosition((current) =>
-                                                        current?.id === position.id
-                                                            ? null
-                                                            : position
+                                                    const isSamePosition =
+                                                        selectedPosition?.id === position.id;
+
+                                                    setSelectedPosition(
+                                                        isSamePosition ? null : position
                                                     );
+
+                                                    setPendingTransaction(null);
+
+                                                    setTransactionType("BUY");
+                                                    setTransactionQuantity("");
+                                                    setTransactionPrice("");
+                                                    setTransactionFee("");
+                                                    setTransactionError("");
 
                                                     setTransactionCurrency(
                                                         position.currency ?? "SEK"
@@ -289,8 +359,11 @@ function Holdings({
                                                 </div>
                                                 <select
                                                     value={transactionType}
-                                                    onChange={(event) =>
-                                                        setTransactionType(event.target.value)}
+                                                    onChange={(event) => {
+                                                        setTransactionType(event.target.value)
+                                                        setPendingTransaction(null);
+                                                        setTransactionError("");
+                                                    }}
                                                 >
                                                     <option value="BUY">
                                                         Köp
@@ -305,24 +378,33 @@ function Holdings({
                                                     type="number"
                                                     placeholder="Antal"
                                                     value={transactionQuantity}
-                                                    onChange={(event) =>
-                                                        setTransactionQuantity(event.target.value)}
+                                                    onChange={(event) => {
+                                                        setTransactionQuantity(event.target.value)
+                                                        setPendingTransaction(null);
+                                                        setTransactionError("");
+                                                    }}
                                                 />
 
                                                 <input
                                                     type="number"
                                                     placeholder="Pris"
                                                     value={transactionPrice}
-                                                    onChange={(event) =>
-                                                        setTransactionPrice(event.target.value)}
+                                                    onChange={(event) => {
+                                                        setTransactionPrice(event.target.value)
+                                                        setPendingTransaction(null);
+                                                        setTransactionError("");
+                                                    }}
                                                 />
 
                                                 <input
                                                     type="text"
                                                     placeholder="Valuta, t.ex. SEK"
                                                     value={transactionCurrency}
-                                                    onChange={(event) =>
-                                                        setTransactionCurrency(event.target.value)}
+                                                    onChange={(event) => {
+                                                        setTransactionCurrency(event.target.value)
+                                                        setPendingTransaction(null);
+                                                        setTransactionError("");
+                                                    }}
 
                                                 />
 
@@ -330,35 +412,147 @@ function Holdings({
                                                     type="number"
                                                     placeholder="Avgift/courtage (valfritt)"
                                                     value={transactionFee}
-                                                    onChange={(event) =>
-                                                        setTransactionFee(event.target.value)}
+                                                    onChange={(event) => {
+                                                        setTransactionFee(event.target.value)
+                                                        setPendingTransaction(null);
+                                                        setTransactionError("");
+                                                    }}
                                                 />
+
+                                                {transactionError && (
+                                                    <div className="transaction-error">
+                                                        {transactionError}
+                                                    </div>
+                                                )}
 
                                                 <button
                                                     className="primary-button small-button"
                                                     disabled={
+                                                        Boolean(transactionError) ||
+                                                        Boolean(pendingTransaction) ||
                                                         Number(transactionQuantity) <= 0 ||
                                                         Number(transactionPrice) <= 0
                                                     }
                                                     type="button"
-                                                    onClick={() => {
-                                                        handleTransaction(position.id, {
-                                                            type: transactionType,
-                                                            quantity: transactionQuantity,
-                                                            price: transactionPrice,
-                                                            currency: transactionCurrency,
-                                                            feeSek: transactionFee || 0,
-                                                        })
-                                                        setSelectedPosition(null);
-                                                        setTransactionType("BUY");
-                                                        setTransactionQuantity("");
-                                                        setTransactionPrice("");
-                                                        setTransactionCurrency("SEK");
-                                                        setTransactionFee("");
+                                                    onClick={async () => {
+                                                        await prepareTransactionPreview(position);
                                                     }}
                                                 >
                                                     Spara transaktion
                                                 </button>
+                                            </div>
+                                        )}
+                                        {pendingTransaction?.transaction.holdingId === position.id && (
+                                            <div className="transaction-preview">
+                                                <h4>Bekräfta transaktion</h4>
+
+                                                <div className="transaction-preview-row">
+                                                    <span>Antal</span>
+
+                                                    <div className="transaction-preview-values">
+                                                        <strong>
+                                                            {pendingTransaction.before.quantity.toLocaleString("sv-SE", {
+                                                                maximumFractionDigits: 4,
+                                                            })}
+                                                        </strong>
+
+                                                        <span className="transaction-arrow">→</span>
+
+                                                        <strong>
+                                                            {pendingTransaction.after.quantity.toLocaleString("sv-SE", {
+                                                                maximumFractionDigits: 4,
+                                                            })}
+                                                        </strong>
+                                                    </div>
+                                                </div>
+
+                                                <div className="transaction-preview-row">
+                                                    <span>GAV</span>
+
+                                                    <div className="transaction-preview-values">
+                                                        <strong>
+                                                            {formatCurrency(
+                                                                pendingTransaction.before.averagePrice ?? 0,
+                                                                pendingTransaction.transaction.currency
+                                                            )}
+                                                        </strong>
+
+                                                        <span className="transaction-arrow">→</span>
+
+                                                        <strong>
+                                                            {formatCurrency(
+                                                                pendingTransaction.after.averagePrice ?? 0,
+                                                                pendingTransaction.transaction.currency
+                                                            )}
+                                                        </strong>
+                                                    </div>
+                                                </div>
+
+                                                <div className="transaction-preview-row">
+                                                    <span>Värde</span>
+
+                                                    <div className="transaction-preview-values">
+                                                        <strong>
+                                                            {formatSek(
+                                                                pendingTransaction.before.valueSek ?? 0
+                                                            )}
+                                                        </strong>
+
+                                                        <span className="transaction-arrow">→</span>
+
+                                                        <strong>
+                                                            {formatSek(
+                                                                pendingTransaction.after.valueSek ?? 0
+                                                            )}
+                                                        </strong>
+                                                    </div>
+                                                </div>
+
+                                                <div className="button-row">
+                                                    <button
+                                                        className="ghost-button small-button"
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setPendingTransaction(null);
+                                                            setSelectedPosition(null);
+                                                            setTransactionType("BUY");
+                                                            setTransactionQuantity("");
+                                                            setTransactionPrice("");
+                                                            setTransactionCurrency("SEK");
+                                                            setTransactionFee("");
+                                                            setTransactionError("");
+                                                        }}
+                                                    >
+                                                        Avbryt
+                                                    </button>
+
+                                                    <button
+                                                        className="primary-button small-button"
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            const {
+                                                                holdingId,
+                                                                ...transactionData
+                                                            } = pendingTransaction.transaction;
+
+                                                            await handleTransaction(
+                                                                holdingId,
+                                                                transactionData
+                                                            );
+
+                                                            setPendingTransaction(null);
+                                                            setSelectedPosition(null);
+                                                            setTransactionType("BUY");
+                                                            setTransactionQuantity("");
+                                                            setTransactionPrice("");
+                                                            setTransactionCurrency("SEK");
+                                                            setTransactionFee("");
+                                                            setTransactionError("");
+                                                        }}
+                                                    >
+                                                        Bekräfta
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
 

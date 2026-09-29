@@ -51,10 +51,17 @@ export const getTransactionValueSek = (transaction) => {
 
 export const applyTransactionToHolding = (holding, transaction) => {
     const quantity = Number(holding.quantity ?? 0);
-    const averagePriceSek = Number(holding.averagePriceSek ?? 0);
 
+    const averagePriceSek = Number(
+        holding.averagePriceSek ?? 0
+    );
+    const averagePrice = Number(
+        holding.averagePrice ?? 0
+    );
     const transactionQuantity = Number(transaction.quantity);
     const transactionValueSek = getTransactionValueSek(transaction);
+
+
 
     const currentValueSek =
         Number(holding.currentValueSek ?? 0);
@@ -68,23 +75,38 @@ export const applyTransactionToHolding = (holding, transaction) => {
         const oldInvestedValue =
             quantity * averagePriceSek;
 
+        const oldInvestedValueLocal =
+            quantity * averagePrice;
+
         const newQuantity =
             quantity + transactionQuantity;
 
         const newInvestedValue =
             oldInvestedValue + transactionValueSek;
 
+        const transactionValueLocal =
+            transactionQuantity * transaction.price;
+
+        const newInvestedValueLocal =
+            oldInvestedValueLocal + transactionValueLocal;
+
         const newAveragePriceSek =
             newQuantity > 0
                 ? newInvestedValue / newQuantity
                 : 0;
 
+        const newAveragePrice =
+            newQuantity > 0
+                ? newInvestedValueLocal / newQuantity
+                : 0;
+
         return {
             ...holding,
             quantity: newQuantity,
+            averagePrice: newAveragePrice,
             averagePriceSek: newAveragePriceSek,
             currentValueSek:
-            currentValuePerUnit * newQuantity
+                currentValuePerUnit * newQuantity,
         };
     }
 
