@@ -317,6 +317,7 @@ app.get("/api/nordnet-search-query/:query", async (req, res) => {
 
         const data = await response.json();
 
+
         const allowedAssetTypes = [
             "STOCK",
             "MUTUAL_FUND",
@@ -340,22 +341,55 @@ app.get("/api/nordnet-search-query/:query", async (req, res) => {
                 instrumentId: instrument.instrument_id,
                 name: instrument.display_name,
                 ticker: instrument.display_symbol ?? null,
+
+                isin:
+                    instrument.isin ??
+                    instrument.instrument_info?.isin ??
+                    null,
+
                 assetType:
                     instrument.instrument_class ??
                     instrument.instrument_type_display_name ??
                     null,
-                currency: instrument.currency ?? null,
-                price: instrument.last_price?.price ?? null,
-                previousClose:
-                    instrument.close_price?.price ?? null,
+
+                currency:
+                    instrument.currency ??
+                    instrument.instrument_info?.currency ??
+                    null,
+
+                market:
+                    instrument.market ??
+                    instrument.exchange_code ??
+                    instrument.exchange ??
+                    instrument.display_slug
+                        ?.split("-")
+                        .at(-1)
+                        ?.toUpperCase() ??
+                    null,
+
                 country:
-                    instrument.exchange_country ?? null,
+                    instrument.exchange_country ??
+                    instrument.country ??
+                    null,
+
+                price:
+                    instrument.last_price?.price ??
+                    null,
+
+                previousClose:
+                    instrument.close_price?.price ??
+                    null,
+
                 instrumentType:
-                    instrument.instrument_type ?? null,
+                    instrument.instrument_type ??
+                    null,
+
                 instrumentTypeName:
-                    instrument.instrument_type_display_name ?? null,
+                    instrument.instrument_type_display_name ??
+                    null,
+
                 provider: "Nordnet",
-                isin: null,
+
             }));
 
         res.json(normalized);
@@ -483,6 +517,9 @@ app.get("/api/avanza-search-query/:query", async (req, res) => {
 
         const data = await response.json();
 
+
+
+
         const getTickerFromTitle = (title) => {
             const matches =
                 [...title.matchAll(/\(([^()]*)\)/g)];
@@ -534,7 +571,15 @@ app.get("/api/avanza-search-query/:query", async (req, res) => {
                     currency: hit.price?.currency ?? null,
                     price,
                     provider: "Avanza",
-                    isin: hit.isin ?? null,
+
+                    country:
+                        hit.flagCode ?? null,
+
+                    market:
+                        hit.marketPlaceName ?? null,
+
+                    isin:
+                        hit.isin ?? null,
                 };
             });
 
@@ -548,6 +593,53 @@ app.get("/api/avanza-search-query/:query", async (req, res) => {
 
         res.status(500).json({
             error: "Kunde inte söka instrument hos Avanza",
+        });
+    }
+});
+
+app.get("/api/avanza-price/:instrumentId", async (req, res) => {
+    const {instrumentId} = req.params;
+
+    try {
+        const response = await fetch(
+            `https://www.avanza.se/_api/market-guide/stock/${encodeURIComponent(instrumentId)}`,
+            {
+                headers: {
+                    Accept: "application/json",
+                    Referer: "https://www.avanza.se/",
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error("Kunde inte hämta Avanza-kurs");
+        }
+
+        const data = await response.json();
+
+        res.json({
+            instrumentId,
+            price:
+                data.quote?.last ??
+                null,
+            previousClose:
+                data.quote?.previousClose ??
+                null,
+            currency:
+                data.quote?.currency ??
+                data.currency ??
+                null,
+            timestamp: Date.now(),
+        });
+
+    } catch (error) {
+        console.error(
+            "Avanza price error:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Kunde inte hämta Avanza-kurs",
         });
     }
 });

@@ -10,7 +10,8 @@ const getYahooSymbol = (holding) => {
     if (
         holding.market === "ST" ||
         holding.market === "XSTO" ||
-        holding.market === "XSAT"
+        holding.market === "XSAT" ||
+        holding.country === "SE"
     ) {
         const ticker = holding.ticker.replaceAll(" ", "-");
 

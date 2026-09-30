@@ -57,3 +57,27 @@ export const getAvanzaPriceByIsin = async (isin) => {
 
     return response.json();
 };
+
+export const getNordnetPriceByInstrumentId = async (instrumentId) => {
+    const response = await fetch(
+        `http://localhost:3001/api/nordnet-price/${encodeURIComponent(instrumentId)}`
+    );
+
+    if (!response.ok) {
+        throw new Error("Nordnet-kursen kunde inte hämtas");
+    }
+
+    return response.json();
+};
+
+export const getAvanzaPriceByInstrumentId = async (instrumentId) => {
+    const response = await fetch(
+        `http://localhost:3001/api/avanza-price/${encodeURIComponent(instrumentId)}`
+    );
+
+    if (!response.ok) {
+        throw new Error("Avanza-kursen kunde inte hämtas");
+    }
+
+    return response.json();
+};

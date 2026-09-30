@@ -127,6 +127,9 @@ function AddHoldingForm({importHoldings}) {
             currentPrice: selectedInstrument.price,
             currentValueSek,
             priceUpdatedAt: Date.now(),
+            instrumentId: selectedInstrument.instrumentId,
+            provider: selectedInstrument.provider,
+            market: selectedInstrument.market,
         };
 
         importHoldings([newHolding]);

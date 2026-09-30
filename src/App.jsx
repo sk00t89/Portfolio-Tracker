@@ -21,7 +21,9 @@ import {
     searchInstrument,
     getYahooPrice,
     getNordnetPriceByIsin,
-    getAvanzaPriceByIsin
+    getNordnetPriceByInstrumentId,
+    getAvanzaPriceByIsin,
+    getAvanzaPriceByInstrumentId
 } from "./services/marketData.js";
 import normalizeAssetType from "./utils/normalizeAssetType.js";
 import classifyHolding from "./utils/classifyHolding.js";
@@ -49,6 +51,52 @@ function App() {
         }
 
         let data = null;
+
+        // 1. Nordnet via instrumentId
+        if (
+            holding.provider === "Nordnet" &&
+            holding.instrumentId
+        ) {
+            try {
+                data = await getNordnetPriceByInstrumentId(
+                    holding.instrumentId
+                );
+                console.log("Nordnet uppdaterade:", holding.name, "via instrumentId")
+
+                if (!data?.price) {
+                    data = null;
+                }
+            } catch (error) {
+                console.log(
+                    "Nordnet via instrumentId misslyckades:",
+                    holding.name,
+                    error
+                );
+            }
+        }
+
+        // 2. Avanza via instrumentId
+        if (
+            !data &&
+            holding.provider === "Avanza" &&
+            holding.instrumentId
+        ) {
+            try {
+                data = await getAvanzaPriceByInstrumentId(
+                    holding.instrumentId
+                );
+                console.log("Avanza uppdaterade:", holding.name, "via instrumentId")
+                if (!data?.price) {
+                    data = null;
+                }
+            } catch (error) {
+                console.log(
+                    "Avanza via instrumentId misslyckades:",
+                    holding.name,
+                    error
+                );
+            }
+        }
 
         // 1. Nordnet
         if (holding.isin) {
@@ -116,17 +164,19 @@ function App() {
             );
             return;
         }
+        const priceCurrency =
+            data.currency ?? holding.currency;
 
         let currentValueSek = null;
 
         if (data.price && holding.quantity) {
-            if (data.currency === "SEK") {
+            if (priceCurrency === "SEK") {
                 currentValueSek =
                     holding.quantity * data.price;
-            } else if (data.currency) {
+            } else if (priceCurrency) {
                 const exchangeRate =
                     await getExchangeRate(
-                        data.currency,
+                        priceCurrency,
                         "SEK"
                     );
 
@@ -717,6 +767,8 @@ function App() {
         assets,
         lysaValue
     );
+
+
 
 
     return (

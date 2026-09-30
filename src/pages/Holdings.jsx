@@ -105,6 +105,8 @@ function Holdings({
     });
 
 
+
+
     return (
         <main className="page holdings-page">
             <div className="page-heading page-heading-row">
@@ -257,6 +259,13 @@ function Holdings({
                                                     className="ghost-button danger-text small-button"
                                                     type="button"
                                                     onClick={() => {
+                                                        const confirmed = window.confirm(
+                                                            `Vill du verkligen ta bort ${position.name ?? group.name}?`
+                                                        );
+
+                                                        if(!confirmed) {
+                                                            return;
+                                                        }
                                                         deleteHolding(position.id);
                                                         setTransactionError("");
                                                     }}
