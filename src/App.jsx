@@ -32,6 +32,12 @@ import {
     createTransaction,
     applyTransactionToHolding,
 } from "./utils/transactions.js";
+import {
+    createPortfolioSnapshot,
+    savePortfolioSnapshot,
+    getPortfolioSnapshots,
+    restorePortfolioSnapshot,
+} from "./utils/portfolioSnapshots.js";
 
 const PRICE_UPDATE_INTERVAL = 20 * 60 * 1000;
 
@@ -373,6 +379,33 @@ function App() {
         ]);
     };
 
+    // =========================================
+    // SNAPSHOT
+    // =========================================
+
+    const handleRestoreSnapshot = (snapshot) => {
+        const currentSnapshot = createPortfolioSnapshot({
+            holdings,
+            assets,
+            transactions,
+            lysaTransactions,
+            lysaPerformance,
+            resolvedMatches,
+        });
+
+        savePortfolioSnapshot(currentSnapshot);
+
+        const restoredData =
+            restorePortfolioSnapshot(snapshot);
+
+        setHoldings(restoredData.holdings);
+        setAssets(restoredData.assets);
+        setTransactions(restoredData.transactions);
+        setLysaTransactions(restoredData.lysaTransactions);
+        setLysaPerformance(restoredData.lysaPerformance);
+        setResolvedMatches(restoredData.resolvedMatches);
+    };
+
 
     // =========================================
     // STATE
@@ -590,6 +623,8 @@ function App() {
         );
     }, [lysaPerformance]);
 
+
+
     // =========================================
     // LYSA: importerad historik och visningsdata
     // =========================================
@@ -768,6 +803,43 @@ function App() {
         lysaValue
     );
 
+    useEffect(() => {
+        const snapshots = getPortfolioSnapshots();
+        const latestSnapshot = snapshots[0];
+
+        const lastCreatedAt =
+            latestSnapshot?.createdAt
+                ? new Date(latestSnapshot.createdAt).getTime()
+                : 0;
+
+        const twentyFourHours =
+            24 * 60 * 60 * 1000;
+
+        const shouldCreateSnapshot =
+            Date.now() - lastCreatedAt >= twentyFourHours;
+
+        if (!shouldCreateSnapshot) {
+            return;
+        }
+
+        const snapshot = createPortfolioSnapshot({
+            holdings,
+            assets,
+            transactions,
+            lysaTransactions,
+            lysaPerformance,
+            resolvedMatches,
+        });
+
+        savePortfolioSnapshot(snapshot);
+    }, [
+        holdings,
+        assets,
+        transactions,
+        lysaTransactions,
+        lysaPerformance,
+        resolvedMatches,
+    ]);
 
 
 
@@ -784,6 +856,7 @@ function App() {
                         portfolioValue={portfolioValue}
                         lysaValue={lysaValue}
                         importHoldings={importHoldings}
+                        groupedHoldings={groupedHoldings}
                     />}
                 />
                 <Route path="/holdings" element={
@@ -816,6 +889,8 @@ function App() {
                         setResolvedMatches={setResolvedMatches}
                         enrichMissingAveragePrices={enrichMissingAveragePrices}
                         updateAllHoldingPrices={updateAllHoldingPrices}
+                        handleRestoreSnapshot={handleRestoreSnapshot}
+
                     />}/>
             </Routes>
 

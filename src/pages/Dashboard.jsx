@@ -10,6 +10,7 @@ import {
     calculateCryptoExposure
 } from "../utils/calculations.js";
 import AddHoldingForm from "../components/AddHoldingForm.jsx";
+import HoldingsOverview from "../components/HoldingsOverview.jsx";
 
 
 function Dashboard({
@@ -18,7 +19,8 @@ function Dashboard({
     holdings,
     portfolioValue,
     lysaValue,
-    importHoldings
+    importHoldings,
+    groupedHoldings,
 }) {
     const investedCapital = calculateInvestedCapital(holdings);
 
@@ -90,6 +92,10 @@ function Dashboard({
                     portfolioValue={portfolioValue}
                 />
             )}
+            <HoldingsOverview
+                groupedHoldings={groupedHoldings}
+                portfolioValue={portfolioValue}
+                />
 
             <AssetForm
                 addAsset={addAsset}

@@ -1,14 +1,22 @@
+import {getPortfolioSnapshots} from "../utils/portfolioSnapshots.js";
+import {useState} from "react";
+
 function Settings({
-    resetPortfolio,
-    setResolvedMatches,
-    enrichMissingAveragePrices,
-    updateAllHoldingPrices
-}) {
+                      resetPortfolio,
+                      setResolvedMatches,
+                      enrichMissingAveragePrices,
+                      updateAllHoldingPrices,
+                      handleRestoreSnapshot,
+
+                  }) {
     const resetWithWarning = () => {
         if (confirm("Återställ portfölj?")) {
             resetPortfolio();
         }
     };
+
+    const snapshots = getPortfolioSnapshots();
+    const [showSnapshots, setShowSnapshots] = useState(false);
 
     return (
         <main className="page settings-page">
@@ -100,6 +108,60 @@ function Settings({
                     >
                         Återställ allt
                     </button>
+                </section>
+                <section className="card settings-card danger-zone">
+                    <h2>Återställningspunkter</h2>
+                    <p>
+                        Återställ portföljen till en tidigare sparad version.
+                    </p>
+                    <button type="button"
+                            className="ghost-button"
+                            onClick={() => {
+                                setShowSnapshots((current) => !current);
+
+                            }}
+                    >{showSnapshots
+                        ? "Dölj återställningspunkterna"
+                        : "Visa återställningspunkterna"}
+                    </button>
+                    {showSnapshots && (
+                        <div className="snapshot-list">
+                            {snapshots.length === 0 ? (
+                                <p>Inga återställningspunkter finns ännu.</p>
+                            ) : (
+                                snapshots.map((snapshot) => (
+                                    <div
+                                        className="snapshot-row"
+                                        key={snapshot.id}
+                                    >
+                                        <span>
+                                            {new Date(
+                                                snapshot.createdAt
+                                            ).toLocaleString("sv-SE")}
+                                        </span>
+
+                                        <button
+                                            type="button"
+                                            className="ghost-button small-button"
+                                            onClick={() => {
+                                                const confirmed = confirm(
+                                                    "Vill du återställa portföljen till den här återställningspunkten?"
+                                                );
+
+                                                if (!confirmed) {
+                                                    return;
+                                                }
+
+                                                handleRestoreSnapshot(snapshot);
+                                            }}
+                                        >
+                                            Återställ
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    )}
                 </section>
             </div>
         </main>
