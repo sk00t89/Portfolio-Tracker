@@ -19,17 +19,30 @@ export const getExchangeRate = async (from, to) => {
         `http://localhost:3001/api/currency/${from}/${to}`
     );
 
+    if (!response.ok) {
+        throw new Error(
+            `Kunde inte hämta valutakurs ${from}/${to}`
+        );
+    }
+
     const data = await response.json();
+    const rate = Number(data.rate);
+
+    if (!Number.isFinite(rate) || rate <= 0) {
+        throw new Error(
+            `Ogiltig valutakurs för ${from}/${to}`
+        );
+    }
 
     localStorage.setItem(
         cacheKey,
         JSON.stringify({
-            rate: data.rate,
+            rate,
             fetchedAt: Date.now(),
         })
     );
 
-    return data.rate;
+    return rate;
 };
 
 export const getAveragePriceSek = async (holding) => {
