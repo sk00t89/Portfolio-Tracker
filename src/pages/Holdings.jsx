@@ -311,32 +311,33 @@ function Holdings({
                                                 </button>
                                             )}
 
-                                            <button
-                                                className="ghost-button small-button"
-                                                type="button"
-                                                onClick={() => {
-                                                    const isSamePosition =
-                                                        selectedPosition?.id === position.id;
+                                            {position.platform !== "Lysa" && (
+                                                <button
+                                                    className="ghost-button small-button"
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const isSamePosition =
+                                                            selectedPosition?.id === position.id;
 
-                                                    setSelectedPosition(
-                                                        isSamePosition ? null : position
-                                                    );
+                                                        setSelectedPosition(
+                                                            isSamePosition ? null : position
+                                                        );
 
-                                                    setPendingTransaction(null);
+                                                        setPendingTransaction(null);
+                                                        setTransactionType("BUY");
+                                                        setTransactionQuantity("");
+                                                        setTransactionPrice("");
+                                                        setTransactionFee("");
+                                                        setTransactionError("");
 
-                                                    setTransactionType("BUY");
-                                                    setTransactionQuantity("");
-                                                    setTransactionPrice("");
-                                                    setTransactionFee("");
-                                                    setTransactionError("");
-
-                                                    setTransactionCurrency(
-                                                        position.currency ?? "SEK"
-                                                    );
-                                                }}
-                                            >
-                                                Köp / Sälj
-                                            </button>
+                                                        setTransactionCurrency(
+                                                            position.currency ?? "SEK"
+                                                        );
+                                                    }}
+                                                >
+                                                    Köp / Sälj
+                                                </button>
+                                            )}
 
                                             {position.platform === "Nordnet" &&
                                                 (!position.isin ||
