@@ -39,6 +39,7 @@ import {
 } from "./utils/portfolioSnapshots.js";
 import {lysaFundIsins} from "./data/lysaFundIsins.js";
 import {getLysaFundPrices} from "./services/lysaData.js";
+import Login from "./pages/Login.jsx";
 
 const PRICE_UPDATE_INTERVAL = 20 * 60 * 1000;
 
@@ -972,7 +973,12 @@ function App() {
                         updateAllHoldingPrices={updateAllHoldingPrices}
                         handleRestoreSnapshot={handleRestoreSnapshot}
 
-                    />}/>
+                    />
+                }/>
+                <Route path="/login" element={
+                    <Login
+                        />
+                }/>
             </Routes>
 
 
