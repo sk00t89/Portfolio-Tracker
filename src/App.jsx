@@ -9,8 +9,7 @@ import {useEffect, useState} from "react";
 import getInstrumentKey from "./utils/instrumentKey.js";
 import {
     calculatePortfolioValue,
-    calculateLysaFundVolumes,
-    getLatestLysaPerformance
+    calculateLysaFundVolumes
 } from "./utils/calculations.js";
 import {
     getAveragePriceSek,
@@ -106,8 +105,8 @@ function App() {
             }
         }
 
-        // 1. Nordnet
-        if (holding.isin) {
+        // 3. Nordnet via ISIN
+        if (!data && holding.isin) {
             try {
                 data = await getNordnetPriceByIsin(
                     holding.isin
@@ -452,7 +451,14 @@ function App() {
             : [];
     });
 
-    const [transactions, setTransactions] = useState([]);
+    const [transactions, setTransactions] = useState(() => {
+        const savedTransactions =
+            localStorage.getItem("transactions");
+
+        return savedTransactions
+            ? JSON.parse(savedTransactions)
+            : [];
+    });
 
     const [lysaFundPrices, setLysaFundPrices] =
         useState({});
@@ -627,6 +633,13 @@ function App() {
             JSON.stringify(lysaPerformance)
         );
     }, [lysaPerformance]);
+
+    useEffect(() => {
+        localStorage.setItem(
+            "transactions",
+            JSON.stringify(transactions)
+        );
+    }, [transactions]);
 
 
 
@@ -843,6 +856,7 @@ function App() {
         setResolvedMatches([]);
         setLysaPerformance([]);
         setLysaTransactions([]);
+        setTransactions([]);
     };
 
     const portfolioValue = calculatePortfolioValue(
