@@ -160,11 +160,24 @@ export const calculateCryptoExposure = (holdings) => {
 
 
 export const calculateLysaDeposits = (transactions) => {
-    return transactions
-        .filter((transaction) => transaction.type === "Deposit")
-        .reduce((total, transaction) => {
-            return total + transaction.amountSek;
-        }, 0);
+    return transactions.reduce((total, transaction) => {
+        const amount =
+            Number(transaction.amountSek ?? 0);
+
+        if (!Number.isFinite(amount)) {
+            return total;
+        }
+
+        if (transaction.type === "Deposit") {
+            return total + Math.abs(amount);
+        }
+
+        if (transaction.type === "Withdrawal") {
+            return total - Math.abs(amount);
+        }
+
+        return total;
+    }, 0);
 };
 
 export const calculateLysaFundVolumes = (transactions) => {
