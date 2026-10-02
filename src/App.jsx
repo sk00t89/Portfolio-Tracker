@@ -850,10 +850,13 @@ function App() {
             return;
         }
 
-        updateAllHoldingPrices(
+        void updateAllHoldingPrices(
             false,
             Date.now()
         );
+
+        // Körs bara vid uppstart. Holdings läses synkront från localStorage.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const deleteHolding = (id) => {
