@@ -232,16 +232,18 @@ function App() {
             await updateHoldingPrice(holding.id);
         }
 
-        try {
-            const lysaPrices =
-                await getLysaFundPrices();
+        if (forceUpdate) {
+            try {
+                const lysaPrices =
+                    await getLysaFundPrices();
 
-            setLysaFundPrices(lysaPrices);
-        } catch (error) {
-            console.error(
-                "Lysa-kurserna kunde inte uppdateras:",
-                error
-            );
+                setLysaFundPrices(lysaPrices);
+            } catch (error) {
+                console.error(
+                    "Lysa-kurserna kunde inte uppdateras:",
+                    error
+                );
+            }
         }
 
         localStorage.setItem(
