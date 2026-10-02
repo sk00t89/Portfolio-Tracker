@@ -232,6 +232,18 @@ function App() {
             await updateHoldingPrice(holding.id);
         }
 
+        try {
+            const lysaPrices =
+                await getLysaFundPrices();
+
+            setLysaFundPrices(lysaPrices);
+        } catch (error) {
+            console.error(
+                "Lysa-kurserna kunde inte uppdateras:",
+                error
+            );
+        }
+
         localStorage.setItem(
             "lastPriceUpdate",
             String(now)
