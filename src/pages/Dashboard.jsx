@@ -25,12 +25,19 @@ function Dashboard({
     groupedHoldings,
     lysaTransactions,
 }) {
-    const lysaInvestedCapital = calculateLysaDeposits(lysaTransactions)
+    const lysaInvestedCapital =
+        calculateLysaDeposits(lysaTransactions);
+
+    const manualAssetCapital = assets.reduce(
+        (total, asset) =>
+            total + Number(asset.value ?? 0),
+        0
+    );
 
     const investedCapital =
         calculateInvestedCapital(holdings) +
-    calculateLysaDeposits(holdings) +
-    lysaInvestedCapital;
+        lysaInvestedCapital +
+        manualAssetCapital;
 
     const cryptoExposure = calculateCryptoExposure(holdings);
 
@@ -94,7 +101,7 @@ function Dashboard({
                 portfolioValue={portfolioValue}
                 totalsByCategory={totalsByCategory}
             />
-            {Object.keys(cryptoExposure).length > 0 && (
+            {Object.keys(cryptoExposure.summary).length > 0 && (
                 <CryptoOverview
                     cryptoExposure={cryptoExposure}
                     portfolioValue={portfolioValue}
@@ -102,8 +109,7 @@ function Dashboard({
             )}
             <HoldingsOverview
                 groupedHoldings={groupedHoldings}
-                portfolioValue={portfolioValue}
-                />
+            />
 
             <AssetForm
                 addAsset={addAsset}
