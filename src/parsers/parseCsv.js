@@ -4,41 +4,44 @@ import parseLysaTransactionsCsv from "./parseLysaTransactionsCsv.js";
 import parseLysaPerformanceCsv from "./parseLysaPerformanceCsv.js";
 
 const parseCsv = (string) => {
-    if (string === "") return {
+    const cleanString =
+        string.replace(/^\uFEFF/, "");
+
+    if (cleanString === "") return {
         type: "ERROR",
         data: null,
     };
 
-    if (string.startsWith("Namn;Kortnamn;Volym;Marknadsvärde")) {
+    if (cleanString.startsWith("Namn;Kortnamn;Volym;Marknadsvärde")) {
         console.log("Avanzas CSV")
         return {
             type: "HOLDINGS",
-            data: parseAvanzaCsv(string),
+            data: parseAvanzaCsv(cleanString),
         }
     }
 
-    if (string.startsWith("Namn\tValuta\tAntal\tGAV\tIdag %")) {
+    if (cleanString.startsWith("Namn\tValuta\tAntal\tGAV\tIdag %")) {
         console.log("Nordnets CSV")
         return {
             type: "HOLDINGS",
-            data: parseNordnetCsv(string),
+            data: parseNordnetCsv(cleanString),
         }
     }
 
     if (
-        string.startsWith(
+        cleanString.startsWith(
             "Amount,Counterpart/Fund,Date,Price,Type,Volume"
         )
     ) {
         console.log("Lysa Transactions CSV");
         return {
             type: "LYSA_TRANSACTIONS",
-            data: parseLysaTransactionsCsv(string),
+            data: parseLysaTransactionsCsv(cleanString),
         }
     }
 
     if (
-        string.startsWith(
+        cleanString.startsWith(
             "\"Account worth\",\"Accumulated growth\",Date,\"Performance index\""
         )
     ) {
@@ -46,7 +49,7 @@ const parseCsv = (string) => {
 
         return {
             type: "LYSA_PERFORMANCE",
-            data: parseLysaPerformanceCsv(string),
+            data: parseLysaPerformanceCsv(cleanString),
         };
     }
 
