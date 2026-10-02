@@ -1,11 +1,13 @@
 import {useEffect, useState} from "react";
+
+const EMPTY_EXPOSURE = {};
 import {formatSek} from "../utils/formatting.js";
 import {getCryptoPrices} from "../services/cryptoData.js";
 import {cryptoCoinIds} from "../utils/cryptoCoinIds.js";
 
 function CryptoOverview({cryptoExposure, portfolioValue}) {
-    const summary = cryptoExposure.summary ?? {};
-    const details = cryptoExposure.details ?? {};
+    const summary = cryptoExposure.summary ?? EMPTY_EXPOSURE;
+    const details = cryptoExposure.details ?? EMPTY_EXPOSURE;
 
     const totalCryptoValue = Object.values(summary).reduce(
         (total, value) => total + value,
