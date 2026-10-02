@@ -91,24 +91,25 @@ function AddHoldingForm({importHoldings}) {
         let averagePriceSek = null;
 
         if (selectedInstrument.currency) {
-            if (selectedInstrument.currency === "SEK") {
-                currentValueSek =
-                    quantityNumber * selectedInstrument.price;
+            let exchangeRate = 1;
 
-                averagePriceSek = averagePriceNumber;
-            } else {
-                const exchangeRate = await getExchangeRate(
+            if (selectedInstrument.currency !== "SEK") {
+                exchangeRate = await getExchangeRate(
                     selectedInstrument.currency,
                     "SEK"
                 );
+            }
 
+            averagePriceSek =
+                averagePriceNumber * exchangeRate;
+
+            const currentPrice =
+                Number(selectedInstrument.price);
+
+            if (Number.isFinite(currentPrice)) {
                 currentValueSek =
                     quantityNumber *
-                    selectedInstrument.price *
-                    exchangeRate;
-
-                averagePriceSek =
-                    averagePriceNumber *
+                    currentPrice *
                     exchangeRate;
             }
         }
