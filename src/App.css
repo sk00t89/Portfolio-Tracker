@@ -861,27 +861,62 @@ p {
   }
 }
 
+.holdings-overview-row {
+  grid-template-columns: minmax(0, 1fr) auto 72px;
+  gap: 14px;
+}
+
 .holding-overview-info {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
   min-width: 0;
+  gap: 3px;
 }
 
-.holding-overview-name {
+.holdings-overview .holding-overview-name {
   width: 100%;
-  text-align: left;
   overflow: hidden;
+  color: var(--text);
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .holding-overview-performance {
+  display: block;
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 500;
+  line-height: 1.25;
   text-align: left;
+}
+
+.holding-overview-value,
+.holding-overview-share {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.positive-text {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.negative-text {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .holdings-overview-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .holding-overview-share {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
 }
 /* =========================================
    IMPORT / SETTINGS
