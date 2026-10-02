@@ -1,6 +1,7 @@
 const parseAvanzaCsv = (string) => {
 
     const rows = string
+        .replaceAll("\r", "")
         .replaceAll(",", ".")
         .split("\n");
 
