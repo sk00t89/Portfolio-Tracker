@@ -7,10 +7,12 @@ import {
     calculateInvestedCapital,
     calculateTotalsByPlatform,
     calculateTotalsByCategory,
-    calculateCryptoExposure
+    calculateCryptoExposure,
+    calculateLysaDeposits
 } from "../utils/calculations.js";
 import AddHoldingForm from "../components/AddHoldingForm.jsx";
 import HoldingsOverview from "../components/HoldingsOverview.jsx";
+
 
 
 function Dashboard({
@@ -21,8 +23,14 @@ function Dashboard({
     lysaValue,
     importHoldings,
     groupedHoldings,
+    lysaTransactions,
 }) {
-    const investedCapital = calculateInvestedCapital(holdings);
+    const lysaInvestedCapital = calculateLysaDeposits(lysaTransactions)
+
+    const investedCapital =
+        calculateInvestedCapital(holdings) +
+    calculateLysaDeposits(holdings) +
+    lysaInvestedCapital;
 
     const cryptoExposure = calculateCryptoExposure(holdings);
 

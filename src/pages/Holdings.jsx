@@ -35,6 +35,8 @@ function Holdings({
     const [pendingTransaction, setPendingTransaction] = useState(null);
     const [transactionError, setTransactionError] = useState("");
 
+    const [searchTerm, setSearchTerm] = useState("");
+
     const prepareTransactionPreview = async (position) => {
         setTransactionError("");
 
@@ -104,8 +106,33 @@ function Holdings({
         return 0;
     });
 
+    const searchQuery = (holdings, searchString) => {
+        const searchStringClean =
+            searchString.toLowerCase().trim();
 
+        if (!searchStringClean) {
+            return holdings;
+        }
 
+        return holdings.filter((group) => {
+            const nameMatches =
+                group.name
+                    .toLowerCase()
+                    .includes(searchStringClean);
+
+            const platformMatches =
+                group.positions.some((position) =>
+                    position.platform
+                        ?.toLowerCase()
+                        .includes(searchStringClean)
+                );
+
+            return nameMatches || platformMatches;
+        });
+    };
+
+    const filteredHoldings =
+        searchQuery(sortedHoldings, searchTerm)
 
     return (
         <main className="page holdings-page">
@@ -116,6 +143,16 @@ function Holdings({
                     <p>
                         Alla positioner samlade över dina plattformar.
                     </p>
+                </div>
+                <div className="instrument-search">
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        placeholder="Sök innehav eller plattform"
+                        onChange={(event) =>
+                            setSearchTerm(event.target.value)
+                        }
+                    />
                 </div>
 
                 <select
@@ -186,7 +223,7 @@ function Holdings({
 
 
             <div className="holdings-list">
-                {sortedHoldings.map((group) => {
+                {filteredHoldings.map((group) => {
                     const isLysaOnly =
                         group.positions.every(
                             (position) =>
@@ -263,7 +300,7 @@ function Holdings({
                                                             `Vill du verkligen ta bort ${position.name ?? group.name}?`
                                                         );
 
-                                                        if(!confirmed) {
+                                                        if (!confirmed) {
                                                             return;
                                                         }
                                                         deleteHolding(position.id);

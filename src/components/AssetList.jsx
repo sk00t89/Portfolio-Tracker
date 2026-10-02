@@ -61,7 +61,16 @@ function AssetList({
                                     <button
                                         className="ghost-button danger-text"
                                         type="button"
-                                        onClick={() => deleteAsset(asset.id)}
+                                        onClick={() => {
+                                            const confirmed = window.confirm(
+                                                `Vill du verkligen ta bort ${asset.name}?`
+                                            );
+
+                                            if (!confirmed) {
+                                                return;
+                                            }
+                                            deleteAsset(asset.id);
+                                        }}
                                     >
                                         Ta bort
                                     </button>

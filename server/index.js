@@ -777,6 +777,41 @@ app.get("/api/crypto-prices", async (req, res) => {
     }
 });
 
+// LYSA ...
+
+app.get("/api/lysa-fund-prices", async (req, res) => {
+    try {
+        const response = await fetch(
+            "https://api.lysa.se/funds",
+            {
+                headers: {
+                    Accept: "application/json",
+                },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                "Kunde inte hämta Lysa-fondkurser"
+            );
+        }
+
+        const data = await response.json();
+
+        res.json(data);
+
+    } catch (error) {
+        console.error(
+            "Lysa fund price error:",
+            error
+        );
+
+        res.status(500).json({
+            error: "Kunde inte hämta Lysa-fondkurser",
+        });
+    }
+});
+
 
 
 

@@ -38,6 +38,8 @@ import {
     getPortfolioSnapshots,
     restorePortfolioSnapshot,
 } from "./utils/portfolioSnapshots.js";
+import {lysaFundIsins} from "./data/lysaFundIsins.js";
+import {getLysaFundPrices} from "./services/lysaData.js";
 
 const PRICE_UPDATE_INTERVAL = 20 * 60 * 1000;
 
@@ -452,6 +454,9 @@ function App() {
 
     const [transactions, setTransactions] = useState([]);
 
+    const [lysaFundPrices, setLysaFundPrices] =
+        useState({});
+
     // =========================================
     // HOLDINGS: import och instrumentdata
     // =========================================
@@ -628,6 +633,7 @@ function App() {
     // =========================================
     // LYSA: importerad historik och visningsdata
     // =========================================
+
     const importLysaTransactions = (transactions) => {
         setLysaTransactions(transactions);
     };
@@ -636,30 +642,72 @@ function App() {
         setLysaPerformance(performance);
     };
 
-    const latestLysaPerformance =
-        getLatestLysaPerformance(lysaPerformance);
+    useEffect(() => {
+        const loadLysaFundPrices = async () => {
+            try {
+                const prices =
+                    await getLysaFundPrices();
 
-    const lysaValue =
-        latestLysaPerformance?.accountWorth ?? 0;
+                setLysaFundPrices(prices);
+
+            } catch (error) {
+                console.error(
+                    "Kunde inte uppdatera Lysa:",
+                    error
+                );
+            }
+        };
+
+       void loadLysaFundPrices();
+    }, []);
 
     const lysaFundVolumes =
         calculateLysaFundVolumes(lysaTransactions);
 
     const lysaHoldings = Object.entries(lysaFundVolumes)
         .filter(([, volume]) => volume > 0)
-        .map(([name, volume]) => ({
-            id: `lysa-${name}`,
-            name,
-            quantity: volume,
-            platform: "Lysa",
-            assetType: "FUND",
-            category: "FUND",
-        }));
+        .map(([name, volume]) => {
+            const isin =
+                lysaFundIsins[name] ?? null;
+
+            const priceData =
+                isin
+                    ? lysaFundPrices[isin]
+                    : null;
+
+            const currentPrice =
+                priceData?.price ?? null;
+
+            return {
+                id: `lysa-${name}`,
+                name,
+                quantity: volume,
+                platform: "Lysa",
+                assetType: "FUND",
+                category: "FUND",
+                currency: "SEK",
+                isin,
+                currentPrice,
+                currentValueSek:
+                    currentPrice
+                        ? volume * currentPrice
+                        : null,
+                priceUpdatedAt:
+                    priceData?.date ?? null,
+            };
+        });
+
+    const lysaValue = lysaHoldings.reduce(
+        (total, holding) =>
+            total + (holding.currentValueSek ?? 0),
+        0
+    );
 
     const holdingsForDisplay = [
         ...holdings,
         ...lysaHoldings
     ];
+
 
     // =========================================
     // HOLDINGS: import, gruppering och borttagning
@@ -857,6 +905,7 @@ function App() {
                         lysaValue={lysaValue}
                         importHoldings={importHoldings}
                         groupedHoldings={groupedHoldings}
+                        lysaTransactions={lysaTransactions}
                     />}
                 />
                 <Route path="/holdings" element={
@@ -872,6 +921,7 @@ function App() {
                         searchEnrichmentCandidates={searchEnrichmentCandidates}
                         deleteHolding={deleteHolding}
                         handleTransaction={handleTransaction}
+
                     />
                 }
                 />
