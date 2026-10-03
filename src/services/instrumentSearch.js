@@ -1,7 +1,7 @@
+import { apiFetch } from "./apiClient.js";
+
 export const searchNordnetInstruments = async (query) => {
-    const response = await fetch(
-        `http://localhost:3001/api/nordnet-search-query/${encodeURIComponent(query)}`
-    );
+    const response = await apiFetch(`/api/nordnet-search-query/${encodeURIComponent(query)}`);
 
     if (!response.ok) {
         throw new Error("Nordnet-sökningen misslyckades");
@@ -16,9 +16,7 @@ export const searchNordnetInstruments = async (query) => {
 
 
 export const searchAvanzaInstruments = async (query) => {
-    const response = await fetch(
-        `http://localhost:3001/api/avanza-search-query/${encodeURIComponent(query)}`
-    );
+    const response = await apiFetch(`/api/avanza-search-query/${encodeURIComponent(query)}`);
 
     if (!response.ok) {
         throw new Error("Avanza-sökningen misslyckades");
