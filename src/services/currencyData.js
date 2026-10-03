@@ -1,3 +1,5 @@
+import { apiFetch } from "./apiClient.js";
+
 const CACHE_TIME = 24 * 60 * 60 * 1000;
 
 export const getExchangeRate = async (from, to) => {
@@ -15,9 +17,7 @@ export const getExchangeRate = async (from, to) => {
         }
     }
 
-    const response = await fetch(
-        `http://localhost:3001/api/currency/${from}/${to}`
-    );
+    const response = await apiFetch(`/api/currency/${from}/${to}`);
 
     if (!response.ok) {
         throw new Error(
