@@ -67,25 +67,31 @@ function App() {
     const [session, setSession] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
 
-    const [theme, setTheme] = useState("dark");
-
-    useEffect(() => {
+    const [theme, setTheme] = useState(() => {
         const savedTheme =
             localStorage.getItem("theme");
+
+        if (
+            savedTheme === "light" ||
+            savedTheme === "dark"
+        ) {
+            return savedTheme;
+        }
 
         const systemPrefersLight =
             window.matchMedia?.(
                 "(prefers-color-scheme: light)"
             ).matches;
 
-        const initialTheme =
-            savedTheme ??
-            (systemPrefersLight ? "light" : "dark");
+        return systemPrefersLight
+            ? "light"
+            : "dark";
+    });
 
-        setTheme(initialTheme);
+    useEffect(() => {
         document.documentElement.dataset.theme =
-            initialTheme;
-    }, []);
+            theme;
+    }, [theme]);
 
     const toggleTheme = () => {
         setTheme((currentTheme) => {
