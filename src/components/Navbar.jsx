@@ -1,7 +1,7 @@
 import {NavLink} from "react-router-dom";
 import { signOut } from "../services/authService.js";
 
-function Navbar(session) {
+function Navbar({session, holdingsAttentionCount = 0}) {
 
     async function handleLogout() {
         const { error } = await signOut();
@@ -37,7 +37,15 @@ function Navbar(session) {
                             isActive ? "nav-link active" : "nav-link"
                         }
                     >
-                        Holdings
+                        <span>Holdings</span>
+                        {holdingsAttentionCount > 0 && (
+                            <span
+                                className="nav-notification-badge"
+                                title={`${holdingsAttentionCount} saker behöver din uppmärksamhet`}
+                            >
+                                {holdingsAttentionCount}
+                            </span>
+                        )}
                     </NavLink>
                 </li>
 
