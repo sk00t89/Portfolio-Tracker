@@ -2,7 +2,20 @@ import {useEffect, useState} from "react";
 
 function InstallPrompt() {
     const [installEvent, setInstallEvent] = useState(null);
-    const [showIosHelp, setShowIosHelp] = useState(false);
+    const [showIosHelp, setShowIosHelp] = useState(() => {
+        const isStandalone =
+            window.matchMedia(
+                "(display-mode: standalone)"
+            ).matches ||
+            window.navigator.standalone === true;
+
+        const isIos =
+            /iphone|ipad|ipod/i.test(
+                window.navigator.userAgent
+            );
+
+        return isIos && !isStandalone;
+    });
     const [dismissed, setDismissed] = useState(false);
 
     useEffect(() => {
@@ -14,15 +27,6 @@ function InstallPrompt() {
 
         if (isStandalone) {
             return;
-        }
-
-        const isIos =
-            /iphone|ipad|ipod/i.test(
-                window.navigator.userAgent
-            );
-
-        if (isIos) {
-            setShowIosHelp(true);
         }
 
         const handleBeforeInstallPrompt = (event) => {
