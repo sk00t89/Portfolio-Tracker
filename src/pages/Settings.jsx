@@ -1,7 +1,5 @@
 import {getPortfolioSnapshots} from "../utils/portfolioSnapshots.js";
 import {useState} from "react";
-import { createAccount } from "../services/database";
-import { createHolding } from "../services/database";
 
 function Settings({
                       resetPortfolio,
@@ -19,35 +17,6 @@ function Settings({
 
     const snapshots = getPortfolioSnapshots();
     const [showSnapshots, setShowSnapshots] = useState(false);
-
-    // TESTFUNKTION
-
-
-
-
-
-
-    async function handleCreateTestHolding() {
-        const { data, error } = await createHolding({
-            account_id: "72616e61-5ab4-48dd-9d1a-a18757d531be",
-            name: "Investor B",
-            ticker: "INVE-B",
-            quantity: 10,
-            average_price: 250,
-            average_price_sek: 250,
-            current_price: 300,
-            currency: "SEK",
-            platform: "Avanza",
-            asset_type: "STOCK",
-        });
-
-        if (error) {
-            console.error("Create holding error:", error);
-            return;
-        }
-
-        console.log("Holding created:", data);
-    }
 
     return (
         <main className="page settings-page">
@@ -194,12 +163,6 @@ function Settings({
                         </div>
                     )}
                 </section>
-                <button
-                    className="primary-button"
-                    onClick={handleCreateTestHolding}
-                >
-                    Skapa holding
-                </button>
             </div>
         </main>
     );
