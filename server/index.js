@@ -240,6 +240,83 @@ app.get("/api/nordnet-price/:instrumentId", async (req, res) => {
     }
 });
 
+app.get("/api/nordnet-instrument/:instrumentId", async (req, res) => {
+    const {instrumentId} = req.params;
+
+    try {
+        const url =
+            `https://www.nordnet.se/api/2/instrument_search/query/instrument` +
+            `?apply_filters=instrument_id%3D${encodeURIComponent(instrumentId)}`;
+
+        const response = await fetch(url, {
+            headers: {
+                Accept: "application/json",
+                "Client-Id": "NEXT",
+                Referer: "https://www.nordnet.se/",
+                "X-Nn-Href": "https://www.nordnet.se/",
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error("Kunde inte hämta Nordnet-instrument");
+        }
+
+        const data = await response.json();
+        const instrument = data.results?.[0];
+
+        if (!instrument) {
+            throw new Error("Inget Nordnet-instrument hittades");
+        }
+
+        res.json({
+            instrumentId:
+                instrument.instrument_info?.instrument_id ??
+                instrument.instrument_id ??
+                instrumentId,
+            name:
+                instrument.instrument_info?.name ??
+                instrument.name ??
+                null,
+            ticker:
+                instrument.instrument_info?.symbol ??
+                instrument.symbol ??
+                null,
+            isin:
+                instrument.instrument_info?.isin ??
+                instrument.isin ??
+                null,
+            currency:
+                instrument.instrument_info?.currency ??
+                instrument.currency ??
+                null,
+            market:
+                instrument.instrument_info?.market ??
+                instrument.market ??
+                null,
+            country:
+                instrument.instrument_info?.country ??
+                instrument.country ??
+                null,
+            assetType:
+                instrument.instrument_info?.instrument_type ??
+                instrument.instrument_class ??
+                instrument.instrument_type ??
+                null,
+            price:
+                instrument.price_info?.last?.price ??
+                instrument.price_info?.last ??
+                null,
+            provider: "Nordnet",
+        });
+    } catch (error) {
+        console.error("Nordnet instrument detail error:", error);
+
+        res.status(500).json({
+            error: "Kunde inte hämta Nordnet-instrument",
+        });
+    }
+});
+
 app.get("/api/nordnet-search/:isin", async (req, res) => {
     const {isin} = req.params;
 
