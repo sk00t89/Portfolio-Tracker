@@ -90,7 +90,28 @@ function Holdings({
         }
     };
 
+    const groupNeedsAttention = (group) =>
+        group.positions.some((position) =>
+            position.platform !== "Lysa" &&
+            (
+                !position.assetType ||
+                !position.isin ||
+                !position.instrumentId ||
+                (
+                    position.assetType === "STOCK" &&
+                    !position.ticker
+                )
+            )
+        );
+
     const sortedHoldings = [...groupedHoldings].sort((a, b) => {
+        const aNeedsAttention = groupNeedsAttention(a);
+        const bNeedsAttention = groupNeedsAttention(b);
+
+        if (aNeedsAttention !== bNeedsAttention) {
+            return aNeedsAttention ? -1 : 1;
+        }
+
         if (sortBy === "alphabetical") {
             return a.name.localeCompare(b.name, "sv");
         }
@@ -289,20 +310,35 @@ function Holdings({
                             ) * 100
                             : null;
 
+                    const needsAttention =
+                        groupNeedsAttention(group);
+
                     return (
                         <article
-                            className="holding-card"
+                            className={
+                                needsAttention
+                                    ? "holding-card holding-card-attention"
+                                    : "holding-card"
+                            }
                             key={group.instrumentKey}
                         >
                             <div className="holding-card-header">
                                 <div className="holding-card-title">
                                     <h3>{group.name}</h3>
-                                    <span className="holding-meta">
-                                        {group.positions.length}{" "}
-                                        {group.positions.length === 1
-                                            ? "position"
-                                            : "positioner"}
-                                    </span>
+                                    <div className="holding-title-meta">
+                                        <span className="holding-meta">
+                                            {group.positions.length}{" "}
+                                            {group.positions.length === 1
+                                                ? "position"
+                                                : "positioner"}
+                                        </span>
+
+                                        {needsAttention && (
+                                            <span className="attention-label">
+                                                Behöver åtgärd
+                                            </span>
+                                        )}
+                                    </div>
 
                                     {!isLysaOnly && (
                                         <div className="holding-card-metrics">
