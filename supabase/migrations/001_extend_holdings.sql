@@ -6,7 +6,9 @@ alter table public.holdings
     add column if not exists market text,
     add column if not exists instrument_id text,
     add column if not exists provider text,
-    add column if not exists price_updated_at bigint;
+    add column if not exists price_updated_at bigint,
+    add column if not exists underlying text,
+    add column if not exists product_type text;
 
 create index if not exists holdings_user_id_idx
     on public.holdings(user_id);
