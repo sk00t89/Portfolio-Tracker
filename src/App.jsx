@@ -6,6 +6,7 @@ import Dashboard from "./pages/Dashboard.jsx";
 import Holdings from "./pages/Holdings.jsx";
 import ImportPage from "./pages/ImportPage.jsx";
 import Settings from "./pages/Settings.jsx";
+import Help from "./pages/Help.jsx";
 import {useEffect, useState} from "react";
 import getInstrumentKey from "./utils/instrumentKey.js";
 import {
@@ -1679,6 +1680,9 @@ function App() {
                     />
                 }
                 />
+                <Route path="/help" element={
+                    <Help />
+                }/>
                 <Route path="/settings" element={
                     <Settings
                         resetPortfolio={resetPortfolio}
