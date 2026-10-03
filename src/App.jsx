@@ -17,7 +17,6 @@ import {
 } from "./services/currencyData.js";
 import {findMatchingHolding} from "./utils/holdingMatching.js";
 import {
-    searchInstrument,
     getYahooPrice,
     getNordnetPriceByIsin,
     getNordnetPriceByInstrumentId,
@@ -39,7 +38,10 @@ import {
 } from "./utils/portfolioSnapshots.js";
 import {lysaFundIsins} from "./data/lysaFundIsins.js";
 import {getLysaFundPrices} from "./services/lysaData.js";
-import {enrichImportedHolding} from "./services/holdingEnrichment.js";
+import {
+    enrichImportedHolding,
+    searchHoldingCandidates,
+} from "./services/holdingEnrichment.js";
 import Login from "./pages/Login.jsx";
 import { supabase } from "./lib/supabase.js";
 import {
@@ -143,27 +145,8 @@ function App() {
             }
         }
 
-        // 3. Nordnet via ISIN
-        if (!data && holding.isin) {
-            try {
-                data = await getNordnetPriceByIsin(
-                    holding.isin
-                );
-
-                if (!data?.price) {
-                    data = null;
-                }
-            } catch (error) {
-                console.log(
-                    "Nordnet hittade inget pris:",
-                    holding.name,
-                    "error:",
-                    error
-                );
-            }
-        }
-
-        // 2. Avanza
+        // 3. Avanza via ISIN
+        // De flesta Nordnet-innehav finns även hos Avanza.
         if (!data && holding.isin) {
             try {
                 data = await getAvanzaPriceByIsin(
@@ -176,6 +159,27 @@ function App() {
             } catch (error) {
                 console.log(
                     "Avanza hittade inget pris:",
+                    holding.name,
+                    "error:",
+                    error
+                );
+            }
+        }
+
+        // 4. Nordnet via ISIN
+        // Fallback för t.ex. Nordnets egna fonder/instrument.
+        if (!data && holding.isin) {
+            try {
+                data = await getNordnetPriceByIsin(
+                    holding.isin
+                );
+
+                if (!data?.price) {
+                    data = null;
+                }
+            } catch (error) {
+                console.log(
+                    "Nordnet hittade inget pris:",
                     holding.name,
                     "error:",
                     error
@@ -232,20 +236,37 @@ function App() {
             }
         }
 
-        setHoldings((previousHoldings) =>
-            previousHoldings.map((item) => {
-                if (item.id !== id) {
-                    return item;
-                }
+        const updatedHolding = {
+            ...holding,
+            currentPrice: data.price,
+            currentValueSek,
+            priceUpdatedAt:
+                data.timestamp ?? Date.now(),
+        };
 
-                return {
-                    ...item,
-                    currentPrice: data.price,
-                    currentValueSek,
-                    priceUpdatedAt:
-                        data.timestamp ?? Date.now(),
-                };
-            })
+        const {
+            data: savedHolding,
+            error: saveError,
+        } = await updateDatabaseHolding(
+            id,
+            updatedHolding
+        );
+
+        if (saveError) {
+            console.error(
+                "Kunde inte spara uppdaterad kurs i Supabase:",
+                holding.name,
+                saveError
+            );
+            return;
+        }
+
+        setHoldings((previousHoldings) =>
+            previousHoldings.map((item) =>
+                item.id === id
+                    ? savedHolding
+                    : item
+            )
         );
     };
 
@@ -364,10 +385,55 @@ function App() {
         }
 
 
+        const automaticallyEnriched =
+            await enrichImportedHolding(holding);
+
+        const identityChanged =
+            automaticallyEnriched.isin !== holding.isin ||
+            automaticallyEnriched.ticker !== holding.ticker ||
+            automaticallyEnriched.instrumentId !== holding.instrumentId ||
+            automaticallyEnriched.assetType !== holding.assetType ||
+            automaticallyEnriched.provider !== holding.provider;
+
+        if (identityChanged) {
+            const classifiedHolding =
+                classifyHolding({
+                    ...automaticallyEnriched,
+                    assetType: normalizeAssetType(
+                        automaticallyEnriched.assetType
+                    ),
+                });
+
+            const {
+                data: savedHolding,
+                error,
+            } = await updateDatabaseHolding(
+                id,
+                classifiedHolding
+            );
+
+            if (error) {
+                console.error(
+                    "Kunde inte spara automatisk berikning i Supabase:",
+                    error
+                );
+            } else {
+                setHoldings((prevHoldings) =>
+                    prevHoldings.map((item) =>
+                        item.id === id
+                            ? savedHolding
+                            : item
+                    )
+                );
+                return;
+            }
+        }
+
         const query =
             holding.ticker ?? holding.name;
 
-        const candidates = await searchInstrument(query);
+        const candidates =
+            await searchHoldingCandidates(query);
 
         setEnrichmentCandidates({
             holdingId: holding.id,
@@ -394,7 +460,10 @@ function App() {
             return;
         }
 
-        const candidates = await searchInstrument(query.trim());
+        const candidates =
+            await searchHoldingCandidates(
+                query.trim()
+            );
 
         setEnrichmentCandidates((previous) => ({
             ...previous,
@@ -404,24 +473,49 @@ function App() {
 
 
     const enrichMissingAveragePrices = async () => {
-        const updatedHoldings = await Promise.all(
-            holdings.map(async (holding) => {
-                if (
-                    holding.averagePriceSek === null &&
-                    holding.averagePrice &&
-                    holding.currency
-                ) {
-                    const averagePriceSek =
-                        await getAveragePriceSek(holding);
-                    return {
-                        ...holding,
-                        averagePriceSek:
-                            averagePriceSek ?? holding.averagePriceSek,
-                    };
+        const updatedHoldings = [];
+
+        for (const holding of holdings) {
+            if (
+                holding.averagePriceSek === null &&
+                holding.averagePrice &&
+                holding.currency
+            ) {
+                const averagePriceSek =
+                    await getAveragePriceSek(holding);
+
+                const updatedHolding = {
+                    ...holding,
+                    averagePriceSek:
+                        averagePriceSek ??
+                        holding.averagePriceSek,
+                };
+
+                const {
+                    data: savedHolding,
+                    error,
+                } = await updateDatabaseHolding(
+                    holding.id,
+                    updatedHolding
+                );
+
+                if (error) {
+                    console.error(
+                        "Kunde inte spara berikat GAV i Supabase:",
+                        holding.name,
+                        error
+                    );
+                    updatedHoldings.push(holding);
+                    continue;
                 }
-                return holding;
-            })
-        );
+
+                updatedHoldings.push(savedHolding);
+                continue;
+            }
+
+            updatedHoldings.push(holding);
+        }
+
         setHoldings(updatedHoldings);
     };
 
@@ -539,9 +633,13 @@ function App() {
 
             for (const holding of data) {
                 const needsMetadata =
-                    !holding.instrumentId &&
-                    !holding.isin &&
-                    !holding.ticker;
+                    !holding.isin ||
+                    !holding.instrumentId ||
+                    !holding.assetType ||
+                    (
+                        holding.assetType === "STOCK" &&
+                        !holding.ticker
+                    );
 
                 if (!needsMetadata) {
                     repairedHoldings.push(holding);
