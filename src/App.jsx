@@ -1,5 +1,6 @@
 import "./App.css";
 import Navbar from "./components/Navbar.jsx";
+import InstallPrompt from "./components/InstallPrompt.jsx";
 import {Routes, Route} from "react-router-dom";
 import Dashboard from "./pages/Dashboard.jsx";
 import Holdings from "./pages/Holdings.jsx";
@@ -1476,6 +1477,7 @@ function App() {
                 theme={theme}
                 onToggleTheme={toggleTheme}
             />
+            <InstallPrompt />
             <Routes>
                 <Route path="/" element={
                     <Dashboard
