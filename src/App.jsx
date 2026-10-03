@@ -66,6 +66,45 @@ function App() {
     const [session, setSession] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
 
+    const [theme, setTheme] = useState("dark");
+
+    useEffect(() => {
+        const savedTheme =
+            localStorage.getItem("theme");
+
+        const systemPrefersLight =
+            window.matchMedia?.(
+                "(prefers-color-scheme: light)"
+            ).matches;
+
+        const initialTheme =
+            savedTheme ??
+            (systemPrefersLight ? "light" : "dark");
+
+        setTheme(initialTheme);
+        document.documentElement.dataset.theme =
+            initialTheme;
+    }, []);
+
+    const toggleTheme = () => {
+        setTheme((currentTheme) => {
+            const nextTheme =
+                currentTheme === "dark"
+                    ? "light"
+                    : "dark";
+
+            localStorage.setItem(
+                "theme",
+                nextTheme
+            );
+
+            document.documentElement.dataset.theme =
+                nextTheme;
+
+            return nextTheme;
+        });
+    };
+
     
 
     useEffect(() => {
@@ -1427,6 +1466,8 @@ function App() {
                 holdingsAttentionCount={
                     holdingsAttentionCount
                 }
+                theme={theme}
+                onToggleTheme={toggleTheme}
             />
             <Routes>
                 <Route path="/" element={
