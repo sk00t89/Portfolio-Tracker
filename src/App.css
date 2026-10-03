@@ -1728,3 +1728,10 @@ p {
     width: auto;
   }
 }
+
+
+.settings-status-message {
+  margin-top: 10px;
+  color: var(--accent);
+  font-size: 0.84rem;
+}
