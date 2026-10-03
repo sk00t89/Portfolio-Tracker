@@ -1020,14 +1020,21 @@ function App() {
     );
 
     const holdingsNeedingEnrichment =
-        holdings.filter((holding) =>
-            holding.platform !== "Lysa" &&
-            (
+        holdings.filter((holding) => {
+            if (holding.platform === "Lysa") {
+                return false;
+            }
+
+            const hasIdentifier =
+                Boolean(holding.isin) ||
+                Boolean(holding.instrumentId) ||
+                Boolean(holding.ticker);
+
+            return (
                 !holding.assetType ||
-                !holding.isin ||
-                !holding.instrumentId
-            )
-        ).length;
+                !hasIdentifier
+            );
+        }).length;
 
     const holdingsAttentionCount =
         possibleMatches.length +
