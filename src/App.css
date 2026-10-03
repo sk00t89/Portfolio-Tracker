@@ -1284,3 +1284,40 @@ p {
   background: #07120e;
   color: var(--accent);
 }
+
+
+/* Holdings attention state */
+.holding-card-attention {
+  border-color: rgba(255, 190, 104, 0.45);
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 190, 104, 0.06),
+      transparent 46%
+    ),
+    rgba(17, 23, 32, 0.82);
+}
+
+.holding-card-attention:hover {
+  border-color: rgba(255, 190, 104, 0.7);
+}
+
+.holding-title-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.attention-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 3px 7px;
+  color: #ffd39a;
+  background: rgba(255, 190, 104, 0.08);
+  border: 1px solid rgba(255, 190, 104, 0.22);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
