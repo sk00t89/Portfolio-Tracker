@@ -55,6 +55,15 @@ export async function deleteHoldingById(id) {
     return { error };
 }
 
+export async function deleteAllHoldings() {
+    const { error } = await supabase
+        .from("holdings")
+        .delete()
+        .not("id", "is", null);
+
+    return { error };
+}
+
 export async function getAccounts() {
     const { data, error } = await supabase
         .from("accounts")
