@@ -306,23 +306,58 @@ function App() {
         );
 
         if (internalMatch) {
+            const updatedHolding = classifyHolding({
+                ...holding,
+                ticker:
+                    holding.ticker ??
+                    internalMatch.ticker,
+                isin:
+                    holding.isin ??
+                    internalMatch.isin,
+                assetType:
+                    holding.assetType ??
+                    internalMatch.assetType,
+                currency:
+                    holding.currency ??
+                    internalMatch.currency,
+                country:
+                    holding.country ??
+                    internalMatch.country,
+                market:
+                    holding.market ??
+                    internalMatch.market,
+                instrumentId:
+                    holding.instrumentId ??
+                    internalMatch.instrumentId ??
+                    null,
+                provider:
+                    holding.provider ??
+                    internalMatch.provider ??
+                    null,
+            });
+
+            const {
+                data: savedHolding,
+                error,
+            } = await updateDatabaseHolding(
+                id,
+                updatedHolding
+            );
+
+            if (error) {
+                console.error(
+                    "Kunde inte spara intern matchning i Supabase:",
+                    error
+                );
+                return;
+            }
+
             setHoldings((prevHoldings) =>
-                prevHoldings.map((item) => {
-                    if (item.id !== id) {
-                        return item;
-                    }
-
-                    const updatedHolding = {
-                        ...item,
-                        ticker: item.ticker ?? internalMatch.ticker,
-                        isin: item.isin ?? internalMatch.isin,
-                        assetType: item.assetType ?? internalMatch.assetType,
-                        currency: item.currency ?? internalMatch.currency,
-                        market: item.market ?? internalMatch.market,
-                    };
-
-                    return classifyHolding(updatedHolding);
-                })
+                prevHoldings.map((item) =>
+                    item.id === id
+                        ? savedHolding
+                        : item
+                )
             );
 
             return;
@@ -500,7 +535,71 @@ function App() {
                 return;
             }
 
-            setHoldings(data);
+            const repairedHoldings = [];
+
+            for (const holding of data) {
+                const needsMetadata =
+                    !holding.instrumentId &&
+                    !holding.isin &&
+                    !holding.ticker;
+
+                if (!needsMetadata) {
+                    repairedHoldings.push(holding);
+                    continue;
+                }
+
+                try {
+                    const enrichedHolding =
+                        await enrichImportedHolding(holding);
+
+                    const classifiedHolding =
+                        classifyHolding({
+                            ...enrichedHolding,
+                            assetType: normalizeAssetType(
+                                enrichedHolding.assetType
+                            ),
+                        });
+
+                    const metadataChanged =
+                        classifiedHolding.instrumentId ||
+                        classifiedHolding.isin ||
+                        classifiedHolding.ticker;
+
+                    if (!metadataChanged) {
+                        repairedHoldings.push(holding);
+                        continue;
+                    }
+
+                    const {
+                        data: savedHolding,
+                        error: repairError,
+                    } = await updateDatabaseHolding(
+                        holding.id,
+                        classifiedHolding
+                    );
+
+                    if (repairError) {
+                        console.warn(
+                            "Kunde inte spara automatisk berikning för:",
+                            holding.name,
+                            repairError
+                        );
+                        repairedHoldings.push(holding);
+                        continue;
+                    }
+
+                    repairedHoldings.push(savedHolding);
+                } catch (repairError) {
+                    console.warn(
+                        "Automatisk berikning misslyckades för:",
+                        holding.name,
+                        repairError
+                    );
+                    repairedHoldings.push(holding);
+                }
+            }
+
+            setHoldings(repairedHoldings);
             setHoldingsLoading(false);
         };
 
