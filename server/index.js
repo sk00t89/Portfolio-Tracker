@@ -317,24 +317,12 @@ app.get("/api/nordnet-search-query/:query", async (req, res) => {
         const data = await response.json();
 
 
-        const allowedAssetTypes = [
-            "STOCK",
-            "MUTUAL_FUND",
-            "EXCHANGE_TRADED_FUND",
-            "TRACKER",
-        ];
-
         const normalized = data
             .flatMap((group) => {
                 return group.results ?? [];
             })
             .filter((instrument) => {
                 return instrument.instrument_id != null;
-            })
-            .filter((instrument) => {
-                return allowedAssetTypes.includes(
-                    instrument.instrument_class
-                );
             })
             .map((instrument) => ({
                 instrumentId: instrument.instrument_id,
