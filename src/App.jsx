@@ -41,6 +41,12 @@ import {lysaFundIsins} from "./data/lysaFundIsins.js";
 import {getLysaFundPrices} from "./services/lysaData.js";
 import Login from "./pages/Login.jsx";
 import { supabase } from "./lib/supabase.js";
+import {
+    createHolding as createDatabaseHolding,
+    deleteHoldingById,
+    getHoldings as getDatabaseHoldings,
+    updateHolding as updateDatabaseHolding,
+} from "./services/database.js";
 
 const PRICE_UPDATE_INTERVAL = 20 * 60 * 1000;
 
@@ -466,14 +472,37 @@ function App() {
     });
 
 
-    const [holdings, setHoldings] = useState(() => {
-        const savedHoldings = localStorage.getItem("holdings");
+    const [holdings, setHoldings] = useState([]);
+    const [holdingsLoading, setHoldingsLoading] = useState(true);
 
-        if (savedHoldings) {
-            return JSON.parse(savedHoldings);
+    useEffect(() => {
+        if (!session) {
+            setHoldings([]);
+            setHoldingsLoading(false);
+            return;
         }
-        return [];
-    });
+
+        const loadHoldings = async () => {
+            setHoldingsLoading(true);
+
+            const { data, error } =
+                await getDatabaseHoldings();
+
+            if (error) {
+                console.error(
+                    "Kunde inte hämta holdings från Supabase:",
+                    error
+                );
+                setHoldingsLoading(false);
+                return;
+            }
+
+            setHoldings(data);
+            setHoldingsLoading(false);
+        };
+
+        void loadHoldings();
+    }, [session]);
 
 
     const [lysaTransactions, setLysaTransactions] = useState(() => {
@@ -641,20 +670,11 @@ function App() {
     );
 
 
-    const getNextId = (holdings) => {
-        const ids = holdings.map((holding) => holding.id);
-        const highestId = ids.length > 0 ? Math.max(...ids) : 0;
-
-        return highestId + 1;
-    };
-
     // =========================================
     // LOCAL STORAGE / STARTUP
+    // Övrig data ligger kvar lokalt tills den migreras.
+    // Holdings laddas nu från Supabase.
     // =========================================
-
-    useEffect(() => {
-        localStorage.setItem("holdings", JSON.stringify(holdings));
-    }, [holdings]);
 
     useEffect(() => {
         localStorage.setItem(
@@ -769,52 +789,71 @@ function App() {
     // HOLDINGS: import, gruppering och borttagning
     // =========================================
 
-    const importHoldings = (newHoldings) => {
-        setHoldings((previousHoldings) => {
+    const importHoldings = async (newHoldings) => {
+        let finalHoldings = [...holdings];
 
-            let finalHoldings = [...previousHoldings];
+        for (const newHolding of newHoldings) {
+            const normalizedHolding = {
+                ...newHolding,
+                assetType: normalizeAssetType(newHolding.assetType),
+            };
 
-            newHoldings.forEach((newHolding) => {
-                const normalizedHolding = {
-                    ...newHolding,
-                    assetType: normalizeAssetType(newHolding.assetType),
-                };
+            const classifiedHolding =
+                classifyHolding(normalizedHolding);
 
-                const classifiedHolding =
-                    classifyHolding(normalizedHolding);
+            const newKey =
+                getInstrumentKey(classifiedHolding);
 
-                const newKey =
-                    getInstrumentKey(classifiedHolding);
-
-                const existingHolding = finalHoldings.find((oldHolding) => {
-                    return (
-                        oldHolding.platform === classifiedHolding.platform &&
-                        getInstrumentKey(oldHolding) === newKey
-                    );
-                });
-
-                if (existingHolding) {
-                    finalHoldings = finalHoldings.map((holding) => {
-                        if (holding.id === existingHolding.id) {
-                            return {
-                                ...holding,
-                                ...classifiedHolding,
-                                id: holding.id,
-                            };
-                        }
-
-                        return holding;
-                    });
-                } else {
-                    finalHoldings.push({
-                        ...classifiedHolding,
-                        id: getNextId(finalHoldings),
-                    });
-                }
+            const existingHolding = finalHoldings.find((oldHolding) => {
+                return (
+                    oldHolding.platform === classifiedHolding.platform &&
+                    getInstrumentKey(oldHolding) === newKey
+                );
             });
 
-            return finalHoldings;
-        });
+            if (existingHolding) {
+                const mergedHolding = {
+                    ...existingHolding,
+                    ...classifiedHolding,
+                    id: existingHolding.id,
+                };
+
+                const { data, error } =
+                    await updateDatabaseHolding(
+                        existingHolding.id,
+                        mergedHolding
+                    );
+
+                if (error) {
+                    console.error(
+                        "Kunde inte uppdatera holding i Supabase:",
+                        error
+                    );
+                    continue;
+                }
+
+                finalHoldings = finalHoldings.map((holding) =>
+                    holding.id === existingHolding.id
+                        ? data
+                        : holding
+                );
+            } else {
+                const { data, error } =
+                    await createDatabaseHolding(classifiedHolding);
+
+                if (error) {
+                    console.error(
+                        "Kunde inte skapa holding i Supabase:",
+                        error
+                    );
+                    continue;
+                }
+
+                finalHoldings.push(data);
+            }
+        }
+
+        setHoldings(finalHoldings);
     };
 
 
@@ -875,7 +914,7 @@ function App() {
     }, [assets]);
 
     useEffect(() => {
-        if (holdings.length === 0) {
+        if (holdingsLoading || holdings.length === 0) {
             return;
         }
 
@@ -884,11 +923,21 @@ function App() {
             Date.now()
         );
 
-        // Körs bara vid uppstart. Holdings läses synkront från localStorage.
+        // Kör när holdings har laddats från Supabase.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [holdingsLoading]);
 
-    const deleteHolding = (id) => {
+    const deleteHolding = async (id) => {
+        const { error } = await deleteHoldingById(id);
+
+        if (error) {
+            console.error(
+                "Kunde inte ta bort holding från Supabase:",
+                error
+            );
+            return;
+        }
+
         setHoldings((previousHoldings) =>
             previousHoldings.filter(
                 (holding) => holding.id !== id
@@ -949,7 +998,7 @@ function App() {
         resolvedMatches,
     ]);
 
-    if (authLoading) {
+    if (authLoading || (session && holdingsLoading)) {
         return <div>Laddar...</div>;
     }
 
