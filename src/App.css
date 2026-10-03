@@ -1235,3 +1235,52 @@ p {
   height: 1px;
   background: var(--border);
 }
+
+/* Holdings card metrics */
+.holding-card-title {
+  min-width: 0;
+}
+
+.holding-card-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.holding-card-metrics span {
+  white-space: nowrap;
+}
+
+.holding-card-metrics strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Navbar attention badge */
+.nav-link {
+  position: relative;
+}
+
+.nav-notification-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 7px;
+  padding: 0 5px;
+  color: #07120e;
+  background: var(--accent);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.nav-link.active .nav-notification-badge {
+  background: #07120e;
+  color: var(--accent);
+}
