@@ -619,7 +619,7 @@ function Holdings({
                                                         (candidate) => (
                                                             <button
                                                                 className="enrichment-candidate-button"
-                                                                key={`${candidate.ticker}-${candidate.exchange}`}
+                                                                key={`${candidate.provider ?? "unknown"}-${candidate.instrumentId ?? candidate.isin ?? candidate.ticker ?? candidate.name}`}
                                                                 type="button"
                                                                 onClick={() =>
                                                                     selectEnrichmentCandidate(
@@ -628,9 +628,9 @@ function Holdings({
                                                                 }
                                                             >
                                                                 {candidate.name} —{" "}
-                                                                {candidate.ticker} —{" "}
-                                                                {candidate.exchange} —{" "}
-                                                                {candidate.currency}
+                                                                {candidate.ticker ?? "utan ticker"} —{" "}
+                                                                {candidate.market ?? candidate.provider ?? "okänd marknad"} —{" "}
+                                                                {candidate.currency ?? "okänd valuta"}
                                                             </button>
                                                         )
                                                     )}
