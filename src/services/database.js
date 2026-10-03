@@ -77,7 +77,38 @@ export async function createAccount(account) {
     const { data, error } = await supabase
         .from("accounts")
         .insert(account)
-        .select();
+        .select()
+        .single();
 
     return { data, error };
+}
+
+export async function getOrCreateAccountForPlatform(platform) {
+    const normalizedPlatform = platform?.trim();
+
+    if (!normalizedPlatform) {
+        return { data: null, error: null };
+    }
+
+    const { data: existingAccount, error: findError } =
+        await supabase
+            .from("accounts")
+            .select("*")
+            .eq("platform", normalizedPlatform)
+            .eq("name", normalizedPlatform)
+            .maybeSingle();
+
+    if (findError) {
+        return { data: null, error: findError };
+    }
+
+    if (existingAccount) {
+        return { data: existingAccount, error: null };
+    }
+
+    return createAccount({
+        name: normalizedPlatform,
+        platform: normalizedPlatform,
+        account_type: null,
+    });
 }
