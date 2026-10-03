@@ -683,6 +683,32 @@ function App() {
 
                 let candidateHolding = workingHolding;
 
+                if (
+                    candidateHolding.averagePriceSek === null &&
+                    candidateHolding.averagePrice &&
+                    candidateHolding.currency
+                ) {
+                    try {
+                        const averagePriceSek =
+                            await getAveragePriceSek(
+                                candidateHolding
+                            );
+
+                        candidateHolding = {
+                            ...candidateHolding,
+                            averagePriceSek:
+                                averagePriceSek ??
+                                candidateHolding.averagePriceSek,
+                        };
+                    } catch (gavRepairError) {
+                        console.warn(
+                            "Kunde inte berika GAV för:",
+                            candidateHolding.name,
+                            gavRepairError
+                        );
+                    }
+                }
+
                 if (needsMetadata) {
                     try {
                         const enrichedHolding =
@@ -715,7 +741,8 @@ function App() {
                     candidateHolding.provider !== holding.provider ||
                     candidateHolding.category !== holding.category ||
                     candidateHolding.productType !== holding.productType ||
-                    candidateHolding.underlying !== holding.underlying;
+                    candidateHolding.underlying !== holding.underlying ||
+                    candidateHolding.averagePriceSek !== holding.averagePriceSek;
 
                 if (!shouldPersistRepair) {
                     repairedHoldings.push(candidateHolding);
@@ -946,6 +973,20 @@ function App() {
         resolvedMatches
     );
 
+    const holdingsNeedingEnrichment =
+        holdings.filter((holding) =>
+            holding.platform !== "Lysa" &&
+            (
+                !holding.assetType ||
+                !holding.isin ||
+                !holding.instrumentId
+            )
+        ).length;
+
+    const holdingsAttentionCount =
+        possibleMatches.length +
+        holdingsNeedingEnrichment;
+
 
     // =========================================
     // LOCAL STORAGE / STARTUP
@@ -1084,10 +1125,38 @@ function App() {
                 );
             }
 
+            let holdingWithGav = enrichedHolding;
+
+            if (
+                holdingWithGav.averagePriceSek == null &&
+                holdingWithGav.averagePrice &&
+                holdingWithGav.currency
+            ) {
+                try {
+                    const averagePriceSek =
+                        await getAveragePriceSek(
+                            holdingWithGav
+                        );
+
+                    holdingWithGav = {
+                        ...holdingWithGav,
+                        averagePriceSek:
+                            averagePriceSek ??
+                            holdingWithGav.averagePriceSek,
+                    };
+                } catch (gavError) {
+                    console.warn(
+                        "Kunde inte berika GAV vid import för:",
+                        holdingWithGav.name,
+                        gavError
+                    );
+                }
+            }
+
             const normalizedHolding = {
-                ...enrichedHolding,
+                ...holdingWithGav,
                 assetType: normalizeAssetType(
-                    enrichedHolding.assetType
+                    holdingWithGav.assetType
                 ),
             };
 
@@ -1346,6 +1415,9 @@ function App() {
 
             <Navbar
                 session={session}
+                holdingsAttentionCount={
+                    holdingsAttentionCount
+                }
             />
             <Routes>
                 <Route path="/" element={
