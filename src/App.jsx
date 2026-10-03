@@ -630,71 +630,117 @@ function App() {
             }
 
             const repairedHoldings = [];
+            const accountCache = new Map();
 
             for (const holding of data) {
+                let workingHolding = holding;
+
+                if (!workingHolding.accountId && workingHolding.platform) {
+                    try {
+                        let accountId =
+                            accountCache.get(workingHolding.platform);
+
+                        if (!accountId) {
+                            const {
+                                data: account,
+                                error: accountError,
+                            } = await getOrCreateAccountForPlatform(
+                                workingHolding.platform
+                            );
+
+                            if (!accountError) {
+                                accountId = account?.id ?? null;
+                                accountCache.set(
+                                    workingHolding.platform,
+                                    accountId
+                                );
+                            }
+                        }
+
+                        if (accountId) {
+                            workingHolding = {
+                                ...workingHolding,
+                                accountId,
+                            };
+                        }
+                    } catch (accountRepairError) {
+                        console.warn(
+                            "Kunde inte koppla konto för:",
+                            workingHolding.name,
+                            accountRepairError
+                        );
+                    }
+                }
+
                 const needsMetadata =
-                    !holding.isin ||
-                    !holding.instrumentId ||
-                    !holding.assetType ||
+                    !workingHolding.isin ||
+                    !workingHolding.instrumentId ||
+                    !workingHolding.assetType ||
                     (
-                        holding.assetType === "STOCK" &&
-                        !holding.ticker
+                        workingHolding.assetType === "STOCK" &&
+                        !workingHolding.ticker
                     );
 
-                if (!needsMetadata) {
-                    repairedHoldings.push(holding);
+                let candidateHolding = workingHolding;
+
+                if (needsMetadata) {
+                    try {
+                        const enrichedHolding =
+                            await enrichImportedHolding(
+                                workingHolding
+                            );
+
+                        candidateHolding =
+                            classifyHolding({
+                                ...enrichedHolding,
+                                assetType: normalizeAssetType(
+                                    enrichedHolding.assetType
+                                ),
+                            });
+                    } catch (repairError) {
+                        console.warn(
+                            "Automatisk berikning misslyckades för:",
+                            workingHolding.name,
+                            repairError
+                        );
+                    }
+                }
+
+                const shouldPersistRepair =
+                    candidateHolding.accountId !== holding.accountId ||
+                    candidateHolding.instrumentId !== holding.instrumentId ||
+                    candidateHolding.isin !== holding.isin ||
+                    candidateHolding.ticker !== holding.ticker ||
+                    candidateHolding.assetType !== holding.assetType ||
+                    candidateHolding.provider !== holding.provider ||
+                    candidateHolding.category !== holding.category ||
+                    candidateHolding.productType !== holding.productType ||
+                    candidateHolding.underlying !== holding.underlying;
+
+                if (!shouldPersistRepair) {
+                    repairedHoldings.push(candidateHolding);
                     continue;
                 }
 
-                try {
-                    const enrichedHolding =
-                        await enrichImportedHolding(holding);
+                const {
+                    data: savedHolding,
+                    error: repairError,
+                } = await updateDatabaseHolding(
+                    holding.id,
+                    candidateHolding
+                );
 
-                    const classifiedHolding =
-                        classifyHolding({
-                            ...enrichedHolding,
-                            assetType: normalizeAssetType(
-                                enrichedHolding.assetType
-                            ),
-                        });
-
-                    const metadataChanged =
-                        classifiedHolding.instrumentId ||
-                        classifiedHolding.isin ||
-                        classifiedHolding.ticker;
-
-                    if (!metadataChanged) {
-                        repairedHoldings.push(holding);
-                        continue;
-                    }
-
-                    const {
-                        data: savedHolding,
-                        error: repairError,
-                    } = await updateDatabaseHolding(
-                        holding.id,
-                        classifiedHolding
-                    );
-
-                    if (repairError) {
-                        console.warn(
-                            "Kunde inte spara automatisk berikning för:",
-                            holding.name,
-                            repairError
-                        );
-                        repairedHoldings.push(holding);
-                        continue;
-                    }
-
-                    repairedHoldings.push(savedHolding);
-                } catch (repairError) {
+                if (repairError) {
                     console.warn(
-                        "Automatisk berikning misslyckades för:",
+                        "Kunde inte spara automatisk reparation för:",
                         holding.name,
                         repairError
                     );
-                    repairedHoldings.push(holding);
+                    repairedHoldings.push(candidateHolding);
+                    continue;
                 }
+
+                repairedHoldings.push(savedHolding);
             }
 
             setHoldings(repairedHoldings);
