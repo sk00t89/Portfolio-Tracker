@@ -1,7 +1,7 @@
+import { apiFetch } from "./apiClient.js";
+
 export const searchCrypto = async (query) => {
-    const response = await fetch(
-        `http://localhost:3001/api/crypto-search/${encodeURIComponent(query)}`
-    );
+    const response = await apiFetch(`/api/crypto-search/${encodeURIComponent(query)}`);
 
     if (!response.ok) {
         throw new Error("Kryptosökningen misslyckades");
@@ -11,9 +11,7 @@ export const searchCrypto = async (query) => {
 };
 
 export const getCryptoPrice = async (coinId) => {
-    const response = await fetch(
-        `http://localhost:3001/api/crypto-price/${encodeURIComponent(coinId)}`
-    );
+    const response = await apiFetch(`/api/crypto-price/${encodeURIComponent(coinId)}`);
 
     if (!response.ok) {
         throw new Error("Kryptokursen kunde inte hämtas");
@@ -25,9 +23,7 @@ export const getCryptoPrice = async (coinId) => {
 export const getCryptoPrices = async (coinIds) => {
     const cleanIds = coinIds.join(",");
 
-    const response = await fetch(
-        `http://localhost:3001/api/crypto-prices?ids=${encodeURIComponent(cleanIds)}`
-    );
+    const response = await apiFetch(`/api/crypto-prices?ids=${encodeURIComponent(cleanIds)}`);
 
     if (!response.ok) {
         throw new Error(
