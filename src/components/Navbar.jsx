@@ -1,7 +1,12 @@
 import {NavLink} from "react-router-dom";
 import { signOut } from "../services/authService.js";
 
-function Navbar({session, holdingsAttentionCount = 0}) {
+function Navbar({
+                    session,
+                    holdingsAttentionCount = 0,
+                    theme = "dark",
+                    onToggleTheme,
+                }) {
 
     async function handleLogout() {
         const { error } = await signOut();
@@ -13,7 +18,6 @@ function Navbar({session, holdingsAttentionCount = 0}) {
 
     return (
         <nav className="nav-bar">
-
             <div className="nav-brand">
                 Portfolio Tracker
             </div>
@@ -72,26 +76,53 @@ function Navbar({session, holdingsAttentionCount = 0}) {
                 </li>
             </ul>
 
-            <div className="nav-login">
-                {!session ? (
-                    <NavLink
-                        to="/login"
-                        className={({ isActive }) =>
-                            isActive ? "nav-link active" : "nav-link"
-                        }
-                    >
-                        Login
-                    </NavLink>
-                ) : (
-                    <button
-                        className="danger-button"
-                        onClick={handleLogout}
-                    >
-                        Logout
-                    </button>
-                )}
-            </div>
+            <div className="nav-actions">
+                <button
+                    className="theme-toggle"
+                    type="button"
+                    onClick={onToggleTheme}
+                    aria-label={
+                        theme === "dark"
+                            ? "Byt till ljust läge"
+                            : "Byt till mörkt läge"
+                    }
+                    title={
+                        theme === "dark"
+                            ? "Ljust läge"
+                            : "Mörkt läge"
+                    }
+                >
+                    <span aria-hidden="true">
+                        {theme === "dark" ? "☀" : "☾"}
+                    </span>
+                    <span className="theme-toggle-text">
+                        {theme === "dark" ? "Light" : "Dark"}
+                    </span>
+                </button>
 
+                <div className="nav-login">
+                    {!session ? (
+                        <NavLink
+                            to="/login"
+                            className={({ isActive }) =>
+                                isActive
+                                    ? "nav-link active"
+                                    : "nav-link"
+                            }
+                        >
+                            Login
+                        </NavLink>
+                    ) : (
+                        <button
+                            className="danger-button nav-logout-button"
+                            type="button"
+                            onClick={handleLogout}
+                        >
+                            Logout
+                        </button>
+                    )}
+                </div>
+            </div>
         </nav>
     );
 }
