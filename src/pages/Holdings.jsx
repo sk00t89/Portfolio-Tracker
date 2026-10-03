@@ -236,6 +236,59 @@ function Holdings({
                             ? (group.totalValue / portfolioValue) * 100
                             : 0;
 
+                    const totalQuantity =
+                        group.positions.reduce(
+                            (total, position) =>
+                                total + Number(position.quantity ?? 0),
+                            0
+                        );
+
+                    const latestPrice =
+                        group.positions.find(
+                            (position) =>
+                                Number.isFinite(Number(position.currentPrice))
+                        )?.currentPrice ?? null;
+
+                    const priceCurrency =
+                        group.positions.find(
+                            (position) =>
+                                position.currentPrice != null
+                        )?.currency ?? "";
+
+                    const investedCapital =
+                        group.positions.reduce(
+                            (total, position) => {
+                                const averagePriceSek =
+                                    Number(position.averagePriceSek);
+                                const quantity =
+                                    Number(position.quantity);
+
+                                if (
+                                    !Number.isFinite(averagePriceSek) ||
+                                    !Number.isFinite(quantity) ||
+                                    averagePriceSek <= 0 ||
+                                    quantity <= 0
+                                ) {
+                                    return total;
+                                }
+
+                                return total +
+                                    averagePriceSek * quantity;
+                            },
+                            0
+                        );
+
+                    const changePercent =
+                        investedCapital > 0
+                            ? (
+                                (
+                                    group.totalValue -
+                                    investedCapital
+                                ) /
+                                investedCapital
+                            ) * 100
+                            : null;
+
                     return (
                         <article
                             className="holding-card"
@@ -250,6 +303,46 @@ function Holdings({
                                             ? "position"
                                             : "positioner"}
                                     </span>
+
+                                    {!isLysaOnly && (
+                                        <span className="holding-meta">
+                                            GAV {investedCapital > 0
+                                                ? formatSek(investedCapital)
+                                                : "–"}
+                                            {" · "}
+                                            Antal {totalQuantity.toLocaleString(
+                                                "sv-SE",
+                                                {
+                                                    maximumFractionDigits: 4,
+                                                }
+                                            )}
+                                            {" · "}
+                                            Kurs{" "}
+                                            {latestPrice !== null
+                                                ? `${Number(latestPrice).toLocaleString(
+                                                    "sv-SE",
+                                                    {
+                                                        maximumFractionDigits: 2,
+                                                    }
+                                                )} ${priceCurrency}`
+                                                : "–"}
+                                            {changePercent !== null && (
+                                                <>
+                                                    {" · "}
+                                                    <span
+                                                        className={
+                                                            changePercent >= 0
+                                                                ? "positive-text"
+                                                                : "negative-text"
+                                                        }
+                                                    >
+                                                        {changePercent >= 0 ? "+" : ""}
+                                                        {changePercent.toFixed(1)}%
+                                                    </span>
+                                                </>
+                                            )}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className="holding-summary">
