@@ -84,21 +84,62 @@ const scoreCandidate = (holding, candidate) => {
     return score;
 };
 
-export async function searchHoldingCandidates(query) {
-    const [nordnetResult, avanzaResult] =
-        await Promise.allSettled([
-            searchNordnetInstruments(query),
-            searchAvanzaInstruments(query),
-        ]);
+const getSearchQueries = (query) => {
+    const original = query.trim();
 
-    return [
-        ...(nordnetResult.status === "fulfilled"
-            ? nordnetResult.value
-            : []),
-        ...(avanzaResult.status === "fulfilled"
-            ? avanzaResult.value
-            : []),
-    ];
+    const cleaned = original
+        .replace(/\bADR\b/gi, " ")
+        .replace(/\bADS\b/gi, " ")
+        .replace(/\bPLC\b/gi, " ")
+        .replace(/\bINC\.?\b/gi, " ")
+        .replace(/\bLTD\.?\b/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    return [...new Set(
+        [original, cleaned].filter(Boolean)
+    )];
+};
+
+export async function searchHoldingCandidates(query) {
+    const queries = getSearchQueries(query);
+    const allCandidates = [];
+
+    for (const searchQuery of queries) {
+        const [nordnetResult, avanzaResult] =
+            await Promise.allSettled([
+                searchNordnetInstruments(searchQuery),
+                searchAvanzaInstruments(searchQuery),
+            ]);
+
+        allCandidates.push(
+            ...(nordnetResult.status === "fulfilled"
+                ? nordnetResult.value
+                : []),
+            ...(avanzaResult.status === "fulfilled"
+                ? avanzaResult.value
+                : [])
+        );
+    }
+
+    const seen = new Set();
+
+    return allCandidates.filter((candidate) => {
+        const key = [
+            candidate.provider,
+            candidate.instrumentId,
+            candidate.isin,
+            candidate.ticker,
+            candidate.name,
+        ].join("|");
+
+        if (seen.has(key)) {
+            return false;
+        }
+
+        seen.add(key);
+        return true;
+    });
 }
 
 export async function enrichImportedHolding(holding) {
