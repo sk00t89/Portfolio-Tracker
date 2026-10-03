@@ -30,6 +30,8 @@ export function databaseHoldingToApp(row) {
         platform: row.platform ?? null,
         assetType: row.asset_type ?? null,
         category: row.category ?? null,
+        underlying: row.underlying ?? null,
+        productType: row.product_type ?? null,
         country: row.country ?? null,
         market: row.market ?? null,
         instrumentId: row.instrument_id ?? null,
@@ -58,6 +60,8 @@ export function appHoldingToDatabase(holding) {
         platform: holding.platform ?? null,
         asset_type: holding.assetType ?? null,
         category: holding.category ?? null,
+        underlying: holding.underlying ?? null,
+        product_type: holding.productType ?? null,
         country: holding.country ?? null,
         market: holding.market ?? null,
         instrument_id:
