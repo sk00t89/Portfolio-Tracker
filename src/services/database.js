@@ -1,26 +1,65 @@
 import { supabase } from "../lib/supabase";
+import {
+    appHoldingToDatabase,
+    databaseHoldingToApp,
+} from "../utils/holdingDatabaseMapper.js";
 
 export async function getHoldings() {
     const { data, error } = await supabase
         .from("holdings")
-        .select("*");
+        .select("*")
+        .order("created_at", { ascending: true });
 
-    return { data, error };
+    return {
+        data: data?.map(databaseHoldingToApp) ?? [],
+        error,
+    };
 }
 
 export async function createHolding(holding) {
     const { data, error } = await supabase
         .from("holdings")
-        .insert(holding)
-        .select();
+        .insert(appHoldingToDatabase(holding))
+        .select()
+        .single();
 
-    return { data, error };
+    return {
+        data: data ? databaseHoldingToApp(data) : null,
+        error,
+    };
+}
+
+export async function updateHolding(id, holding) {
+    const databaseHolding = appHoldingToDatabase(holding);
+    delete databaseHolding.id;
+
+    const { data, error } = await supabase
+        .from("holdings")
+        .update(databaseHolding)
+        .eq("id", id)
+        .select()
+        .single();
+
+    return {
+        data: data ? databaseHoldingToApp(data) : null,
+        error,
+    };
+}
+
+export async function deleteHoldingById(id) {
+    const { error } = await supabase
+        .from("holdings")
+        .delete()
+        .eq("id", id);
+
+    return { error };
 }
 
 export async function getAccounts() {
     const { data, error } = await supabase
         .from("accounts")
-        .select("*");
+        .select("*")
+        .order("created_at", { ascending: true });
 
     return { data, error };
 }
