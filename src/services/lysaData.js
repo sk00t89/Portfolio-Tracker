@@ -1,7 +1,7 @@
+import { apiFetch } from "./apiClient.js";
+
 export const getLysaFundPrices = async () => {
-    const response = await fetch(
-        "http://localhost:3001/api/lysa-fund-prices"
-    );
+    const response = await apiFetch("/api/lysa-fund-prices");
 
     if (!response.ok) {
         throw new Error(
