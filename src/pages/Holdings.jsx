@@ -90,19 +90,24 @@ function Holdings({
         }
     };
 
-    const groupNeedsAttention = (group) =>
-        group.positions.some((position) =>
-            position.platform !== "Lysa" &&
-            (
-                !position.assetType ||
-                !position.isin ||
-                !position.instrumentId ||
-                (
-                    position.assetType === "STOCK" &&
-                    !position.ticker
-                )
-            )
+    const positionNeedsAttention = (position) => {
+        if (position.platform === "Lysa") {
+            return false;
+        }
+
+        const hasIdentifier =
+            Boolean(position.isin) ||
+            Boolean(position.instrumentId) ||
+            Boolean(position.ticker);
+
+        return (
+            !position.assetType ||
+            !hasIdentifier
         );
+    };
+
+    const groupNeedsAttention = (group) =>
+        group.positions.some(positionNeedsAttention);
 
     const sortedHoldings = [...groupedHoldings].sort((a, b) => {
         const aNeedsAttention = groupNeedsAttention(a);
@@ -482,9 +487,7 @@ function Holdings({
                                             )}
 
                                             {position.platform === "Nordnet" &&
-                                                (!position.isin ||
-                                                    !position.ticker ||
-                                                    !position.assetType) && (
+                                                positionNeedsAttention(position) && (
                                                     <button
                                                         className="ghost-button small-button"
                                                         type="button"
