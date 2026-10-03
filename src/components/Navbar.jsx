@@ -66,6 +66,17 @@ function Navbar({
 
                 <li>
                     <NavLink
+                        to="/help"
+                        className={({isActive}) =>
+                            isActive ? "nav-link active" : "nav-link"
+                        }
+                    >
+                        Hjälp
+                    </NavLink>
+                </li>
+
+                <li>
+                    <NavLink
                         to="/settings"
                         className={({isActive}) =>
                             isActive ? "nav-link active" : "nav-link"
