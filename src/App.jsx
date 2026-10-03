@@ -39,6 +39,7 @@ import {
 } from "./utils/portfolioSnapshots.js";
 import {lysaFundIsins} from "./data/lysaFundIsins.js";
 import {getLysaFundPrices} from "./services/lysaData.js";
+import {enrichImportedHolding} from "./services/holdingEnrichment.js";
 import Login from "./pages/Login.jsx";
 import { supabase } from "./lib/supabase.js";
 import {
@@ -551,27 +552,58 @@ function App() {
         }
 
         const averagePriceSek = await getAveragePriceSek(holding);
+
+        const updatedHolding = classifyHolding({
+            ...holding,
+            ticker: holding.ticker ?? data.ticker,
+            isin: holding.isin ?? data.isin,
+            assetType:
+                holding.assetType ??
+                normalizeAssetType(data.assetType),
+            currency: holding.currency ?? data.currency,
+            country: holding.country ?? data.country,
+            market:
+                holding.market ??
+                data.market ??
+                data.exchange,
+            instrumentId:
+                holding.instrumentId ??
+                data.instrumentId ??
+                null,
+            provider:
+                holding.provider ??
+                data.provider ??
+                null,
+            currentPrice:
+                holding.currentPrice ??
+                data.price ??
+                null,
+            averagePriceSek:
+                averagePriceSek ?? holding.averagePriceSek,
+        });
+
+        const {
+            data: savedHolding,
+            error,
+        } = await updateDatabaseHolding(
+            id,
+            updatedHolding
+        );
+
+        if (error) {
+            console.error(
+                "Kunde inte spara berikad holding i Supabase:",
+                error
+            );
+            return;
+        }
+
         setHoldings((prevHoldings) =>
-            prevHoldings.map((holding) => {
-                if (holding.id !== id) {
-                    return holding;
-                }
-
-                const updatedHolding = {
-                    ...holding,
-                    ticker: holding.ticker ?? data.ticker,
-                    isin: holding.isin ?? data.isin,
-                    assetType:
-                        holding.assetType ??
-                        normalizeAssetType(data.assetType),
-                    currency: holding.currency ?? data.currency,
-                    market: holding.market ?? data.exchange,
-                    averagePriceSek:
-                        averagePriceSek ?? holding.averagePriceSek,
-                };
-
-                return classifyHolding(updatedHolding);
-            })
+            prevHoldings.map((item) =>
+                item.id === id
+                    ? savedHolding
+                    : item
+            )
         );
     };
 
@@ -796,9 +828,24 @@ function App() {
         const accountCache = new Map();
 
         for (const newHolding of newHoldings) {
+            let enrichedHolding = newHolding;
+
+            try {
+                enrichedHolding =
+                    await enrichImportedHolding(newHolding);
+            } catch (error) {
+                console.warn(
+                    "Automatisk berikning misslyckades för:",
+                    newHolding.name,
+                    error
+                );
+            }
+
             const normalizedHolding = {
-                ...newHolding,
-                assetType: normalizeAssetType(newHolding.assetType),
+                ...enrichedHolding,
+                assetType: normalizeAssetType(
+                    enrichedHolding.assetType
+                ),
             };
 
             const classifiedHolding =
