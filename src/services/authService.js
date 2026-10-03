@@ -23,3 +23,11 @@ export async function signOut() {
 
     return { error };
 }
+
+export async function signInWithGoogle() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+    });
+
+    return { data, error };
+}

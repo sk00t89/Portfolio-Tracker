@@ -134,6 +134,7 @@ function Holdings({
     const filteredHoldings =
         searchQuery(sortedHoldings, searchTerm)
 
+
     return (
         <main className="page holdings-page">
             <div className="page-heading page-heading-row">

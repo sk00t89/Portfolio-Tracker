@@ -1,6 +1,16 @@
 import {NavLink} from "react-router-dom";
+import { signOut } from "../services/authService.js";
 
-function Navbar() {
+function Navbar(session) {
+
+    async function handleLogout() {
+        const { error } = await signOut();
+
+        if (error) {
+            console.error("Logout error:", error.message);
+        }
+    }
+
     return (
         <nav className="nav-bar">
 
@@ -55,18 +65,23 @@ function Navbar() {
             </ul>
 
             <div className="nav-login">
-                <ul className="nav-links">
-                    <li>
-                        <NavLink
+                {!session ? (
+                    <NavLink
                         to="/login"
-                        className={({isActive}) =>
-                        isActive ? "nav-link active" : "nav-link"
+                        className={({ isActive }) =>
+                            isActive ? "nav-link active" : "nav-link"
                         }
-                        >
-                            Login
-                        </NavLink>
-                    </li>
-                </ul>
+                    >
+                        Login
+                    </NavLink>
+                ) : (
+                    <button
+                        className="danger-button"
+                        onClick={handleLogout}
+                    >
+                        Logout
+                    </button>
+                )}
             </div>
 
         </nav>

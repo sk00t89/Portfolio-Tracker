@@ -62,6 +62,24 @@ function HoldingsOverview({groupedHoldings}) {
                                 position.platform === "Lysa"
                         );
 
+                    const totalQuantity =
+                        holding.positions.reduce(
+                            (total, position) =>
+                                total + Number(position.quantity ?? 0),
+                            0
+                        );
+
+                    const latestPrice =
+                        holding.positions.find(
+                            (position) =>
+                                Number.isFinite(Number(position.currentPrice))
+                        )?.currentPrice ?? null;
+
+                    const priceCurrency =
+                        holding.positions.find(
+                            (position) => position.currentPrice
+                        )?.currency ?? "";
+
                     const investedCapital =
                         holding.positions.reduce(
                             (total, position) => {
@@ -112,9 +130,17 @@ function HoldingsOverview({groupedHoldings}) {
                                 {!isLysaOnly &&
                                     changePercent !== null && (
                                         <span className="holding-overview-performance">
-                                            GAV{" "}
-                                            {formatSek(investedCapital)}
-                                            {" · "}
+                                                 GAV {formatSek(investedCapital)}
+                                                {" · "}
+                                                Antal {totalQuantity}
+                                                {" · "}
+                                                Kurs{" "}
+                                                {latestPrice !== null
+                                                ? `${Number(latestPrice).toLocaleString("sv-SE", {
+                                                    maximumFractionDigits: 2,
+                                                })} ${priceCurrency}`
+                                                : "–"}
+                                                {" · "}
                                             <span
                                                 className={
                                                     changePercent >= 0
@@ -122,9 +148,7 @@ function HoldingsOverview({groupedHoldings}) {
                                                         : "negative-text"
                                                 }
                                             >
-                                                {changePercent >= 0
-                                                    ? "+"
-                                                    : ""}
+                                                {changePercent >= 0 ? "+" : ""}
                                                 {changePercent.toFixed(1)}%
                                             </span>
                                         </span>

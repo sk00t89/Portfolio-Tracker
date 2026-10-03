@@ -40,11 +40,39 @@ import {
 import {lysaFundIsins} from "./data/lysaFundIsins.js";
 import {getLysaFundPrices} from "./services/lysaData.js";
 import Login from "./pages/Login.jsx";
+import { supabase } from "./lib/supabase.js";
 
 const PRICE_UPDATE_INTERVAL = 20 * 60 * 1000;
 
+
+
 function App() {
 
+
+    // =========================================
+    // supabase
+    // =========================================
+    const [session, setSession] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
+
+    
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data }) => {
+            setSession(data.session);
+            setAuthLoading(false);
+        });
+
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => {
+            subscription.unsubscribe();
+        };
+    }, []);
 
     // =========================================
     // HOLDINGS: priser, berikning, matchning och transaktioner
@@ -921,12 +949,22 @@ function App() {
         resolvedMatches,
     ]);
 
+    if (authLoading) {
+        return <div>Laddar...</div>;
+    }
+
+    if (!session) {
+        return <Login />;
+    }
+
 
 
     return (
         <div className="app-shell">
 
-            <Navbar/>
+            <Navbar
+                session={session}
+            />
             <Routes>
                 <Route path="/" element={
                     <Dashboard
