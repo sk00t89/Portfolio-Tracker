@@ -1735,3 +1735,183 @@ p {
   color: var(--accent);
   font-size: 0.84rem;
 }
+
+
+/* =========================================
+   HELP / IMPORT GUIDE
+   ========================================= */
+
+.help-heading {
+  max-width: 760px;
+}
+
+.help-quick-card {
+  margin-bottom: 18px;
+}
+
+.help-quick-card h2 {
+  margin-bottom: 16px;
+}
+
+.help-quick-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.help-quick-steps > div {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+}
+
+.help-quick-steps strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  color: #07120e;
+  background: var(--accent);
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.help-quick-steps span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.help-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.help-provider-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.help-provider-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.help-provider-header p {
+  margin-bottom: 0;
+}
+
+.help-provider-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  color: #07120e;
+  background: var(--accent);
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.help-path {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+}
+
+.help-path-part {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.help-path-part strong {
+  color: var(--text);
+}
+
+.help-steps {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.help-steps li {
+  margin-bottom: 8px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.help-note {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px;
+  color: var(--muted);
+  background: var(--accent-soft);
+  border: 1px solid rgba(114, 226, 182, 0.16);
+  border-radius: 12px;
+  font-size: 0.84rem;
+}
+
+.help-note strong {
+  color: var(--accent);
+}
+
+.help-troubleshooting {
+  margin-top: 18px;
+}
+
+.help-troubleshooting h2 {
+  margin-bottom: 16px;
+}
+
+.help-troubleshooting-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.help-troubleshooting-grid > div {
+  padding: 14px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+}
+
+.help-troubleshooting-grid p {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 980px) {
+  .help-provider-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .help-quick-steps {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .help-troubleshooting-grid {
+    grid-template-columns: 1fr;
+  }
+}
