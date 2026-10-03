@@ -31,10 +31,12 @@ function InstallPrompt() {
 
         const handleBeforeInstallPrompt = (event) => {
             event.preventDefault();
+            window.__portfolioInstallPrompt = event;
             setInstallEvent(event);
         };
 
         const handleInstalled = () => {
+            window.__portfolioInstallPrompt = null;
             setInstallEvent(null);
             setShowIosHelp(false);
         };
@@ -76,6 +78,7 @@ function InstallPrompt() {
 
         await installEvent.prompt();
         await installEvent.userChoice;
+        window.__portfolioInstallPrompt = null;
         setInstallEvent(null);
     };
 
