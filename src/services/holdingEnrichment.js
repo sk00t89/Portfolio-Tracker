@@ -2,6 +2,9 @@ import {
     searchAvanzaInstruments,
     searchNordnetInstruments,
 } from "./instrumentSearch.js";
+import {
+    getAvanzaPriceByIsin,
+} from "./marketData.js";
 
 const normalizeName = (value = "") =>
     value
@@ -10,6 +13,11 @@ const normalizeName = (value = "") =>
         .replace(/[^A-Z0-9ÅÄÖ]+/g, " ")
         .replace(/\s+/g, " ")
         .trim();
+
+const getNameTokens = (value = "") =>
+    normalizeName(value)
+        .split(" ")
+        .filter((token) => token.length >= 2);
 
 const scoreCandidate = (holding, candidate) => {
     const holdingName = normalizeName(holding.name);
@@ -28,6 +36,22 @@ const scoreCandidate = (holding, candidate) => {
         )
     ) {
         score += 45;
+    }
+
+    const holdingTokens = getNameTokens(holding.name);
+    const candidateTokens = new Set(
+        getNameTokens(candidate.name)
+    );
+
+    if (holdingTokens.length > 0) {
+        const matchingTokens = holdingTokens.filter(
+            (token) => candidateTokens.has(token)
+        ).length;
+
+        const tokenRatio =
+            matchingTokens / holdingTokens.length;
+
+        score += Math.round(tokenRatio * 60);
     }
 
     if (
@@ -60,25 +84,14 @@ const scoreCandidate = (holding, candidate) => {
     return score;
 };
 
-export async function enrichImportedHolding(holding) {
-    const alreadyIdentified =
-        holding.instrumentId ||
-        holding.isin ||
-        holding.ticker;
-
-    if (alreadyIdentified || !holding.name?.trim()) {
-        return holding;
-    }
-
-    const query = holding.name.trim();
-
+export async function searchHoldingCandidates(query) {
     const [nordnetResult, avanzaResult] =
         await Promise.allSettled([
             searchNordnetInstruments(query),
             searchAvanzaInstruments(query),
         ]);
 
-    const candidates = [
+    return [
         ...(nordnetResult.status === "fulfilled"
             ? nordnetResult.value
             : []),
@@ -86,6 +99,26 @@ export async function enrichImportedHolding(holding) {
             ? avanzaResult.value
             : []),
     ];
+}
+
+export async function enrichImportedHolding(holding) {
+    if (!holding.name?.trim()) {
+        return holding;
+    }
+
+    const hasCompleteIdentity =
+        holding.isin &&
+        holding.instrumentId &&
+        holding.assetType;
+
+    if (hasCompleteIdentity) {
+        return holding;
+    }
+
+    const candidates =
+        await searchHoldingCandidates(
+            holding.name.trim()
+        );
 
     if (candidates.length === 0) {
         return holding;
@@ -100,26 +133,40 @@ export async function enrichImportedHolding(holding) {
 
     const bestMatch = rankedCandidates[0];
 
-    // Only enrich automatically when the match is strong enough.
-    // Otherwise the existing manual enrichment flow can handle it.
-    if (!bestMatch || bestMatch.score < 100) {
+    // Strong enough for automatic enrichment, otherwise leave it
+    // for the manual candidate picker.
+    if (!bestMatch || bestMatch.score < 85) {
         return holding;
     }
 
     const candidate = bestMatch.candidate;
 
-    return {
+    let enriched = {
         ...holding,
-        ticker: holding.ticker ?? candidate.ticker ?? null,
-        isin: holding.isin ?? candidate.isin ?? null,
+        ticker:
+            holding.ticker ??
+            candidate.ticker ??
+            null,
+        isin:
+            holding.isin ??
+            candidate.isin ??
+            null,
         assetType:
-            holding.assetType ?? candidate.assetType ?? null,
+            holding.assetType ??
+            candidate.assetType ??
+            null,
         currency:
-            holding.currency ?? candidate.currency ?? null,
+            holding.currency ??
+            candidate.currency ??
+            null,
         country:
-            holding.country ?? candidate.country ?? null,
+            holding.country ??
+            candidate.country ??
+            null,
         market:
-            holding.market ?? candidate.market ?? null,
+            holding.market ??
+            candidate.market ??
+            null,
         instrumentId:
             holding.instrumentId ??
             candidate.instrumentId ??
@@ -138,4 +185,43 @@ export async function enrichImportedHolding(holding) {
                 ? Date.now()
                 : null),
     };
+
+    // Nordnet search is often excellent for getting the ISIN.
+    // Once we have the ISIN, prefer Avanza as the live price source
+    // when the instrument also exists there.
+    if (enriched.isin) {
+        try {
+            const avanzaData =
+                await getAvanzaPriceByIsin(
+                    enriched.isin
+                );
+
+            if (avanzaData) {
+                enriched = {
+                    ...enriched,
+                    instrumentId:
+                        avanzaData.orderBookId ??
+                        enriched.instrumentId,
+                    provider:
+                        avanzaData.orderBookId
+                            ? "Avanza"
+                            : enriched.provider,
+                    currentPrice:
+                        avanzaData.price ??
+                        enriched.currentPrice,
+                    currency:
+                        avanzaData.currency ??
+                        enriched.currency,
+                    priceUpdatedAt:
+                        avanzaData.price != null
+                            ? Date.now()
+                            : enriched.priceUpdatedAt,
+                };
+            }
+        } catch {
+            // Nordnet-only instruments are expected to land here.
+        }
+    }
+
+    return enriched;
 }
