@@ -4,6 +4,7 @@ import {
 } from "./instrumentSearch.js";
 import {
     getAvanzaPriceByIsin,
+    getNordnetInstrumentById,
 } from "./marketData.js";
 
 const normalizeName = (value = "") =>
@@ -185,7 +186,52 @@ export async function enrichImportedHolding(holding) {
         return holding;
     }
 
-    const candidate = bestMatch.candidate;
+    let candidate = bestMatch.candidate;
+
+    if (
+        candidate.provider === "Nordnet" &&
+        candidate.instrumentId &&
+        !candidate.isin
+    ) {
+        try {
+            const details =
+                await getNordnetInstrumentById(
+                    candidate.instrumentId
+                );
+
+            candidate = {
+                ...candidate,
+                ...details,
+                ticker:
+                    candidate.ticker ??
+                    details.ticker ??
+                    null,
+                isin:
+                    candidate.isin ??
+                    details.isin ??
+                    null,
+                assetType:
+                    candidate.assetType ??
+                    details.assetType ??
+                    null,
+                currency:
+                    candidate.currency ??
+                    details.currency ??
+                    null,
+                market:
+                    candidate.market ??
+                    details.market ??
+                    null,
+                country:
+                    candidate.country ??
+                    details.country ??
+                    null,
+                provider: "Nordnet",
+            };
+        } catch {
+            // Textsökningen kan fortfarande ge användbar metadata.
+        }
+    }
 
     let enriched = {
         ...holding,
