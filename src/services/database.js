@@ -90,17 +90,21 @@ export async function getOrCreateAccountForPlatform(platform) {
         return { data: null, error: null };
     }
 
-    const { data: existingAccount, error: findError } =
+    const { data: existingAccounts, error: findError } =
         await supabase
             .from("accounts")
             .select("*")
             .eq("platform", normalizedPlatform)
             .eq("name", normalizedPlatform)
-            .maybeSingle();
+            .order("created_at", { ascending: true })
+            .limit(1);
 
     if (findError) {
         return { data: null, error: findError };
     }
+
+    const existingAccount =
+        existingAccounts?.[0] ?? null;
 
     if (existingAccount) {
         return { data: existingAccount, error: null };
