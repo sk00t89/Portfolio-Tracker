@@ -40,6 +40,13 @@ import {
 import {lysaFundIsins} from "./data/lysaFundIsins.js";
 import {getLysaFundPrices} from "./services/lysaData.js";
 import {
+    deleteLysaData,
+    getLysaPerformance as getDatabaseLysaPerformance,
+    getLysaTransactions as getDatabaseLysaTransactions,
+    saveLysaPerformance as saveDatabaseLysaPerformance,
+    saveLysaTransactions as saveDatabaseLysaTransactions,
+} from "./services/lysaDatabase.js";
+import {
     enrichImportedHolding,
     searchHoldingCandidates,
 } from "./services/holdingEnrichment.js";
@@ -831,23 +838,9 @@ function App() {
     }, [session]);
 
 
-    const [lysaTransactions, setLysaTransactions] = useState(() => {
-        const saved =
-            localStorage.getItem("lysaTransactions");
-
-        return saved
-            ? JSON.parse(saved)
-            : [];
-    });
-
-    const [lysaPerformance, setLysaPerformance] = useState(() => {
-        const saved =
-            localStorage.getItem("lysaPerformance");
-
-        return saved
-            ? JSON.parse(saved)
-            : [];
-    });
+    const [lysaTransactions, setLysaTransactions] = useState([]);
+    const [lysaPerformance, setLysaPerformance] = useState([]);
+    const [lysaDataLoading, setLysaDataLoading] = useState(true);
 
     const [transactions, setTransactions] = useState(() => {
         const savedTransactions =
@@ -1063,20 +1056,6 @@ function App() {
 
     useEffect(() => {
         localStorage.setItem(
-            "lysaTransactions",
-            JSON.stringify(lysaTransactions)
-        );
-    }, [lysaTransactions]);
-
-    useEffect(() => {
-        localStorage.setItem(
-            "lysaPerformance",
-            JSON.stringify(lysaPerformance)
-        );
-    }, [lysaPerformance]);
-
-    useEffect(() => {
-        localStorage.setItem(
             "transactions",
             JSON.stringify(transactions)
         );
@@ -1084,16 +1063,176 @@ function App() {
 
 
 
+    useEffect(() => {
+        if (!session) {
+            setLysaTransactions([]);
+            setLysaPerformance([]);
+            setLysaDataLoading(false);
+            return;
+        }
+
+        const loadLysaData = async () => {
+            setLysaDataLoading(true);
+
+            const [
+                transactionsResult,
+                performanceResult,
+            ] = await Promise.all([
+                getDatabaseLysaTransactions(),
+                getDatabaseLysaPerformance(),
+            ]);
+
+            if (transactionsResult.error) {
+                console.error(
+                    "Kunde inte hämta Lysa-transaktioner från Supabase:",
+                    transactionsResult.error
+                );
+            }
+
+            if (performanceResult.error) {
+                console.error(
+                    "Kunde inte hämta Lysa-performance från Supabase:",
+                    performanceResult.error
+                );
+            }
+
+            let cloudTransactions =
+                transactionsResult.data ?? [];
+            let cloudPerformance =
+                performanceResult.data ?? [];
+
+            // Engångsmigrering från äldre lokal lagring på den enhet
+            // där Lysa-filerna redan importerats.
+            if (cloudTransactions.length === 0) {
+                const savedTransactions =
+                    localStorage.getItem(
+                        "lysaTransactions"
+                    );
+
+                if (savedTransactions) {
+                    try {
+                        const localTransactions =
+                            JSON.parse(
+                                savedTransactions
+                            );
+
+                        if (
+                            Array.isArray(
+                                localTransactions
+                            ) &&
+                            localTransactions.length > 0
+                        ) {
+                            const { error } =
+                                await saveDatabaseLysaTransactions(
+                                    localTransactions
+                                );
+
+                            if (!error) {
+                                cloudTransactions =
+                                    localTransactions;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(
+                            "Kunde inte migrera lokala Lysa-transaktioner:",
+                            error
+                        );
+                    }
+                }
+            }
+
+            if (cloudPerformance.length === 0) {
+                const savedPerformance =
+                    localStorage.getItem(
+                        "lysaPerformance"
+                    );
+
+                if (savedPerformance) {
+                    try {
+                        const localPerformance =
+                            JSON.parse(
+                                savedPerformance
+                            );
+
+                        if (
+                            Array.isArray(
+                                localPerformance
+                            ) &&
+                            localPerformance.length > 0
+                        ) {
+                            const { error } =
+                                await saveDatabaseLysaPerformance(
+                                    localPerformance
+                                );
+
+                            if (!error) {
+                                cloudPerformance =
+                                    localPerformance;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn(
+                            "Kunde inte migrera lokal Lysa-performance:",
+                            error
+                        );
+                    }
+                }
+            }
+
+            setLysaTransactions(
+                cloudTransactions
+            );
+            setLysaPerformance(
+                cloudPerformance
+            );
+            setLysaDataLoading(false);
+        };
+
+        void loadLysaData();
+    }, [session]);
+
     // =========================================
     // LYSA: importerad historik och visningsdata
     // =========================================
 
-    const importLysaTransactions = (transactions) => {
+    const importLysaTransactions = async (transactions) => {
+        const { error } =
+            await saveDatabaseLysaTransactions(
+                transactions
+            );
+
+        if (error) {
+            console.error(
+                "Kunde inte spara Lysa-transaktioner i Supabase:",
+                error
+            );
+            return;
+        }
+
         setLysaTransactions(transactions);
+        localStorage.removeItem(
+            "lysaTransactions"
+        );
     };
 
-    const importLysaPerformance = (performance) => {
+    const importLysaPerformance = async (performance) => {
+        const { error } =
+            await saveDatabaseLysaPerformance(
+                performance
+            );
+
+        if (error) {
+            console.error(
+                "Kunde inte spara Lysa-performance i Supabase:",
+                error
+            );
+            return;
+        }
+
         setLysaPerformance(performance);
+        localStorage.removeItem(
+            "lysaPerformance"
+        );
     };
 
     useEffect(() => {
@@ -1409,6 +1548,17 @@ function App() {
             return;
         }
 
+        const { error: lysaDeleteError } =
+            await deleteLysaData();
+
+        if (lysaDeleteError) {
+            console.error(
+                "Kunde inte återställa Lysa-data i Supabase:",
+                lysaDeleteError
+            );
+            return;
+        }
+
         setAssets(initialAssets);
         setHoldings([]);
         setResolvedMatches([]);
@@ -1462,7 +1612,14 @@ function App() {
         resolvedMatches,
     ]);
 
-    if (authLoading || (session && holdingsLoading)) {
+    if (
+        authLoading ||
+        (session &&
+            (
+                holdingsLoading ||
+                lysaDataLoading
+            ))
+    ) {
         return <div>Laddar...</div>;
     }
 
