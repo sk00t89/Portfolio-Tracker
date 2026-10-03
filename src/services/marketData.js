@@ -81,3 +81,15 @@ export const getAvanzaPriceByInstrumentId = async (instrumentId) => {
 
     return response.json();
 };
+
+export const getNordnetInstrumentById = async (instrumentId) => {
+    const response = await fetch(
+        `http://localhost:3001/api/nordnet-instrument/${encodeURIComponent(instrumentId)}`
+    );
+
+    if (!response.ok) {
+        throw new Error("Nordnet-instrumentet kunde inte hämtas");
+    }
+
+    return response.json();
+};
