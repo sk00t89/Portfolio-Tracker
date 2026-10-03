@@ -43,6 +43,7 @@ import Login from "./pages/Login.jsx";
 import { supabase } from "./lib/supabase.js";
 import {
     createHolding as createDatabaseHolding,
+    deleteAllHoldings,
     deleteHoldingById,
     getHoldings as getDatabaseHoldings,
     updateHolding as updateDatabaseHolding,
@@ -945,7 +946,17 @@ function App() {
         );
     };
 
-    const resetPortfolio = () => {
+    const resetPortfolio = async () => {
+        const { error } = await deleteAllHoldings();
+
+        if (error) {
+            console.error(
+                "Kunde inte återställa holdings i Supabase:",
+                error
+            );
+            return;
+        }
+
         setAssets(initialAssets);
         setHoldings([]);
         setResolvedMatches([]);
