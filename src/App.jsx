@@ -77,6 +77,13 @@ function App() {
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (!session) {
+                setHoldings([]);
+                setHoldingsLoading(false);
+            } else {
+                setHoldingsLoading(true);
+            }
+
             setSession(session);
         });
 
@@ -241,7 +248,9 @@ function App() {
             currentPrice: data.price,
             currentValueSek,
             priceUpdatedAt:
-                data.timestamp ?? Date.now(),
+                data.timestamp ??
+                // eslint-disable-next-line react-hooks/purity
+                Date.now(),
         };
 
         const {
@@ -609,8 +618,6 @@ function App() {
 
     useEffect(() => {
         if (!session) {
-            setHoldings([]);
-            setHoldingsLoading(false);
             return;
         }
 
@@ -713,7 +720,7 @@ function App() {
                     try {
                         const enrichedHolding =
                             await enrichImportedHolding(
-                                workingHolding
+                                candidateHolding
                             );
 
                         candidateHolding =
@@ -1312,6 +1319,7 @@ function App() {
 
         void updateAllHoldingPrices(
             false,
+            // eslint-disable-next-line react-hooks/purity
             Date.now()
         );
 
@@ -1375,6 +1383,7 @@ function App() {
             24 * 60 * 60 * 1000;
 
         const shouldCreateSnapshot =
+            // eslint-disable-next-line react-hooks/purity
             Date.now() - lastCreatedAt >= twentyFourHours;
 
         if (!shouldCreateSnapshot) {
