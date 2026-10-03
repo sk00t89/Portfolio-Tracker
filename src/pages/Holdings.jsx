@@ -295,7 +295,7 @@ function Holdings({
                             key={group.instrumentKey}
                         >
                             <div className="holding-card-header">
-                                <div>
+                                <div className="holding-card-title">
                                     <h3>{group.name}</h3>
                                     <span className="holding-meta">
                                         {group.positions.length}{" "}
@@ -305,43 +305,55 @@ function Holdings({
                                     </span>
 
                                     {!isLysaOnly && (
-                                        <span className="holding-meta">
-                                            GAV {investedCapital > 0
-                                                ? formatSek(investedCapital)
-                                                : "–"}
-                                            {" · "}
-                                            Antal {totalQuantity.toLocaleString(
-                                                "sv-SE",
-                                                {
-                                                    maximumFractionDigits: 4,
-                                                }
-                                            )}
-                                            {" · "}
-                                            Kurs{" "}
-                                            {latestPrice !== null
-                                                ? `${Number(latestPrice).toLocaleString(
-                                                    "sv-SE",
-                                                    {
-                                                        maximumFractionDigits: 2,
-                                                    }
-                                                )} ${priceCurrency}`
-                                                : "–"}
-                                            {changePercent !== null && (
-                                                <>
-                                                    {" · "}
-                                                    <span
-                                                        className={
-                                                            changePercent >= 0
-                                                                ? "positive-text"
-                                                                : "negative-text"
+                                        <div className="holding-card-metrics">
+                                            <span>
+                                                GAV{" "}
+                                                <strong>
+                                                    {investedCapital > 0
+                                                        ? formatSek(investedCapital)
+                                                        : "–"}
+                                                </strong>
+                                            </span>
+
+                                            <span>
+                                                Antal{" "}
+                                                <strong>
+                                                    {totalQuantity.toLocaleString(
+                                                        "sv-SE",
+                                                        {
+                                                            maximumFractionDigits: 4,
                                                         }
-                                                    >
-                                                        {changePercent >= 0 ? "+" : ""}
-                                                        {changePercent.toFixed(1)}%
-                                                    </span>
-                                                </>
+                                                    )}
+                                                </strong>
+                                            </span>
+
+                                            <span>
+                                                Senast{" "}
+                                                <strong>
+                                                    {latestPrice !== null
+                                                        ? `${Number(latestPrice).toLocaleString(
+                                                            "sv-SE",
+                                                            {
+                                                                maximumFractionDigits: 2,
+                                                            }
+                                                        )} ${priceCurrency}`
+                                                        : "–"}
+                                                </strong>
+                                            </span>
+
+                                            {changePercent !== null && (
+                                                <span
+                                                    className={
+                                                        changePercent >= 0
+                                                            ? "positive-text"
+                                                            : "negative-text"
+                                                    }
+                                                >
+                                                    {changePercent >= 0 ? "+" : ""}
+                                                    {changePercent.toFixed(1)}%
+                                                </span>
                                             )}
-                                        </span>
+                                        </div>
                                     )}
                                 </div>
 
