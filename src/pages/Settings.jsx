@@ -17,6 +17,56 @@ function Settings({
 
     const snapshots = getPortfolioSnapshots();
     const [showSnapshots, setShowSnapshots] = useState(false);
+    const [installMessage, setInstallMessage] = useState("");
+
+    const isStandalone =
+        window.matchMedia(
+            "(display-mode: standalone)"
+        ).matches ||
+        window.navigator.standalone === true;
+
+    const installApp = async () => {
+        if (isStandalone) {
+            setInstallMessage(
+                "Appen är redan installerad på den här enheten."
+            );
+            return;
+        }
+
+        const installEvent =
+            window.__portfolioInstallPrompt;
+
+        if (installEvent) {
+            await installEvent.prompt();
+            const choice =
+                await installEvent.userChoice;
+
+            window.__portfolioInstallPrompt = null;
+
+            setInstallMessage(
+                choice.outcome === "accepted"
+                    ? "Installationen startades."
+                    : "Installationen avbröts."
+            );
+            return;
+        }
+
+        const isIos =
+            /iphone|ipad|ipod/i.test(
+                window.navigator.userAgent
+            );
+
+        if (isIos) {
+            setInstallMessage(
+                "På iPhone/iPad: öppna Dela-menyn i Safari och välj ”Lägg till på hemskärmen”."
+            );
+            return;
+        }
+
+        setInstallMessage(
+            "Webbläsaren erbjuder ingen installationsdialog just nu. Prova webbläsarens meny och välj ”Installera app” eller ”Lägg till på hemskärmen”."
+        );
+    };
 
     return (
         <main className="page settings-page">
@@ -29,6 +79,30 @@ function Settings({
             </div>
 
             <div className="settings-grid">
+                <section className="card settings-card">
+                    <div>
+                        <h2>Installera appen</h2>
+                        <p>
+                            Lägg Portfolio Tracker på hemskärmen och öppna den som en vanlig app.
+                        </p>
+                        {installMessage && (
+                            <p className="settings-status-message">
+                                {installMessage}
+                            </p>
+                        )}
+                    </div>
+
+                    <button
+                        className="primary-button"
+                        type="button"
+                        onClick={installApp}
+                    >
+                        {isStandalone
+                            ? "Appen är installerad"
+                            : "Installera app"}
+                    </button>
+                </section>
+
                 <section className="card settings-card">
                     <div>
                         <h2>Kurser</h2>
