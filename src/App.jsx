@@ -46,6 +46,7 @@ import {
     deleteAllHoldings,
     deleteHoldingById,
     getHoldings as getDatabaseHoldings,
+    getOrCreateAccountForPlatform,
     updateHolding as updateDatabaseHolding,
 } from "./services/database.js";
 
@@ -792,6 +793,7 @@ function App() {
 
     const importHoldings = async (newHoldings) => {
         let finalHoldings = [...holdings];
+        const accountCache = new Map();
 
         for (const newHolding of newHoldings) {
             const normalizedHolding = {
@@ -802,12 +804,42 @@ function App() {
             const classifiedHolding =
                 classifyHolding(normalizedHolding);
 
+            let accountId = null;
+            const platform = classifiedHolding.platform?.trim();
+
+            if (platform) {
+                if (accountCache.has(platform)) {
+                    accountId = accountCache.get(platform);
+                } else {
+                    const {
+                        data: account,
+                        error: accountError,
+                    } = await getOrCreateAccountForPlatform(platform);
+
+                    if (accountError) {
+                        console.error(
+                            "Kunde inte hitta/skapa konto i Supabase:",
+                            accountError
+                        );
+                        continue;
+                    }
+
+                    accountId = account?.id ?? null;
+                    accountCache.set(platform, accountId);
+                }
+            }
+
+            const holdingWithAccount = {
+                ...classifiedHolding,
+                accountId,
+            };
+
             const newKey =
-                getInstrumentKey(classifiedHolding);
+                getInstrumentKey(holdingWithAccount);
 
             const existingHolding = finalHoldings.find((oldHolding) => {
                 return (
-                    oldHolding.platform === classifiedHolding.platform &&
+                    oldHolding.platform === holdingWithAccount.platform &&
                     getInstrumentKey(oldHolding) === newKey
                 );
             });
@@ -815,7 +847,7 @@ function App() {
             if (existingHolding) {
                 const mergedHolding = {
                     ...existingHolding,
-                    ...classifiedHolding,
+                    ...holdingWithAccount,
                     id: existingHolding.id,
                 };
 
@@ -840,7 +872,7 @@ function App() {
                 );
             } else {
                 const { data, error } =
-                    await createDatabaseHolding(classifiedHolding);
+                    await createDatabaseHolding(holdingWithAccount);
 
                 if (error) {
                     console.error(
