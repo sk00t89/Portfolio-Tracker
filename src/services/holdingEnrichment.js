@@ -10,6 +10,11 @@ const normalizeName = (value = "") =>
     value
         .toUpperCase()
         .replace(/\([^)]*\)/g, " ")
+        .replace(/\bADR\b/g, " ")
+        .replace(/\bADS\b/g, " ")
+        .replace(/\bPLC\b/g, " ")
+        .replace(/\bINC\b/g, " ")
+        .replace(/\bLTD\b/g, " ")
         .replace(/[^A-Z0-9ÅÄÖ]+/g, " ")
         .replace(/\s+/g, " ")
         .trim();
