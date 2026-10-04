@@ -3,6 +3,10 @@ import {
     searchCrypto,
     getCryptoPrice
 } from "../services/cryptoData.js";
+import {
+    formatNumberInput,
+    parseFormattedNumber
+} from "../utils/formatting.js";
 
 function AssetForm({
                        addAsset,
@@ -23,7 +27,7 @@ function AssetForm({
     const isBtnDisabled =
         assetName.trim() === "" ||
         assetCategory === "" ||
-        Number(assetValue) < 1;
+        parseFormattedNumber(assetValue) < 1;
 
     const addNewAsset = (event) => {
         event.preventDefault();
@@ -42,7 +46,7 @@ function AssetForm({
         addAsset({
             name: formattedName,
             category: assetCategory,
-            value: Number(assetValue),
+            value: parseFormattedNumber(assetValue),
             source: "manual"
         });
 
@@ -328,13 +332,14 @@ function AssetForm({
                         />
 
                         <input
-                            type="number"
-                            min="0"
-                            step="any"
+                            type="text"
+                            inputMode="numeric"
                             value={assetValue}
                             placeholder="Värde i SEK"
                             onChange={(event) =>
-                                setAssetValue(event.target.value)
+                                setAssetValue(
+                                    formatNumberInput(event.target.value)
+                                )
                             }
                         />
 

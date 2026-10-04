@@ -8,6 +8,7 @@ import {
     mergeInstrumentsResults
 } from "../utils/mergeInstrumentsResults.js";
 
+
 function AddHoldingForm({importHoldings}) {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
@@ -284,6 +285,7 @@ function AddHoldingForm({importHoldings}) {
                                 value={quantity}
                                 onChange={(event) =>
                                     setQuantity(event.target.value)
+
                                 }
                             />
                         </label>

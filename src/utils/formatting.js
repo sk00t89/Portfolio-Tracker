@@ -17,3 +17,19 @@ export const formatCurrency = (
         maximumFractionDigits: number < 1 ? 4 : 2,
     }).format(number);
 };
+
+export const formatNumberInput = (value) => {
+    const digits = value.replace(/\D/g, "");
+
+    if (!digits) {
+        return "";
+    }
+
+    return Number(digits).toLocaleString("sv-SE");
+};
+
+export const parseFormattedNumber = (value) => {
+    return Number(
+        value.replace(/\s/g, "")
+    );
+};
