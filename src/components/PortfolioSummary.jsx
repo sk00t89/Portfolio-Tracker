@@ -1,6 +1,6 @@
 import {formatSek} from "../utils/formatting.js";
 
-function PortfolioSummary({portfolioValue, investedCapital}) {
+function PortfolioSummary({portfolioValue, investedCapital, formatMoney = formatSek}) {
     const hasInvestedCapital = investedCapital > 0;
     const profit = portfolioValue - investedCapital;
     const profitPercent = hasInvestedCapital
@@ -16,9 +16,9 @@ function PortfolioSummary({portfolioValue, investedCapital}) {
         <section className="card summary-card">
             <div className="summary-main">
                 <span className="eyebrow">Total portfölj</span>
-                <h1>{formatSek(portfolioValue)}</h1>
+                <h1>{formatMoney(portfolioValue)}</h1>
                 <p className="muted">
-                    Insatt kapital {formatSek(investedCapital)}
+                    Insatt kapital {formatMoney(investedCapital)}
                 </p>
             </div>
 
@@ -31,7 +31,7 @@ function PortfolioSummary({portfolioValue, investedCapital}) {
                 </strong>
                 <small>
                     {profit >= 0 ? "+" : ""}
-                    {formatSek(profit)}
+                    {formatMoney(profit)}
                 </small>
             </div>
         </section>

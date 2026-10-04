@@ -10,6 +10,7 @@ import {
 
 function AssetForm({
                        addAsset,
+                       manualAssetsDisabled = false,
                        importHoldings
 }) {
     const [assetName, setAssetName] = useState("");
@@ -29,10 +30,10 @@ function AssetForm({
         assetCategory === "" ||
         parseFormattedNumber(assetValue) < 1;
 
-    const addNewAsset = (event) => {
+    const addNewAsset = async (event) => {
         event.preventDefault();
 
-        if (isBtnDisabled) {
+        if (isBtnDisabled || manualAssetsDisabled) {
             setAlertVisibility(true);
             return;
         }
@@ -43,12 +44,13 @@ function AssetForm({
             cleanName.charAt(0).toUpperCase() +
             cleanName.slice(1);
 
-        addAsset({
+        const saved = await addAsset({
             name: formattedName,
             category: assetCategory,
             value: parseFormattedNumber(assetValue),
             source: "manual"
         });
+        if (!saved) return;
 
         setAssetValue("");
         setAssetName("");
@@ -346,7 +348,7 @@ function AssetForm({
                         <button
                             className="primary-button"
                             type="submit"
-                            disabled={isBtnDisabled}
+                            disabled={isBtnDisabled || manualAssetsDisabled}
                         >
                             Lägg till tillgång
                         </button>

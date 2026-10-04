@@ -1,4 +1,7 @@
 import "./App.css";
+import usePortfolioHistory from "./hooks/usePortfolioHistory.js";
+import useManualAssets from "./hooks/useManualAssets.js";
+import { normalizeQuoteTimestamp, quoteValuationKey, VERIFIED_QUOTE_MAX_AGE } from "./utils/valuationFreshness.js";
 import Navbar from "./components/Navbar.jsx";
 import InstallPrompt from "./components/InstallPrompt.jsx";
 import {Routes, Route} from "react-router-dom";
@@ -74,6 +77,11 @@ function App() {
     // =========================================
     const [session, setSession] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
+    const manualAssets = useManualAssets(session?.user.id);
+    const assets = manualAssets.assets;
+    const [priceUpdatesInProgress, setPriceUpdatesInProgress] = useState(0);
+    const [quoteChecks, setQuoteChecks] = useState({});
+    const [lysaQuoteCheck, setLysaQuoteCheck] = useState({ success: false, checkedAt: null });
 
     const [theme, setTheme] = useState(() => {
         const savedTheme =
@@ -149,7 +157,7 @@ function App() {
     // =========================================
     // HOLDINGS: priser, berikning, matchning och transaktioner
     // =========================================
-    const updateHoldingPrice = async (id) => {
+    const performHoldingPriceUpdate = async (id) => {
         const holding = holdings.find(
             (holding) => holding.id === id
         );
@@ -300,11 +308,9 @@ function App() {
         const updatedHolding = {
             ...holding,
             currentPrice: data.price,
+            previousClose: data.previousClose ?? null,
             currentValueSek,
-            priceUpdatedAt:
-                data.timestamp ??
-                // eslint-disable-next-line react-hooks/purity
-                Date.now(),
+            priceUpdatedAt: normalizeQuoteTimestamp(data.timestamp),
         };
 
         const {
@@ -331,6 +337,24 @@ function App() {
                     : item
             )
         );
+        return savedHolding;
+    };
+
+    const updateHoldingPrice = async (id) => {
+        const userId = session?.user.id;
+        const attemptId = crypto.randomUUID();
+        setQuoteChecks((checks) => ({ ...checks, [id]: { userId, attemptId, success: false, checkedAt: null } }));
+        let savedHolding = null;
+        try {
+            savedHolding = await performHoldingPriceUpdate(id);
+        } catch (error) {
+            console.error("Kursuppdateringen misslyckades:", id, error);
+        }
+        const checkedAt = Date.now();
+        setQuoteChecks((checks) => checks[id]?.attemptId !== attemptId ? checks : ({ ...checks,
+            [id]: { userId, attemptId, success: Boolean(savedHolding), checkedAt,
+                valueKey: savedHolding ? quoteValuationKey(savedHolding) : null } }));
+        return Boolean(savedHolding);
     };
 
 
@@ -345,22 +369,34 @@ function App() {
         const pricesAreFresh =
             now - lastUpdate < PRICE_UPDATE_INTERVAL;
 
-        if (pricesAreFresh && !forceUpdate) {
+        const allQuotesVerified = holdings.every((holding) => {
+            const check = quoteChecks[holding.id];
+            return check?.success && check.userId === session?.user.id &&
+                check.valueKey === quoteValuationKey(holding) && now - check.checkedAt <= VERIFIED_QUOTE_MAX_AGE;
+        });
+        if (pricesAreFresh && !forceUpdate && allQuotesVerified) {
             console.log("Kurserna är fortfarande färska");
             return;
         }
 
-        for (const holding of holdings) {
-            await updateHoldingPrice(holding.id);
-        }
+        // Start the asynchronous refresh after the current render/effect has completed.
+        await Promise.resolve();
+        setPriceUpdatesInProgress((count) => count + 1);
+        try {
+            for (const holding of holdings) {
+                await updateHoldingPrice(holding.id);
+            }
 
         if (forceUpdate) {
+            setLysaQuoteCheck({ success: false, checkedAt: null });
             try {
                 const lysaPrices =
                     await getLysaFundPrices();
 
                 setLysaFundPrices(lysaPrices);
+                setLysaQuoteCheck({ success: true, checkedAt: Date.now() });
             } catch (error) {
+                setLysaQuoteCheck({ success: false, checkedAt: Date.now() });
                 console.error(
                     "Lysa-kurserna kunde inte uppdateras:",
                     error
@@ -372,6 +408,9 @@ function App() {
             "lastPriceUpdate",
             String(now)
         );
+        } finally {
+            setPriceUpdatesInProgress((count) => count - 1);
+        }
     };
 
 
@@ -628,7 +667,7 @@ function App() {
     // SNAPSHOT
     // =========================================
 
-    const handleRestoreSnapshot = (snapshot) => {
+    const handleRestoreSnapshot = async (snapshot) => {
         const currentSnapshot = createPortfolioSnapshot({
             holdings,
             assets,
@@ -643,8 +682,9 @@ function App() {
         const restoredData =
             restorePortfolioSnapshot(snapshot);
 
+        if (!await manualAssets.replaceAssets(restoredData.assets)) return;
+
         setHoldings(restoredData.holdings);
-        setAssets(restoredData.assets);
         setTransactions(restoredData.transactions);
         setLysaTransactions(restoredData.lysaTransactions);
         setLysaPerformance(restoredData.lysaPerformance);
@@ -669,6 +709,8 @@ function App() {
 
     const [holdings, setHoldings] = useState([]);
     const [holdingsLoading, setHoldingsLoading] = useState(true);
+    const [holdingsLoadedUser, setHoldingsLoadedUser] = useState(null);
+    const [lysaLoadedUser, setLysaLoadedUser] = useState(null);
 
     useEffect(() => {
         if (!session) {
@@ -677,6 +719,7 @@ function App() {
 
         const loadHoldings = async () => {
             setHoldingsLoading(true);
+            setHoldingsLoadedUser(null);
 
             const { data, error } =
                 await getDatabaseHoldings();
@@ -832,6 +875,7 @@ function App() {
             }
 
             setHoldings(repairedHoldings);
+            setHoldingsLoadedUser(session.user.id);
             setHoldingsLoading(false);
         };
 
@@ -1074,6 +1118,7 @@ function App() {
 
         const loadLysaData = async () => {
             setLysaDataLoading(true);
+            setLysaLoadedUser(null);
 
             const [
                 transactionsResult,
@@ -1187,6 +1232,9 @@ function App() {
                 cloudPerformance
             );
             setLysaDataLoading(false);
+            if (!transactionsResult.error && !performanceResult.error) {
+                setLysaLoadedUser(session.user.id);
+            }
         };
 
         void loadLysaData();
@@ -1243,8 +1291,10 @@ function App() {
                     await getLysaFundPrices();
 
                 setLysaFundPrices(prices);
+                setLysaQuoteCheck({ success: true, checkedAt: Date.now() });
 
             } catch (error) {
+                setLysaQuoteCheck({ success: false, checkedAt: Date.now() });
                 console.error(
                     "Kunde inte uppdatera Lysa:",
                     error
@@ -1489,32 +1539,15 @@ function App() {
     // MANUELLA TILLGÅNGAR
     // =========================================
 
-    const initialAssets = [];
-
-    const [assets, setAssets] = useState(() => {
-        const savedAssets = localStorage.getItem("assets");
-
-        if (savedAssets) {
-            return JSON.parse(savedAssets);
-        }
-
-        return initialAssets;
-    });
-
-    useEffect(() => {
-        localStorage.setItem("assets", JSON.stringify(assets));
-    }, [assets]);
 
     useEffect(() => {
         if (holdingsLoading || holdings.length === 0) {
             return;
         }
 
-        void updateAllHoldingPrices(
-            false,
-            // eslint-disable-next-line react-hooks/purity
-            Date.now()
-        );
+        queueMicrotask(() => {
+            void updateAllHoldingPrices(false, Date.now());
+        });
 
         // Kör när holdings har laddats från Supabase.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1539,6 +1572,7 @@ function App() {
     };
 
     const resetPortfolio = async () => {
+        if (!await manualAssets.replaceAssets([])) return;
         const { error } = await deleteAllHoldings();
 
         if (error) {
@@ -1560,7 +1594,6 @@ function App() {
             return;
         }
 
-        setAssets(initialAssets);
         setHoldings([]);
         setResolvedMatches([]);
         setLysaPerformance([]);
@@ -1573,6 +1606,24 @@ function App() {
         assets,
         lysaValue
     );
+
+    const historyReady = Boolean(session &&
+        manualAssets.ready && !manualAssets.busy &&
+        holdingsLoadedUser === session.user.id && lysaLoadedUser === session.user.id &&
+        !holdingsLoading && !lysaDataLoading && priceUpdatesInProgress === 0 &&
+        lysaHoldings.every((holding) => Number(holding.currentPrice) > 0) &&
+        holdings.every((holding) => {
+            const value = holding.currentValueSek ?? holding.valueSek;
+            return value != null && Number.isFinite(Number(value));
+        }));
+    const valuationInputs = {
+        userId: session?.user.id,
+        holdings: holdingsForDisplay,
+        checks: { ...quoteChecks, ...Object.fromEntries(lysaHoldings.map((holding) => [holding.id, {
+            ...lysaQuoteCheck, valueKey: quoteValuationKey(holding),
+        }])) },
+    };
+    const portfolioHistory = usePortfolioHistory(session?.user.id, portfolioValue, historyReady, valuationInputs);
 
     useEffect(() => {
         const snapshots = getPortfolioSnapshots();
@@ -1645,8 +1696,12 @@ function App() {
             <Routes>
                 <Route path="/" element={
                     <Dashboard
+                        portfolioHistory={portfolioHistory}
+                        historyReady={historyReady}
+                        dailyHoldings={holdingsForDisplay}
                         assets={assets}
-                        setAssets={setAssets}
+                        manualAssets={manualAssets}
+                        userEmail={session.user.email}
                         holdings={holdings}
                         portfolioValue={portfolioValue}
                         lysaValue={lysaValue}

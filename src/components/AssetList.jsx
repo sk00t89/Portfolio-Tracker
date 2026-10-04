@@ -4,7 +4,8 @@ function AssetList({
     assets,
     portfolioValue,
     totalsByPlatform,
-    deleteAsset
+    formatMoney = formatSek,
+    deleteAsset,
 }) {
     const platformRows = Object.entries(totalsByPlatform)
         .sort(([, valueA], [, valueB]) => valueB - valueA);
@@ -28,7 +29,7 @@ function AssetList({
                     return (
                         <div className="data-row" key={platform}>
                             <span>{platform}</span>
-                            <strong>{formatSek(value)}</strong>
+                            <strong>{formatMoney(value)}</strong>
                             <span className="muted">
                                 {percentage.toFixed(2)} %
                             </span>
@@ -53,7 +54,7 @@ function AssetList({
                             return (
                                 <div className="data-row asset-row" key={asset.id}>
                                     <span>{asset.name}</span>
-                                    <strong>{formatSek(asset.value)}</strong>
+                                    <strong>{formatMoney(asset.value)}</strong>
                                     <span className="muted">
                                         {percentage.toFixed(2)} %
                                     </span>

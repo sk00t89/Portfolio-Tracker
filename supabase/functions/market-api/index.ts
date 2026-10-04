@@ -138,6 +138,7 @@ Deno.serve(async (req) => {
         symbol,
         price: result.meta?.regularMarketPrice ?? null,
         previousClose: result.meta?.chartPreviousClose ?? null,
+        timestamp: result.meta?.regularMarketTime ?? null,
         currency: result.meta?.currency ?? null,
         exchangeName: result.meta?.exchangeName ?? null,
       });
@@ -497,7 +498,8 @@ Deno.serve(async (req) => {
         price: data.quote?.last ?? null,
         previousClose: data.quote?.previousClose ?? null,
         currency: data.quote?.currency ?? data.currency ?? null,
-        timestamp: Date.now(),
+        // Do not substitute fetch time for a missing source quote timestamp.
+        timestamp: data.quote?.timestamp ?? null,
       });
     }
 

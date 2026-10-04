@@ -4,6 +4,20 @@ import {
     databaseHoldingToApp,
 } from "../utils/holdingDatabaseMapper.js";
 
+// Keep existing holding writes working while the separately delivered SQL awaits approval.
+async function writeHoldingWithOptionalQuote(payload, write) {
+    const compatiblePayload = { ...payload };
+    let result = await write(compatiblePayload);
+    for (let retry = 0; retry < 2; retry++) {
+        const optional = ["previous_close", "coin_id"].find((column) =>
+            ["PGRST204", "42703"].includes(result.error?.code) && result.error.message?.includes(column));
+        if (!optional) break;
+        delete compatiblePayload[optional];
+        result = await write(compatiblePayload);
+    }
+    return result;
+}
+
 export async function getHoldings() {
     const { data, error } = await supabase
         .from("holdings")
@@ -17,11 +31,10 @@ export async function getHoldings() {
 }
 
 export async function createHolding(holding) {
-    const { data, error } = await supabase
-        .from("holdings")
-        .insert(appHoldingToDatabase(holding))
-        .select()
-        .single();
+    const { data, error } = await writeHoldingWithOptionalQuote(
+        appHoldingToDatabase(holding),
+        (payload) => supabase.from("holdings").insert(payload).select().single()
+    );
 
     return {
         data: data ? databaseHoldingToApp(data) : null,
@@ -33,15 +46,13 @@ export async function updateHolding(id, holding) {
     const databaseHolding = appHoldingToDatabase(holding);
     delete databaseHolding.id;
 
-    const { data, error } = await supabase
-        .from("holdings")
-        .update(databaseHolding)
-        .eq("id", id)
-        .select()
-        .single();
+    const { data, error } = await writeHoldingWithOptionalQuote(databaseHolding,
+        (payload) => supabase.from("holdings").update(payload).eq("id", id).select().single()
+    );
 
     return {
-        data: data ? databaseHoldingToApp(data) : null,
+        data: data ? { ...databaseHoldingToApp(data),
+            previousClose: data.previous_close ?? holding.previousClose ?? null } : null,
         error,
     };
 }

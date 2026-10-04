@@ -5,7 +5,7 @@ import {formatSek} from "../utils/formatting.js";
 import {getCryptoPrices} from "../services/cryptoData.js";
 import {cryptoCoinIds} from "../utils/cryptoCoinIds.js";
 
-function CryptoOverview({cryptoExposure, portfolioValue}) {
+function CryptoOverview({cryptoExposure, portfolioValue, formatMoney = formatSek}) {
     const summary = cryptoExposure.summary ?? EMPTY_EXPOSURE;
     const details = cryptoExposure.details ?? EMPTY_EXPOSURE;
 
@@ -60,7 +60,7 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
                 </div>
 
                 <div className="section-total">
-                    <strong>{formatSek(totalCryptoValue)}</strong>
+                    <strong>{formatMoney(totalCryptoValue)}</strong>
                     <span>{portfolioPercentage.toFixed(2)} % av portföljen</span>
                 </div>
                 <span className="crypto-details-toggle">
@@ -97,7 +97,7 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
                                     <span>{coin}</span>
 
                                     <strong>
-                                        {formatSek(value.total)}
+                                        {formatMoney(value.total)}
                                     </strong>
 
                                     <span className="muted">
@@ -108,21 +108,21 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
                                             {value.direct > 0 && (
                                                 <span>
                                                     Direkt
-                                                <strong>{formatSek(value.direct)}</strong>
+                                                <strong>{formatMoney(value.direct)}</strong>
                                                 </span>
                                             )}
 
                                             {value.etp > 0 && (
                                                 <span>
                                                     ETP
-                                                <strong>{formatSek(value.etp)}</strong>
+                                                <strong>{formatMoney(value.etp)}</strong>
                                                 </span>
                                             )}
 
                                             {value.index > 0 && (
                                                 <span>
                                                 Via index
-                                                <strong>{formatSek(value.index)}</strong>
+                                                <strong>{formatMoney(value.index)}</strong>
                                                 </span>
                                             )}
 
@@ -156,7 +156,7 @@ function CryptoOverview({cryptoExposure, portfolioValue}) {
                                     <span>{coin}</span>
 
                                     <strong>
-                                        {formatSek(value)}
+                                        {formatMoney(value)}
                                     </strong>
 
                                     <span className="muted">

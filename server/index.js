@@ -132,6 +132,7 @@ app.get("/api/yahoo-price/:symbol", async (req, res) => {
             symbol,
             price: result.meta?.regularMarketPrice ?? null,
             previousClose: result.meta?.chartPreviousClose ?? null,
+            timestamp: result.meta?.regularMarketTime ?? null,
             currency: result.meta?.currency ?? null,
             exchangeName: result.meta?.exchangeName ?? null,
         });
@@ -693,7 +694,8 @@ app.get("/api/avanza-price/:instrumentId", async (req, res) => {
                 data.quote?.currency ??
                 data.currency ??
                 null,
-            timestamp: Date.now(),
+            // Missing source time must not make an old quote appear freshly priced.
+            timestamp: data.quote?.timestamp ?? null,
         });
 
     } catch (error) {

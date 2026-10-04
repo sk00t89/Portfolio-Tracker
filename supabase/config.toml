@@ -1,2 +1,8 @@
+project_id = "portfolio-tracker"
+
 [functions.market-api]
 verify_jwt = true
+
+# This function authenticates every request using the dedicated server-only secret.
+[functions.daily-portfolio-snapshot]
+verify_jwt = false

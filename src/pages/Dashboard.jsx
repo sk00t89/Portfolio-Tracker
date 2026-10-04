@@ -12,19 +12,31 @@ import {
 } from "../utils/calculations.js";
 import AddHoldingForm from "../components/AddHoldingForm.jsx";
 import HoldingsOverview from "../components/HoldingsOverview.jsx";
+import PortfolioHistoryChart from "../components/PortfolioHistoryChart.jsx";
+import DailyMovers from "../components/DailyMovers.jsx";
+import useDisplayCurrency from "../hooks/useDisplayCurrency.js";
+import ManualAssetsStatus from "../components/ManualAssetsStatus.jsx";
+import MarketStatus from "../components/MarketStatus.jsx";
+import useMarketStatus from "../hooks/useMarketStatus.js";
 
 
 
 function Dashboard({
     assets,
-    setAssets,
+    manualAssets,
+    userEmail,
     holdings,
     portfolioValue,
     lysaValue,
     importHoldings,
     groupedHoldings,
     lysaTransactions,
+    portfolioHistory,
+    historyReady,
+    dailyHoldings,
 }) {
+    const { currency, setCurrency, formatMoney, rate, error } = useDisplayCurrency();
+    const marketStatus = useMarketStatus();
     const lysaInvestedCapital =
         calculateLysaDeposits(lysaTransactions);
 
@@ -53,66 +65,60 @@ function Dashboard({
         lysaValue
     );
 
-    const getNextId = (assets) => {
-        const ids = assets.map((asset) => {
-            return asset.id;
-        });
-
-        const highestId = Math.max(...ids);
-
-        return highestId < 1 ? 1 : highestId + 1;
-    };
-
-    const addAsset = (newAsset) => {
-        setAssets((previousAssets) => [
-            ...previousAssets,
-            {
-                id: getNextId(previousAssets),
-                ...newAsset
-            }
-        ]);
-    };
-
-    const deleteAsset = (id) => {
-        setAssets((previousAssets) => {
-            return previousAssets.filter((asset) => {
-                return asset.id !== id;
-            });
-        });
-    };
 
 
     return (
         <div className="dashboard-grid">
+            <ManualAssetsStatus state={manualAssets} email={userEmail} />
+            <div className="dashboard-currency-bar">
+                <label htmlFor="dashboard-currency">Visningsvaluta</label>
+                <select id="dashboard-currency" value={currency} onChange={(event) => setCurrency(event.target.value)}>
+                    <option value="SEK">SEK</option><option value="USD">USD</option><option value="EUR">EUR</option>
+                </select>
+                {error ? <span role="alert">Valutakursen kunde inte hämtas. Välj SEK eller försök igen.</span> :
+                    rate == null && <span role="status">Hämtar valutakurs…</span>}
+            </div>
             <PortfolioSummary
+                formatMoney={formatMoney}
                 portfolioValue={portfolioValue}
                 investedCapital={investedCapital}
             />
 
+            <PortfolioHistoryChart history={portfolioHistory} formatMoney={formatMoney} currency={currency} />
+            <MarketStatus markets={marketStatus.markets} />
+            {!historyReady && <p className="history-readiness" role="status">Historik sparas när portföljens värden är färdigladdade och kompletta.</p>}
+            {historyReady && portfolioHistory.freshnessReason && <p className="history-readiness" role="status">Historik pausad: {portfolioHistory.freshnessReason} Uppdatera kurserna under Inställningar.</p>}
+            <DailyMovers holdings={dailyHoldings} formatMoney={formatMoney} currency={currency} now={marketStatus.now} />
+
             <AssetList
+                formatMoney={formatMoney}
                 assets={assets}
                 portfolioValue={portfolioValue}
-                deleteAsset={deleteAsset}
+                deleteAsset={manualAssets.deleteAsset}
                 totalsByPlatform={totalsByPlatform}
             />
 
             <Allocation
+                formatMoney={formatMoney}
                 totalsByType={totalsByPlatform}
                 portfolioValue={portfolioValue}
                 totalsByCategory={totalsByCategory}
             />
             {Object.keys(cryptoExposure.summary).length > 0 && (
                 <CryptoOverview
+                    formatMoney={formatMoney}
                     cryptoExposure={cryptoExposure}
                     portfolioValue={portfolioValue}
                 />
             )}
             <HoldingsOverview
+                formatMoney={formatMoney}
                 groupedHoldings={groupedHoldings}
             />
 
             <AssetForm
-                addAsset={addAsset}
+                addAsset={manualAssets.addAsset}
+                manualAssetsDisabled={!manualAssets.ready || manualAssets.busy}
                 importHoldings={importHoldings}
             />
             <AddHoldingForm

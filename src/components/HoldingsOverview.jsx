@@ -1,7 +1,7 @@
 import {useState} from "react";
 import {formatSek} from "../utils/formatting.js";
 
-function HoldingsOverview({groupedHoldings}) {
+function HoldingsOverview({groupedHoldings, formatMoney = formatSek}) {
     const [showAll, setShowAll] = useState(false);
 
     const sortedHoldings = [...groupedHoldings].sort(
@@ -34,7 +34,7 @@ function HoldingsOverview({groupedHoldings}) {
 
                 <div className="section-total">
                     <strong>
-                        {formatSek(groupedHoldingsTotalValue)}
+                        {formatMoney(groupedHoldingsTotalValue)}
                     </strong>
                     <span>Värdepapper och Lysa</span>
                 </div>
@@ -130,7 +130,7 @@ function HoldingsOverview({groupedHoldings}) {
                                 {!isLysaOnly &&
                                     changePercent !== null && (
                                         <span className="holding-overview-performance">
-                                                 GAV {formatSek(investedCapital)}
+                                                 GAV {formatMoney(investedCapital)}
                                                 {" · "}
                                                 Antal {totalQuantity}
                                                 {" · "}
@@ -156,7 +156,7 @@ function HoldingsOverview({groupedHoldings}) {
                             </div>
 
                             <strong className="holding-overview-value">
-                                {formatSek(holding.totalValue)}
+                                {formatMoney(holding.totalValue)}
                             </strong>
 
                             <span className="muted holding-overview-share">

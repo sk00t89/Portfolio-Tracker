@@ -10,7 +10,7 @@ const categoryLabels = {
     other: "Övrigt",
 };
 
-function Allocation({portfolioValue, totalsByCategory}) {
+function Allocation({portfolioValue, totalsByCategory, formatMoney = formatSek}) {
     const rows = Object.entries(totalsByCategory)
         .sort(([, valueA], [, valueB]) => valueB - valueA);
 
@@ -33,7 +33,7 @@ function Allocation({portfolioValue, totalsByCategory}) {
                     return (
                         <div className="data-row" key={type}>
                             <span>{categoryLabels[type] ?? type}</span>
-                            <strong>{formatSek(value)}</strong>
+                            <strong>{formatMoney(value)}</strong>
                             <span className="muted">
                                 {percentage.toFixed(2)} %
                             </span>
