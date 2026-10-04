@@ -1915,3 +1915,92 @@ p {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* =========================================
+   COMPACT MOBILE NAVIGATION
+   ========================================= */
+
+@media (max-width: 560px) {
+  .nav-bar {
+    top: 6px;
+    gap: 7px 8px;
+    padding: 8px;
+    margin-bottom: 18px;
+    border-radius: 14px;
+  }
+
+  .nav-brand {
+    font-size: 0.8rem;
+  }
+
+  .nav-brand::before {
+    width: 7px;
+    height: 7px;
+    margin-right: 7px;
+  }
+
+  .nav-actions {
+    gap: 6px;
+  }
+
+  .theme-toggle {
+    width: 34px;
+    min-height: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 9px;
+  }
+
+  .nav-logout-button {
+    min-height: 34px;
+    height: 34px;
+    padding: 0 9px;
+    font-size: 0.76rem;
+    border-radius: 9px;
+  }
+
+  .nav-links {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 3px;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .nav-links li {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .nav-link {
+    width: 100%;
+    min-height: 36px;
+    padding: 6px 3px;
+    justify-content: center;
+    overflow: hidden;
+    font-size: 0.72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border-radius: 8px;
+  }
+
+  .nav-notification-badge {
+    min-width: 15px;
+    height: 15px;
+    margin-left: 3px;
+    padding: 0 4px;
+    font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .nav-link {
+    font-size: 0.68rem;
+    padding-inline: 2px;
+  }
+
+  .nav-logout-button {
+    padding-inline: 7px;
+  }
+}
