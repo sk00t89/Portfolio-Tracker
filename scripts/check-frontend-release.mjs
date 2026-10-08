@@ -14,6 +14,8 @@ const checks = { html: htmlResponse.ok, javascript: assetResponse.ok,
     quoteVersion: code.includes("market-quotes-v2"),
     atomicRefresh: code.includes("Uppdaterar kurser"),
     dailyCoverage: code.includes("kurstäckning"),
+    integratedHistory: code.includes("Portföljöversikt med historik"),
+    verifiedReturnGuard: code.includes("Investeringsavkastning kräver verifierade kassaflöden"),
     edgeBackend: code.includes("https://ertvxedbqcqydeypnorm.supabase.co/functions/v1/market-api") };
 console.log(JSON.stringify({ url, asset, checks, verified: Object.values(checks).every(Boolean) }));
 process.exitCode = Object.values(checks).every(Boolean) ? 0 : 1;

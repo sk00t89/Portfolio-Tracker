@@ -1,76 +1,61 @@
-import { useState } from "react";
-import { availableHistoryPeriods, createValueSeries } from "../utils/dashboardHistory.js";
+import { useId } from "react";
+import { nearestHistoryPoint } from "../utils/portfolioPeriod.js";
 
-export default function PortfolioHistoryChart({ history, formatMoney, currency }) {
-    const [selected, setSelected] = useState("All");
-    const [focused, setFocused] = useState(null);
-    const periods = availableHistoryPeriods(history.points);
-    const period = periods.includes(selected) ? selected : periods[0];
-    const series = period ? createValueSeries(history.points, period) : null;
-    const points = series?.points ?? [];
-    const first = points[0];
-    const last = points.at(-1);
-    const active = points.find((point) => point.date === focused) ?? last;
-    const values = points.map((point) => point.value);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const padding = Math.max((max - min) * 0.12, Math.abs(max) * 0.01, 1);
-    const bottom = min - padding;
-    const top = max + padding;
-    const startTime = first ? Date.parse(first.date) : 0;
-    const span = last ? Date.parse(last.date) - startTime : 1;
-    const coordinates = points.map((point) => ({ ...point,
-        x: 65 + (Date.parse(point.date) - startTime) / (span || 1) * 705,
-        y: 220 - (point.value - bottom) / (top - bottom) * 190,
-    }));
-    const change = first && last ? last.value - first.value : null;
-    const percent = first?.value > 0 ? change / first.value * 100 : null;
-    return (
-        <section className="card history-card">
-            <div className="section-heading">
-                <div><span className="eyebrow">Historik · {currency}</span><h2>Portföljvärde</h2></div>
-                <div className="history-periods" aria-label="Välj historikperiod">
-                    {periods.map((item) => <button type="button" key={item}
-                        className="ghost-button" aria-pressed={period === item}
-                        onClick={() => { setSelected(item); setFocused(null); }}>{item}</button>)}
-                </div>
-            </div>
-            {history.error && <p role="alert">{history.error}</p>}
-            {history.loading ? <p role="status">Laddar historik…</p> : points.length < 2 ?
-                <p>Grafen visas när värden finns för minst två olika dagar. Längre perioder visas när historiken täcker dem.
-                    {history.points.length === 1 && ` Senast sparat: ${formatMoney(history.points[0].valueSek)} (${history.points[0].date}).`}
-                </p> : <>
-                    <div className="history-detail" aria-live="polite">
-                        <strong>{formatMoney(active.value)}</strong><span className="muted">{active.date}</span>
-                        <span className="muted">Faktisk start {first.date}</span>
-                        <span className={change >= 0 ? "positive-text" : "negative-text"}>
-                            Period: {change >= 0 ? "+" : ""}{formatMoney(change)}
-                            {percent != null && ` (${percent >= 0 ? "+" : ""}${percent.toFixed(2)} %)`}
-                        </span>
-                    </div>
-                    <svg className="history-chart" viewBox="0 0 800 265" role="img"
-                        aria-label={`Portföljvärde ${first.date} till ${last.date}. ${formatMoney(first.value)} till ${formatMoney(last.value)}.`}>
-                        {[0, 0.5, 1].map((ratio) => <g key={ratio}>
-                            <line x1="65" x2="770" y1={220 - ratio * 190} y2={220 - ratio * 190} className="history-grid-line" />
-                            <text x="60" y={224 - ratio * 190} textAnchor="end">{formatMoney(bottom + ratio * (top - bottom))}</text>
-                        </g>)}
-                        <polyline points={coordinates.map((point) => `${point.x},${point.y}`).join(" ")}
-                            fill="none" className="history-line" />
-                        {coordinates.map((point) => <circle key={point.date} cx={point.x} cy={point.y}
-                            r={focused === point.date ? 5 : 3} className="history-point"
-                            onMouseEnter={() => setFocused(point.date)} onClick={() => setFocused(point.date)}>
-                            <title>{point.date}: {formatMoney(point.value)}</title>
-                        </circle>)}
-                        <text x="65" y="250">{first.date}</text><text x="770" y="250" textAnchor="end">{last.date}</text>
-                    </svg>
-                    <label className="history-point-picker">Visa datapunkt
-                        <select value={active.date} onChange={(event) => setFocused(event.target.value)}>
-                            {points.map((point) => <option key={point.date} value={point.date}>{point.date} · {formatMoney(point.value)}</option>)}
-                        </select>
-                    </label>
-                </>}
-            <p className="history-note">En datapunkt per dag i Stockholmstid, uppdaterad när appen är öppen. Dagar utan värde saknas. Insättningar och uttag påverkar grafen.
-                {currency !== "SEK" && " Historiska SEK-värden räknas om med aktuell växelkurs, inte historiska valutakurser."}</p>
-        </section>
-    );
+export default function PortfolioHistoryChart({ view, focused, onFocus, formatMoney, currency }) {
+    const gradientId = `portfolio-area-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+    const comparison = view.comparison.available;
+    const points = comparison ? view.comparison.series : view.points.map((point) => ({ date: point.date, value: point.valueSek }));
+    const active = points.find((point) => point.date === focused) ?? points.at(-1);
+    if (!view.available) return <div className="portfolio-chart-empty" role="status">
+        <span className="portfolio-empty-icon" aria-hidden="true">↗</span>
+        <strong>{view.historyCount < 2 ? "Din historik börjar här" : "Lite mer historik behövs"}</strong>
+        <p>{view.reason}</p>
+        {view.latestObservation && <small>Senast sparat {view.latestObservation.date} · {formatMoney(view.latestObservation.valueSek)}</small>}
+    </div>;
+    const values = points.flatMap((point) => comparison ? [point.value, point.benchmark] : [point.value]);
+    const min = Math.min(...values), max = Math.max(...values);
+    const padding = Math.max((max - min) * 0.18, Math.abs(max) * 0.005, comparison ? 0.1 : 1);
+    const bottom = min - padding, top = max + padding;
+    const firstTime = Date.parse(points[0].date), span = Date.parse(points.at(-1).date) - firstTime;
+    const x = (point) => 12 + (Date.parse(point.date) - firstTime) / (span || 1) * 976;
+    const y = (value) => 228 - (value - bottom) / (top - bottom) * 200;
+    const path = points.map((point) => `${x(point)},${y(point.value)}`).join(" ");
+    const activeIndex = points.findIndex((point) => point.date === active.date);
+    const selectPoint = (event) => {
+        const box = event.currentTarget.getBoundingClientRect();
+        const ratio = ((event.clientX - box.left) / box.width * 1000 - 12) / 976;
+        onFocus(nearestHistoryPoint(points, ratio)?.date ?? null);
+    };
+    const signedPercent = (value) => `${value >= 0 ? "+" : ""}${value.toFixed(2)} %`;
+    return <figure className={`portfolio-chart ${(comparison ? view.comparison.portfolioPercent : view.changeSek) < 0 ? "is-negative" : ""}`}>
+        <div className="portfolio-chart-readout" aria-live="polite" aria-atomic="true">
+            <span>{focused ? active.date : "Senast sparat"}</span>
+            <strong>{comparison ? signedPercent(active.value) : formatMoney(active.value)}</strong>
+            {comparison && <span className="portfolio-index-readout">Index {signedPercent(active.benchmark)}</span>}
+        </div>
+        <svg viewBox="0 0 1000 250" preserveAspectRatio="none" className="portfolio-chart-svg" role="img"
+            aria-label={`${comparison ? "Verifierad avkastning" : `Portföljvärde i ${currency}`} från ${points[0].date} till ${points.at(-1).date}. ${points.length} verkliga observationer.`}
+            onPointerMove={selectPoint} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); selectPoint(event); }}
+            onPointerLeave={(event) => { if (event.pointerType === "mouse") onFocus(null); }}>
+            <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="currentColor" stopOpacity="0.19" />
+                <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+            </linearGradient></defs>
+            {[48, 108, 168, 228].map((height) => <line key={height} x1="12" x2="988" y1={height} y2={height} className="portfolio-chart-grid" />)}
+            <polygon points={`12,244 ${path} 988,244`} fill={`url(#${gradientId})`} />
+            {comparison && <polyline points={points.map((point) => `${x(point)},${y(point.benchmark)}`).join(" ")}
+                className="portfolio-index-line" fill="none" vectorEffect="non-scaling-stroke" />}
+            <polyline points={path} className="portfolio-value-line" fill="none" vectorEffect="non-scaling-stroke" />
+            {points.length <= 30 && points.map((point) => <circle key={point.date} cx={x(point)} cy={y(point.value)} r="2.5" className="portfolio-observation" />)}
+            <line x1={x(active)} x2={x(active)} y1="12" y2="244" className="portfolio-crosshair" />
+            <circle cx={x(active)} cy={y(active.value)} r="5" className="portfolio-active-point" />
+        </svg>
+        <div className="portfolio-chart-dates"><span>{points[0].date}</span><span>{points.at(-1).date}</span></div>
+        <label className="portfolio-chart-scrubber"><span className="sr-only">Utforska sparade observationer</span>
+            <input type="range" min="0" max={points.length - 1} step="1" value={activeIndex}
+                aria-label="Visa sparad historikpunkt" aria-valuetext={`${active.date}: ${comparison ? signedPercent(active.value) : formatMoney(active.value)}`}
+                onChange={(event) => onFocus(points[Number(event.target.value)].date)} />
+        </label>
+        <figcaption>{comparison ? "Portfölj och index · verifierad avkastning i SEK" : "Sparade dagsvärden · dagar utan observation fylls inte i"}</figcaption>
+    </figure>;
 }

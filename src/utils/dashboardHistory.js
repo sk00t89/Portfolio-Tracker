@@ -75,10 +75,11 @@ export function calculateDailyMovers(holdings, now = Date.now()) {
 function periodStart(period, today) {
     const date = new Date(`${today}T12:00:00Z`);
     if (period === "1V") date.setUTCDate(date.getUTCDate() - 7);
-    if (period === "1M" || period === "1Å") {
+    if (period === "1M" || period === "3M" || period === "1Å") {
         const day = date.getUTCDate();
         date.setUTCDate(1);
         if (period === "1M") date.setUTCMonth(date.getUTCMonth() - 1);
+        else if (period === "3M") date.setUTCMonth(date.getUTCMonth() - 3);
         else date.setUTCFullYear(date.getUTCFullYear() - 1);
         const last = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
         date.setUTCDate(Math.min(day, last));
@@ -95,14 +96,14 @@ export function availableHistoryPeriods(points, today = stockholmDate()) {
     });
 }
 
-function coveredPeriodPoints(points, period, today) {
+function coveredPeriodPoints(points, period, today, allowAnchorAfterStart = true) {
     const start = periodStart(period, today);
     const valid = points.filter((point) => point.date <= today).sort((a, b) => a.date.localeCompare(b.date));
     const last = valid.at(-1);
     const ageDays = (earlier, later) => (Date.parse(later) - Date.parse(earlier)) / 86_400_000;
     const distance = (point) => Math.abs(ageDays(point.date, start));
     // Sorted dates and strict < make equal-distance ties prefer the earlier point.
-    const anchor = valid.reduce((nearest, point) => distance(point) <= 3 &&
+    const anchor = valid.reduce((nearest, point) => distance(point) <= 3 && (allowAnchorAfterStart || point.date <= start) &&
         (!nearest || distance(point) < distance(nearest)) ? point : nearest, null);
     if (!anchor || !last || last.date <= anchor.date ||
         last.date <= start || ageDays(last.date, today) > 1) return [];
@@ -111,8 +112,8 @@ function coveredPeriodPoints(points, period, today) {
 }
 
 // A benchmark adapter can supply another dated series without coupling the chart to a provider.
-export function createValueSeries(points, period, today = stockholmDate()) {
-    const covered = period === "All" ? points : coveredPeriodPoints(points, period, today);
+export function createValueSeries(points, period, today = stockholmDate(), { allowAnchorAfterStart = true } = {}) {
+    const covered = period === "All" ? points : coveredPeriodPoints(points, period, today, allowAnchorAfterStart);
     return { id: "portfolio", label: "Portföljvärde", currency: "SEK", metric: "value",
         points: covered.map((point) => ({ date: point.date, value: point.valueSek })),
     };

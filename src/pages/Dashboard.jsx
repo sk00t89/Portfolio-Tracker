@@ -12,13 +12,13 @@ import {
 } from "../utils/calculations.js";
 import AddHoldingForm from "../components/AddHoldingForm.jsx";
 import HoldingsOverview from "../components/HoldingsOverview.jsx";
-import PortfolioHistoryChart from "../components/PortfolioHistoryChart.jsx";
 import DailyMovers from "../components/DailyMovers.jsx";
 import useDisplayCurrency from "../hooks/useDisplayCurrency.js";
 import ManualAssetsStatus from "../components/ManualAssetsStatus.jsx";
 import MarketStatus from "../components/MarketStatus.jsx";
 import useMarketStatus from "../hooks/useMarketStatus.js";
 import { calculatePortfolioDailyChange } from "../utils/portfolioDailyChange.js";
+import { stockholmDate } from "../utils/calendarDate.js";
 
 
 
@@ -91,9 +91,12 @@ function Dashboard({
                 dailyChange={dailyChange}
                 updatingPrices={updatingPrices}
                 valuesLoading={valuesLoading}
+                history={portfolioHistory}
+                currency={currency}
+                today={stockholmDate(marketStatus.now)}
+                now={marketStatus.now}
             />
 
-            <PortfolioHistoryChart history={portfolioHistory} formatMoney={formatMoney} currency={currency} />
             <MarketStatus markets={marketStatus.markets} />
             {!historyReady && <p className="history-readiness" role="status">Historik sparas när portföljens värden är färdigladdade och kompletta.</p>}
             {historyReady && portfolioHistory.freshnessReason && <p className="history-readiness" role="status">Historik pausad: {portfolioHistory.freshnessReason} Uppdatera kurserna under Inställningar.</p>}
