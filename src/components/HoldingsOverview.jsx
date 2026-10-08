@@ -157,6 +157,7 @@ function HoldingsOverview({groupedHoldings, formatMoney = formatSek}) {
 
                             <strong className="holding-overview-value">
                                 {formatMoney(holding.totalValue)}
+                                {holding.positions.some((position) => position.quoteStale) && <small className="muted"> · Inaktuell kurs</small>}
                             </strong>
 
                             <span className="muted holding-overview-share">

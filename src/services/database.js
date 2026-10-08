@@ -66,6 +66,22 @@ export async function deleteHoldingById(id) {
     return { error };
 }
 
+// Refresh only quote fields, guarded atomically against edits made during the provider request.
+export async function updateHoldingQuote(id, quote, expectedHolding, userId) {
+    const mapped = appHoldingToDatabase(quote);
+    const payload = Object.fromEntries(["current_price", "current_value_sek", "previous_close", "price_updated_at", "currency", "updated_at"]
+        .map((key) => [key, mapped[key]]));
+    const expected = appHoldingToDatabase(expectedHolding);
+    const { data, error } = await writeHoldingWithOptionalQuote(payload, (values) => {
+        let query = supabase.from("holdings").update(values).eq("id", id).eq("user_id", userId);
+        for (const key of ["quantity", "currency", "asset_type", "product_type", "market", "provider", "instrument_id", "isin", "ticker"]) {
+            query = expected[key] == null ? query.is(key, null) : query.eq(key, expected[key]);
+        }
+        return query.select().single();
+    });
+    return { data: data ? databaseHoldingToApp(data) : null, error };
+}
+
 export async function deleteAllHoldings() {
     const { error } = await supabase
         .from("holdings")

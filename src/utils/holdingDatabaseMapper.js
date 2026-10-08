@@ -1,3 +1,5 @@
+import { normalizeQuoteTimestamp } from "./valuationFreshness.js";
+
 export function databaseHoldingToApp(row) {
     return {
         id: row.id,
@@ -38,10 +40,7 @@ export function databaseHoldingToApp(row) {
         market: row.market ?? null,
         instrumentId: row.instrument_id ?? null,
         provider: row.provider ?? null,
-        priceUpdatedAt:
-            row.price_updated_at == null
-                ? null
-                : Number(row.price_updated_at),
+        priceUpdatedAt: normalizeQuoteTimestamp(row.price_updated_at),
     };
 }
 
@@ -73,7 +72,7 @@ export function appHoldingToDatabase(holding) {
                 ? null
                 : String(holding.instrumentId),
         provider: holding.provider ?? null,
-        price_updated_at: holding.priceUpdatedAt ?? null,
+        price_updated_at: normalizeQuoteTimestamp(holding.priceUpdatedAt),
         updated_at: new Date().toISOString(),
     };
 }

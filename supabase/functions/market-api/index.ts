@@ -1,3 +1,6 @@
+import { createMarketQuoteRoutes } from "../_shared/marketQuoteRoutes.js";
+
+const marketQuoteRoute = createMarketQuoteRoutes();
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -32,6 +35,8 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
+    const quoteResult = await marketQuoteRoute(url);
+    if (quoteResult) return json(quoteResult.body, quoteResult.status);
     const marker = "/market-api";
     const markerIndex = url.pathname.indexOf(marker);
     const path =
@@ -115,35 +120,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    match = path.match(/^\/api\/yahoo-price\/([^/]+)$/);
-    if (match) {
-      const symbol = decodeURIComponent(match[1]);
-
-      const response = await fetch(
-        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`
-      );
-
-      if (!response.ok) {
-        return json({ error: "Kunde inte hämta Yahoo-kurs" }, 500);
-      }
-
-      const data = await response.json();
-      const result = data.chart?.result?.[0];
-
-      if (!result) {
-        return json({ error: "Yahoo returnerade inget instrument" }, 404);
-      }
-
-      return json({
-        symbol,
-        price: result.meta?.regularMarketPrice ?? null,
-        previousClose: result.meta?.chartPreviousClose ?? null,
-        timestamp: result.meta?.regularMarketTime ?? null,
-        currency: result.meta?.currency ?? null,
-        exchangeName: result.meta?.exchangeName ?? null,
-      });
-    }
-
     match = path.match(/^\/api\/fund-price\/([^/]+)$/);
     if (match) {
       const instrumentId = decodeURIComponent(match[1]);
@@ -170,36 +146,6 @@ Deno.serve(async (req) => {
         price: fund.price_info?.last?.price ?? null,
         currency: fund.instrument_info.currency ?? null,
         timestamp: fund.price_info?.tick_timestamp ?? null,
-      });
-    }
-
-    match = path.match(/^\/api\/nordnet-price\/([^/]+)$/);
-    if (match) {
-      const instrumentId = decodeURIComponent(match[1]);
-      const response = await fetch(
-        `https://www.nordnet.se/api/2/instruments/price/${encodeURIComponent(instrumentId)}?request_realtime=false`,
-        { headers: nordnetHeaders }
-      );
-
-      if (!response.ok) {
-        return json({ error: "Kunde inte hämta Nordnet-kurs" }, 500);
-      }
-
-      const data = await response.json();
-      const priceData = data[0];
-
-      if (!priceData) {
-        return json({ error: "Ingen kursdata hittades" }, 404);
-      }
-
-      return json({
-        instrumentId: priceData.instrument_id,
-        price: priceData.last ?? null,
-        bid: priceData.bid ?? null,
-        ask: priceData.ask ?? null,
-        previousClose: priceData.close ?? null,
-        timestamp: priceData.tick_timestamp ?? null,
-        delay: priceData.delay ?? null,
       });
     }
 
@@ -264,37 +210,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    match = path.match(/^\/api\/nordnet-search\/([^/]+)$/);
-    if (match) {
-      const isin = decodeURIComponent(match[1]);
-      const response = await fetch(
-        `https://www.nordnet.se/api/2/instrument_search/query/instrument?apply_filters=isin%3D${encodeURIComponent(isin)}`,
-        { headers: nordnetHeaders }
-      );
-
-      if (!response.ok) {
-        return json({ error: "Kunde inte söka instrument hos Nordnet" }, 500);
-      }
-
-      const data = await response.json();
-      const instrument = data.results?.[0];
-
-      if (!instrument) {
-        return json({ error: "Inget instrument hittades" }, 404);
-      }
-
-      return json({
-        instrumentId: instrument.instrument_info.instrument_id,
-        name: instrument.instrument_info.name,
-        isin: instrument.instrument_info.isin,
-        currency: instrument.instrument_info.currency,
-        price: instrument.price_info?.last?.price ?? null,
-        previousClose: instrument.price_info?.close?.price ?? null,
-        timestamp: instrument.price_info?.tick_timestamp ?? null,
-        realtime: instrument.price_info?.realtime ?? false,
-      });
-    }
-
     match = path.match(/^\/api\/nordnet-search-query\/([^/]+)$/);
     if (match) {
       const query = decodeURIComponent(match[1]);
@@ -347,54 +262,6 @@ Deno.serve(async (req) => {
             provider: "Nordnet",
           }))
       );
-    }
-
-    match = path.match(/^\/api\/avanza-search\/([^/]+)$/);
-    if (match) {
-      const isin = decodeURIComponent(match[1]);
-      const response = await fetch(
-        "https://www.avanza.se/_api/search/filtered-search",
-        {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            Referer: "https://www.avanza.se/",
-          },
-          body: JSON.stringify({
-            query: isin,
-            searchFilter: { types: [] },
-            screenSize: "DESKTOP",
-            pagination: { from: 0, size: 30 },
-            originPath: "/",
-            originPlatform: "PWA",
-            searchSessionId: crypto.randomUUID(),
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        return json({ error: "Kunde inte söka instrument hos Avanza" }, 500);
-      }
-
-      const data = await response.json();
-      const hit = data.hits?.[0];
-
-      if (!hit) {
-        return json({ error: "Inget instrument hittades hos Avanza" }, 404);
-      }
-
-      const price = hit.price?.last
-        ? Number(hit.price.last.replace(/\s/g, "").replace(",", "."))
-        : null;
-
-      return json({
-        name: hit.title,
-        type: hit.type,
-        orderBookId: hit.orderBookId,
-        price,
-        currency: hit.price?.currency ?? null,
-      });
     }
 
     match = path.match(/^\/api\/avanza-search-query\/([^/]+)$/);
@@ -474,35 +341,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    match = path.match(/^\/api\/avanza-price\/([^/]+)$/);
-    if (match) {
-      const instrumentId = decodeURIComponent(match[1]);
-      const response = await fetch(
-        `https://www.avanza.se/_api/market-guide/stock/${encodeURIComponent(instrumentId)}`,
-        {
-          headers: {
-            Accept: "application/json",
-            Referer: "https://www.avanza.se/",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        return json({ error: "Kunde inte hämta Avanza-kurs" }, 500);
-      }
-
-      const data = await response.json();
-
-      return json({
-        instrumentId,
-        price: data.quote?.last ?? null,
-        previousClose: data.quote?.previousClose ?? null,
-        currency: data.quote?.currency ?? data.currency ?? null,
-        // Do not substitute fetch time for a missing source quote timestamp.
-        timestamp: data.quote?.timestamp ?? null,
-      });
-    }
-
     match = path.match(/^\/api\/crypto-search\/([^/]+)$/);
     if (match) {
       const query = decodeURIComponent(match[1]);
@@ -542,7 +380,7 @@ Deno.serve(async (req) => {
       const apiKey = Deno.env.get("COINGECKO_API_KEY");
 
       const response = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(coinId)}&vs_currencies=sek`,
+        `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(coinId)}&vs_currencies=sek&include_last_updated_at=true`,
         {
           headers: {
             Accept: "application/json",
@@ -566,6 +404,7 @@ Deno.serve(async (req) => {
         coinId,
         price,
         currency: "SEK",
+        timestamp: data[coinId]?.last_updated_at ?? null,
       });
     }
 

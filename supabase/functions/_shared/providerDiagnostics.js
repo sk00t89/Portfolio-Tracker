@@ -55,7 +55,7 @@ async function safeBody(response, secrets) {
 }
 export async function providerHttpError(response, url, headers, knownSecrets = []) {
     const parsed = new URL(url);
-    const provider = ({ "query1.finance.yahoo.com": "Yahoo", "www.avanza.se": "Avanza", "www.nordnet.se": "Nordnet",
+    const provider = ({ "query1.finance.yahoo.com": "Yahoo", "query2.finance.yahoo.com": "Yahoo", "www.avanza.se": "Avanza", "www.nordnet.se": "Nordnet",
         "api.coingecko.com": "CoinGecko", "api.frankfurter.app": "Frankfurter", "api.lysa.se": "Lysa" })[parsed.hostname] ?? parsed.hostname;
     const secrets = [...knownSecrets, ...[...parsed.searchParams].filter(([key]) => sensitive.test(key)).map(([, value]) => value),
         ...Object.entries(headers).filter(([key]) => sensitive.test(key)).map(([, value]) => String(value))];

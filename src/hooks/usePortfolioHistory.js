@@ -3,6 +3,7 @@ import { getPortfolioHistory, savePortfolioDailyValue } from "../services/portfo
 import { stockholmDate } from "../utils/dashboardHistory.js";
 import { validateValuationFreshness } from "../utils/valuationFreshness.js";
 import { createHistoryWriteQueue, nextObservationTime } from "../utils/historyWriteQueue.js";
+import { writeVerifiedHistory } from "../utils/verifiedHistoryWrite.js";
 
 const enqueueWrite = createHistoryWriteQueue();
 
@@ -46,7 +47,10 @@ export default function usePortfolioHistory(userId, portfolioValue, ready, valua
                     const freshness = validateValuationFreshness(JSON.parse(validationKey));
                     setFreshnessReason(freshness.reason);
                     if (!freshness.ready || savedValue.current === key) return;
-                    await savePortfolioDailyValue(date, portfolioValue, observedAt);
+                    const result = await writeVerifiedHistory({ inputs: JSON.parse(validationKey), valueSek: portfolioValue,
+                        observedAt }, savePortfolioDailyValue);
+                    setFreshnessReason(result.reason);
+                    if (!result.ready) return;
                     if (cancelled) return;
                     const points = await getPortfolioHistory(userId);
                     if (!cancelled) {

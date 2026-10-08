@@ -1,4 +1,5 @@
 import {useState} from "react";
+import { normalizeQuoteTimestamp } from "../utils/valuationFreshness.js";
 import {
     searchCrypto,
     getCryptoPrice
@@ -143,7 +144,7 @@ function AssetForm({
                 productType: "DIRECT_CRYPTO",
 
                 source: "direct-crypto",
-                priceUpdatedAt: Date.now(),
+                priceUpdatedAt: normalizeQuoteTimestamp(priceData.timestamp),
             };
 
             importHoldings([newHolding]);

@@ -3,7 +3,6 @@ import {
     searchNordnetInstruments,
 } from "./instrumentSearch.js";
 import {
-    getAvanzaPriceByIsin,
     getNordnetInstrumentById,
 } from "./marketData.js";
 
@@ -233,7 +232,7 @@ export async function enrichImportedHolding(holding) {
         }
     }
 
-    let enriched = {
+    const enriched = {
         ...holding,
         ticker:
             holding.ticker ??
@@ -267,53 +266,7 @@ export async function enrichImportedHolding(holding) {
             holding.provider ??
             candidate.provider ??
             null,
-        currentPrice:
-            holding.currentPrice ??
-            candidate.price ??
-            null,
-        priceUpdatedAt:
-            holding.priceUpdatedAt ??
-            (candidate.price != null
-                ? Date.now()
-                : null),
     };
-
-    // Nordnet search is often excellent for getting the ISIN.
-    // Once we have the ISIN, prefer Avanza as the live price source
-    // when the instrument also exists there.
-    if (enriched.isin) {
-        try {
-            const avanzaData =
-                await getAvanzaPriceByIsin(
-                    enriched.isin
-                );
-
-            if (avanzaData) {
-                enriched = {
-                    ...enriched,
-                    instrumentId:
-                        avanzaData.orderBookId ??
-                        enriched.instrumentId,
-                    provider:
-                        avanzaData.orderBookId
-                            ? "Avanza"
-                            : enriched.provider,
-                    currentPrice:
-                        avanzaData.price ??
-                        enriched.currentPrice,
-                    currency:
-                        avanzaData.currency ??
-                        enriched.currency,
-                    priceUpdatedAt:
-                        avanzaData.price != null
-                            ? Date.now()
-                            : enriched.priceUpdatedAt,
-                };
-            }
-        } catch {
-            // Nordnet-only instruments are expected to land here.
-        }
-    }
 
     return enriched;
 }

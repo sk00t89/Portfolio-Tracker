@@ -1,7 +1,7 @@
 import "./App.css";
 import usePortfolioHistory from "./hooks/usePortfolioHistory.js";
 import useManualAssets from "./hooks/useManualAssets.js";
-import { normalizeQuoteTimestamp, quoteValuationKey, VERIFIED_QUOTE_MAX_AGE } from "./utils/valuationFreshness.js";
+import { normalizeQuoteTimestamp, quoteFreshnessReason, quoteValuationKey, VERIFIED_QUOTE_MAX_AGE } from "./utils/valuationFreshness.js";
 import Navbar from "./components/Navbar.jsx";
 import InstallPrompt from "./components/InstallPrompt.jsx";
 import {Routes, Route} from "react-router-dom";
@@ -10,7 +10,9 @@ import Holdings from "./pages/Holdings.jsx";
 import ImportPage from "./pages/ImportPage.jsx";
 import Settings from "./pages/Settings.jsx";
 import Help from "./pages/Help.jsx";
-import {useEffect, useState} from "react";
+import {useEffect, useState, useRef} from "react";
+import { createInFlightRequests } from "./utils/requestDeduplication.js";
+import { runAtomicQuoteRefresh, mergeQuoteRefresh, portfolioDisplayValue } from "./utils/atomicQuoteRefresh.js";
 import getInstrumentKey from "./utils/instrumentKey.js";
 import {
     calculatePortfolioValue,
@@ -26,11 +28,13 @@ import {
     getNordnetPriceByIsin,
     getNordnetPriceByInstrumentId,
     getAvanzaPriceByIsin,
-    getAvanzaPriceByInstrumentId
+    getAvanzaPriceByInstrumentId,
+    getFundNav
 } from "./services/marketData.js";
 import normalizeAssetType from "./utils/normalizeAssetType.js";
 import classifyHolding from "./utils/classifyHolding.js";
-import getYahooSymbol from "./utils/getYahooSymbol.js";
+import { createVerifiedQuoteBatch } from "./services/verifiedHoldingQuote.js";
+import { getCryptoPrice } from "./services/cryptoData.js";
 import {
     createTransaction,
     applyTransactionToHolding,
@@ -63,9 +67,13 @@ import {
     getHoldings as getDatabaseHoldings,
     getOrCreateAccountForPlatform,
     updateHolding as updateDatabaseHolding,
+    updateHoldingQuote as updateDatabaseHoldingQuote,
 } from "./services/database.js";
 
 const PRICE_UPDATE_INTERVAL = 20 * 60 * 1000;
+const runPriceRefresh = createInFlightRequests();
+const quoteProviders = { getYahooPrice, getNordnetPriceByIsin, getNordnetPriceByInstrumentId,
+    getAvanzaPriceByIsin, getAvanzaPriceByInstrumentId, getCryptoPrice, getFundNav };
 
 
 
@@ -76,10 +84,19 @@ function App() {
     // supabase
     // =========================================
     const [session, setSession] = useState(null);
+    const userId = session?.user.id;
+    const activeUser = useRef(userId);
+    useEffect(() => { activeUser.current = userId; }, [userId]);
+    const [holdings, setHoldings] = useState([]);
+    const [holdingsLoading, setHoldingsLoading] = useState(true);
+    const [holdingsLoadedUser, setHoldingsLoadedUser] = useState(null);
+    const [lysaLoadedUser, setLysaLoadedUser] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
     const manualAssets = useManualAssets(session?.user.id);
     const assets = manualAssets.assets;
     const [priceUpdatesInProgress, setPriceUpdatesInProgress] = useState(0);
+    const [refreshDisplay, setRefreshDisplay] = useState(null);
+    const displayedValueRef = useRef(null);
     const [quoteChecks, setQuoteChecks] = useState({});
     const [lysaQuoteCheck, setLysaQuoteCheck] = useState({ success: false, checkedAt: null });
 
@@ -142,8 +159,6 @@ function App() {
             if (!session) {
                 setHoldings([]);
                 setHoldingsLoading(false);
-            } else {
-                setHoldingsLoading(true);
             }
 
             setSession(session);
@@ -157,7 +172,7 @@ function App() {
     // =========================================
     // HOLDINGS: priser, berikning, matchning och transaktioner
     // =========================================
-    const performHoldingPriceUpdate = async (id) => {
+    const performHoldingPriceUpdate = async (id, loadQuote, onDiagnostics, staged = false) => {
         const holding = holdings.find(
             (holding) => holding.id === id
         );
@@ -166,114 +181,8 @@ function App() {
             return;
         }
 
-        let data = null;
-
-        // 1. Nordnet via instrumentId
-        if (
-            holding.provider === "Nordnet" &&
-            holding.instrumentId
-        ) {
-            try {
-                data = await getNordnetPriceByInstrumentId(
-                    holding.instrumentId
-                );
-                console.log("Nordnet uppdaterade:", holding.name, "via instrumentId")
-
-                if (!data?.price) {
-                    data = null;
-                }
-            } catch (error) {
-                console.log(
-                    "Nordnet via instrumentId misslyckades:",
-                    holding.name,
-                    error
-                );
-            }
-        }
-
-        // 2. Avanza via instrumentId
-        if (
-            !data &&
-            holding.provider === "Avanza" &&
-            holding.instrumentId
-        ) {
-            try {
-                data = await getAvanzaPriceByInstrumentId(
-                    holding.instrumentId
-                );
-                console.log("Avanza uppdaterade:", holding.name, "via instrumentId")
-                if (!data?.price) {
-                    data = null;
-                }
-            } catch (error) {
-                console.log(
-                    "Avanza via instrumentId misslyckades:",
-                    holding.name,
-                    error
-                );
-            }
-        }
-
-        // 3. Avanza via ISIN
-        // De flesta Nordnet-innehav finns även hos Avanza.
-        if (!data && holding.isin) {
-            try {
-                data = await getAvanzaPriceByIsin(
-                    holding.isin
-                );
-
-                if (!data?.price) {
-                    data = null;
-                }
-            } catch (error) {
-                console.log(
-                    "Avanza hittade inget pris:",
-                    holding.name,
-                    "error:",
-                    error
-                );
-            }
-        }
-
-        // 4. Nordnet via ISIN
-        // Fallback för t.ex. Nordnets egna fonder/instrument.
-        if (!data && holding.isin) {
-            try {
-                data = await getNordnetPriceByIsin(
-                    holding.isin
-                );
-
-                if (!data?.price) {
-                    data = null;
-                }
-            } catch (error) {
-                console.log(
-                    "Nordnet hittade inget pris:",
-                    holding.name,
-                    "error:",
-                    error
-                );
-            }
-        }
-
-        // 3. Yahoo
-
-        if (!data) {
-            const yahooSymbol = getYahooSymbol(holding);
-
-            if (!yahooSymbol) {
-                console.log(
-                    "Ingen priskälla hittades för:",
-                    holding.name
-                );
-
-                return;
-            }
-
-            data = await getYahooPrice(
-                yahooSymbol
-            );
-        }
+        const expectedUser = userId;
+        const data = await loadQuote(holding, onDiagnostics);
 
         if (!data?.price) {
             console.warn(
@@ -308,17 +217,22 @@ function App() {
         const updatedHolding = {
             ...holding,
             currentPrice: data.price,
+            currency: priceCurrency,
             previousClose: data.previousClose ?? null,
             currentValueSek,
             priceUpdatedAt: normalizeQuoteTimestamp(data.timestamp),
         };
+        if (activeUser.current !== expectedUser) return;
+        if (quoteFreshnessReason(updatedHolding)) return;
 
         const {
             data: savedHolding,
             error: saveError,
-        } = await updateDatabaseHolding(
+        } = await updateDatabaseHoldingQuote(
             id,
-            updatedHolding
+            updatedHolding,
+            holding,
+            expectedUser
         );
 
         if (saveError) {
@@ -330,87 +244,83 @@ function App() {
             return;
         }
 
-        setHoldings((previousHoldings) =>
+        if (activeUser.current !== expectedUser) return;
+        if (!staged) setHoldings((previousHoldings) =>
             previousHoldings.map((item) =>
                 item.id === id
                     ? savedHolding
                     : item
             )
         );
-        return savedHolding;
+        return { holding: savedHolding, checkedAt: data.checkedAt };
     };
-
-    const updateHoldingPrice = async (id) => {
-        const userId = session?.user.id;
-        const attemptId = crypto.randomUUID();
-        setQuoteChecks((checks) => ({ ...checks, [id]: { userId, attemptId, success: false, checkedAt: null } }));
-        let savedHolding = null;
-        try {
-            savedHolding = await performHoldingPriceUpdate(id);
-        } catch (error) {
-            console.error("Kursuppdateringen misslyckades:", id, error);
-        }
-        const checkedAt = Date.now();
-        setQuoteChecks((checks) => checks[id]?.attemptId !== attemptId ? checks : ({ ...checks,
-            [id]: { userId, attemptId, success: Boolean(savedHolding), checkedAt,
-                valueKey: savedHolding ? quoteValuationKey(savedHolding) : null } }));
-        return Boolean(savedHolding);
-    };
-
 
     const updateAllHoldingPrices = async (
         forceUpdate = false,
         now
     ) => {
-        const lastUpdate = Number(
-            localStorage.getItem("lastPriceUpdate")
-        ) || 0;
+        return runPriceRefresh(userId, async () => {
+            if (!userId || activeUser.current !== userId) return;
+            const lastUpdate = Number(
+                localStorage.getItem("lastPriceUpdate")
+            ) || 0;
 
-        const pricesAreFresh =
-            now - lastUpdate < PRICE_UPDATE_INTERVAL;
+            const pricesAreFresh =
+                now - lastUpdate < PRICE_UPDATE_INTERVAL;
 
-        const allQuotesVerified = holdings.every((holding) => {
-            const check = quoteChecks[holding.id];
-            return check?.success && check.userId === session?.user.id &&
-                check.valueKey === quoteValuationKey(holding) && now - check.checkedAt <= VERIFIED_QUOTE_MAX_AGE;
-        });
-        if (pricesAreFresh && !forceUpdate && allQuotesVerified) {
-            console.log("Kurserna är fortfarande färska");
-            return;
-        }
-
-        // Start the asynchronous refresh after the current render/effect has completed.
-        await Promise.resolve();
-        setPriceUpdatesInProgress((count) => count + 1);
-        try {
-            for (const holding of holdings) {
-                await updateHoldingPrice(holding.id);
+            const allQuotesVerified = holdings.every((holding) => {
+                const check = quoteChecks[holding.id];
+                return check?.success && check.userId === session?.user.id &&
+                    check.valueKey === quoteValuationKey(holding) && now - check.checkedAt <= VERIFIED_QUOTE_MAX_AGE;
+            });
+            if (pricesAreFresh && !forceUpdate && allQuotesVerified) {
+                console.log("Kurserna är fortfarande färska");
+                return;
             }
 
-        if (forceUpdate) {
-            setLysaQuoteCheck({ success: false, checkedAt: null });
+            // Start the asynchronous refresh after the current render/effect has completed.
+            await Promise.resolve();
+            setRefreshDisplay({ userId, value: displayedValueRef.current?.userId === userId ? displayedValueRef.current.value : null });
+            setPriceUpdatesInProgress((count) => count + 1);
+            const loadQuote = createVerifiedQuoteBatch(userId, quoteProviders);
+            let published = false;
             try {
-                const lysaPrices =
-                    await getLysaFundPrices();
-
-                setLysaFundPrices(lysaPrices);
-                setLysaQuoteCheck({ success: true, checkedAt: Date.now() });
-            } catch (error) {
-                setLysaQuoteCheck({ success: false, checkedAt: Date.now() });
-                console.error(
-                    "Lysa-kurserna kunde inte uppdateras:",
-                    error
-                );
+                const lysaRefresh = forceUpdate ? getLysaFundPrices().then(
+                    (prices) => ({ prices, success: true, checkedAt: Date.now() }),
+                    () => ({ prices: null, success: false, checkedAt: Date.now() })
+                ) : Promise.resolve(null);
+                await runAtomicQuoteRefresh({
+                    holdings,
+                    isCurrent: () => activeUser.current === userId,
+                    refresh: async (holding) => {
+                        let diagnostics = [];
+                        const result = await performHoldingPriceUpdate(holding.id, loadQuote,
+                            (value) => { diagnostics = value; }, true);
+                        return { ...result, diagnostics };
+                    },
+                    commit: async (results) => {
+                        const lysaResult = await lysaRefresh;
+                        if (activeUser.current !== userId) return;
+                        // React batches these synchronous state updates into one publication.
+                        setHoldings((current) => mergeQuoteRefresh(current, results, userId).holdings);
+                        const checks = mergeQuoteRefresh(holdings, results, userId).checks;
+                        setQuoteChecks((current) => ({ ...current, ...checks }));
+                        if (lysaResult) {
+                            if (lysaResult.prices) setLysaFundPrices(lysaResult.prices);
+                            setLysaQuoteCheck({ success: lysaResult.success, checkedAt: lysaResult.checkedAt });
+                        }
+                        setPriceUpdatesInProgress((count) => count - 1);
+                        published = true;
+                    },
+                });
+            localStorage.setItem(
+                "lastPriceUpdate",
+                String(now)
+            );
+            } finally {
+                if (!published) setPriceUpdatesInProgress((count) => count - 1);
             }
-        }
-
-        localStorage.setItem(
-            "lastPriceUpdate",
-            String(now)
-        );
-        } finally {
-            setPriceUpdatesInProgress((count) => count - 1);
-        }
+        });
     };
 
 
@@ -707,16 +617,13 @@ function App() {
     });
 
 
-    const [holdings, setHoldings] = useState([]);
-    const [holdingsLoading, setHoldingsLoading] = useState(true);
-    const [holdingsLoadedUser, setHoldingsLoadedUser] = useState(null);
-    const [lysaLoadedUser, setLysaLoadedUser] = useState(null);
 
     useEffect(() => {
-        if (!session) {
+        if (!userId) {
             return;
         }
 
+        let cancelled = false;
         const loadHoldings = async () => {
             setHoldingsLoading(true);
             setHoldingsLoadedUser(null);
@@ -737,6 +644,7 @@ function App() {
             const accountCache = new Map();
 
             for (const holding of data) {
+                if (cancelled) return;
                 let workingHolding = holding;
 
                 if (!workingHolding.accountId && workingHolding.platform) {
@@ -874,13 +782,15 @@ function App() {
                 repairedHoldings.push(savedHolding);
             }
 
+            if (cancelled) return;
             setHoldings(repairedHoldings);
-            setHoldingsLoadedUser(session.user.id);
+            setHoldingsLoadedUser(userId);
             setHoldingsLoading(false);
         };
 
         void loadHoldings();
-    }, [session]);
+        return () => { cancelled = true; };
+    }, [userId]);
 
 
     const [lysaTransactions, setLysaTransactions] = useState([]);
@@ -1110,10 +1020,11 @@ function App() {
 
     useEffect(() => {
         if (!session) {
-            setLysaTransactions([]);
-            setLysaPerformance([]);
-            setLysaDataLoading(false);
-            return;
+            let cancelled = false;
+            queueMicrotask(() => {
+                if (!cancelled) { setLysaTransactions([]); setLysaPerformance([]); setLysaDataLoading(false); }
+            });
+            return () => { cancelled = true; };
         }
 
         const loadLysaData = async () => {
@@ -1285,15 +1196,19 @@ function App() {
     };
 
     useEffect(() => {
+        if (!userId) return;
+        let cancelled = false;
         const loadLysaFundPrices = async () => {
             try {
                 const prices =
                     await getLysaFundPrices();
 
+                if (cancelled) return;
                 setLysaFundPrices(prices);
                 setLysaQuoteCheck({ success: true, checkedAt: Date.now() });
 
             } catch (error) {
+                if (cancelled) return;
                 setLysaQuoteCheck({ success: false, checkedAt: Date.now() });
                 console.error(
                     "Kunde inte uppdatera Lysa:",
@@ -1303,7 +1218,8 @@ function App() {
         };
 
        void loadLysaFundPrices();
-    }, []);
+       return () => { cancelled = true; };
+    }, [userId]);
 
     const lysaFundVolumes =
         calculateLysaFundVolumes(lysaTransactions);
@@ -1332,6 +1248,7 @@ function App() {
                 currency: "SEK",
                 isin,
                 currentPrice,
+                quoteStale: lysaQuoteCheck.checkedAt != null && !lysaQuoteCheck.success,
                 currentValueSek:
                     currentPrice
                         ? volume * currentPrice
@@ -1545,9 +1462,11 @@ function App() {
             return;
         }
 
+        let cancelled = false;
         queueMicrotask(() => {
-            void updateAllHoldingPrices(false, Date.now());
+            if (!cancelled) void updateAllHoldingPrices(false, Date.now());
         });
+        return () => { cancelled = true; };
 
         // Kör när holdings har laddats från Supabase.
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1624,6 +1543,11 @@ function App() {
         }])) },
     };
     const portfolioHistory = usePortfolioHistory(session?.user.id, portfolioValue, historyReady, valuationInputs);
+    const valuesLoading = holdingsLoadedUser !== userId || lysaLoadedUser !== userId || holdingsLoading || lysaDataLoading || !manualAssets.ready || lysaHoldings.some((holding) => holding.currentPrice == null);
+    const savedPortfolioValue = portfolioHistory.points.at(-1)?.valueSek ?? null;
+    const displayedPortfolioValue = portfolioDisplayValue({ currentValue: portfolioValue, savedValue: savedPortfolioValue,
+        valuesLoading, updating: priceUpdatesInProgress > 0, refreshDisplay, userId });
+    useEffect(() => { displayedValueRef.current = { userId, value: displayedPortfolioValue }; }, [userId, displayedPortfolioValue]);
 
     useEffect(() => {
         const snapshots = getPortfolioSnapshots();
@@ -1638,7 +1562,6 @@ function App() {
             24 * 60 * 60 * 1000;
 
         const shouldCreateSnapshot =
-            // eslint-disable-next-line react-hooks/purity
             Date.now() - lastCreatedAt >= twentyFourHours;
 
         if (!shouldCreateSnapshot) {
@@ -1664,14 +1587,7 @@ function App() {
         resolvedMatches,
     ]);
 
-    if (
-        authLoading ||
-        (session &&
-            (
-                holdingsLoading ||
-                lysaDataLoading
-            ))
-    ) {
+    if (authLoading) {
         return <div>Laddar...</div>;
     }
 
@@ -1699,11 +1615,14 @@ function App() {
                         portfolioHistory={portfolioHistory}
                         historyReady={historyReady}
                         dailyHoldings={holdingsForDisplay}
+                        updatingPrices={priceUpdatesInProgress > 0}
+                        valuesLoading={valuesLoading}
+                        transactions={transactions}
                         assets={assets}
                         manualAssets={manualAssets}
                         userEmail={session.user.email}
                         holdings={holdings}
-                        portfolioValue={portfolioValue}
+                        portfolioValue={displayedPortfolioValue}
                         lysaValue={lysaValue}
                         importHoldings={importHoldings}
                         groupedHoldings={groupedHoldings}

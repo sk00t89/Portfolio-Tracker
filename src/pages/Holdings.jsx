@@ -539,6 +539,7 @@ function Holdings({
                                                     </span>
                                                     <span>
                                                         Senast:
+                                                        {position.quoteStale && <small className="muted"> Inaktuell kurs · </small>}
                                                         <strong>
                                                             {position.currentPrice != null
                                                                 ? formatCurrency(

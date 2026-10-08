@@ -485,6 +485,9 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
+.summary-card { gap: 24px; flex-wrap: wrap; }
+.summary-change small { max-width: 260px; text-align: right; }
+
 .summary-change {
   display: flex;
   flex-direction: column;

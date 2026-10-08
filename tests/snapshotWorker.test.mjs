@@ -62,7 +62,8 @@ test("fund NAV provider verifies Nordnet fundlist identity and keeps the real so
         return { ok: true, json: async () => ({ results: [{ instrument_info: { instrument_id: 123, isin: "LU-FIXTURE", currency: "SEK" }, price_info: { last: { price: 10 }, tick_timestamp: now / 1000 } }] }) };
     } });
     const quote = await provider.fund(mutualFund, now);
-    assert.deepEqual(quote, { price: 10, currency: "SEK", timestamp: now / 1000, date: "2026-10-05", kind: "published_nav", provider: "Nordnet", attemptedProviders: ["Nordnet"] });
+    assert.deepEqual(quote, { price: 10, currency: "SEK", timestamp: now / 1000, isin: "LU-FIXTURE", instrumentId: 123,
+        date: "2026-10-05", kind: "published_nav", provider: "Nordnet", attemptedProviders: ["Nordnet"] });
     await provider.fund(mutualFund, now);
     assert.equal(calls, 1);
 });

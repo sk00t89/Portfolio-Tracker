@@ -12,11 +12,16 @@ function validQuote(quote, now) {
     const price = typeof raw === "string" ? Number(raw.replace(/\s/g, "").replace(",", ".")) : Number(raw);
     if (raw == null || !Number.isFinite(price) || price <= 0) throw new Error("Missing/invalid fund NAV");
     if (!/^[A-Z]{3}$/.test(quote.currency ?? "")) throw new Error("Missing/invalid fund NAV currency");
+    const sourceDate = quote.date ?? quote.timestamp;
+    if (typeof sourceDate === "string" && !/^\d{4}-\d{2}-\d{2}$/.test(sourceDate) &&
+        !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(sourceDate)) {
+        throw new Error("Invalid fund NAV source date format");
+    }
     const date = checkPublishedDate(quote.date ?? quote.timestamp, now, 7, "fund NAV");
     return { ...quote, price, date, kind: "published_nav" };
 }
 
-export function createFundNavProvider({ request, once, clock }) {
+export function createFundNavProvider({ request, once, clock, onAttempt = () => {} }) {
     async function nordnet(ownId, isin, request) {
         const headers = { "Client-Id": "NEXT", Referer: "https://www.nordnet.se/", "X-Nn-Href": "https://www.nordnet.se/" };
         let id = ownId;
@@ -31,7 +36,8 @@ export function createFundNavProvider({ request, once, clock }) {
         const info = fund?.instrument_info;
         if (!info || (isin && normalized(info.isin) !== isin)) throw new Error("Unverified mutual fund identity");
         requireFundType(fund.instrument_type, fund.instrument_class, info.instrument_type);
-        return { price: fund.price_info?.last?.price, currency: info.currency, timestamp: fund.price_info?.tick_timestamp };
+        return { price: fund.price_info?.last?.price, currency: info.currency, timestamp: fund.price_info?.tick_timestamp,
+            isin: info.isin, instrumentId: info.instrument_id };
     }
     async function avanza(ownId, isin, now, request) {
         const headers = { Referer: "https://www.avanza.se/" };
@@ -55,9 +61,14 @@ export function createFundNavProvider({ request, once, clock }) {
                     if ((returnedId != null && String(returnedId) !== String(id)) || (isin ? normalized(data.isin) !== isin : returnedId == null)) throw new Error("Unverified Avanza fund identity");
                     requireFundType(data.type, data.instrumentType, data.orderbookType);
                     const nav = data.nav;
-                    const quote = { price: data.quote?.last ?? (typeof nav === "object" ? nav?.value : nav),
+                    const sourceDate = data.navDate ?? nav?.date;
+                    // Avanza's NAV publication date can be serialized at midnight without a timezone.
+                    // It denotes a calendar date, not a tradable quote instant or the time of our check.
+                    const publicationDate = typeof sourceDate === "string" && /^\d{4}-\d{2}-\d{2}T00:00:00(?:\.0+)?$/.test(sourceDate)
+                        ? sourceDate.slice(0, 10) : sourceDate;
+                    const quote = { isin: data.isin, instrumentId: returnedId ?? id, price: data.quote?.last ?? (typeof nav === "object" ? nav?.value : nav),
                         currency: data.quote?.currency ?? nav?.currency ?? data.navCurrency ?? data.currency,
-                        timestamp: data.navDate ?? nav?.date ?? data.quote?.timestamp };
+                        timestamp: publicationDate ?? data.quote?.timestamp };
                     return validQuote(quote, now);
                 } catch (error) { lastError = error; }
             }
@@ -87,8 +98,15 @@ export function createFundNavProvider({ request, once, clock }) {
                 attemptedProviders.push(target);
                 try {
                     const raw = target === "Avanza" ? await avanza(ownId, isin, observedAt, fundRequest) : await nordnet(ownId, isin, fundRequest);
-                    return { ...validQuote(raw, observedAt), provider: target, attemptedProviders: [...attemptedProviders] };
-                } catch (error) { attempts.push({ provider: target, reason: error.message }); }
+                    const quote = validQuote(raw, observedAt);
+                    onAttempt({ provider: target, stage: "published-nav", outcome: "accepted" });
+                    return { ...quote, provider: target, attemptedProviders: [...attemptedProviders] };
+                } catch (error) {
+                    attempts.push({ provider: target, reason: error.message });
+                    onAttempt({ provider: target, stage: "published-nav", outcome: "rejected",
+                        reasonCode: /Unverified|identity/.test(error.message) ? "NAV_IDENTITY_UNVERIFIED" : /Stale|date/.test(error.message) ? "NAV_SOURCE_DATE_INVALID" : "NAV_PROVIDER_UNAVAILABLE",
+                        ...(error.diagnostics?.httpStatus ? { httpStatus: error.diagnostics.httpStatus } : {}) });
+                }
             }
             const error = new Error(attempts.length ? "Fund NAV unavailable from attempted providers" : "Missing verified fund identifier");
             error.diagnostics = { code: "FUND_NAV_UNAVAILABLE", provider: holding.provider ?? null, sourceProvider: provider,

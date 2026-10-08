@@ -128,7 +128,8 @@ function AddHoldingForm({importHoldings}) {
             averagePriceSek,
             currentPrice: selectedInstrument.price,
             currentValueSek,
-            priceUpdatedAt: Date.now(),
+            // Search prices have no verified source time; a quote refresh must verify them.
+            priceUpdatedAt: null,
             instrumentId: selectedInstrument.instrumentId,
             provider: selectedInstrument.provider,
             market: selectedInstrument.market,

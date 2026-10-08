@@ -18,6 +18,7 @@ import useDisplayCurrency from "../hooks/useDisplayCurrency.js";
 import ManualAssetsStatus from "../components/ManualAssetsStatus.jsx";
 import MarketStatus from "../components/MarketStatus.jsx";
 import useMarketStatus from "../hooks/useMarketStatus.js";
+import { calculatePortfolioDailyChange } from "../utils/portfolioDailyChange.js";
 
 
 
@@ -34,9 +35,14 @@ function Dashboard({
     portfolioHistory,
     historyReady,
     dailyHoldings,
+    updatingPrices,
+    valuesLoading,
+    transactions,
 }) {
     const { currency, setCurrency, formatMoney, rate, error } = useDisplayCurrency();
-    const marketStatus = useMarketStatus();
+    const marketStatus = useMarketStatus(dailyHoldings);
+    const dailyChange = calculatePortfolioDailyChange({ holdings: dailyHoldings, manualAssets: assets,
+        transactions, lysaTransactions }, marketStatus.now);
     const lysaInvestedCapital =
         calculateLysaDeposits(lysaTransactions);
 
@@ -82,12 +88,16 @@ function Dashboard({
                 formatMoney={formatMoney}
                 portfolioValue={portfolioValue}
                 investedCapital={investedCapital}
+                dailyChange={dailyChange}
+                updatingPrices={updatingPrices}
+                valuesLoading={valuesLoading}
             />
 
             <PortfolioHistoryChart history={portfolioHistory} formatMoney={formatMoney} currency={currency} />
             <MarketStatus markets={marketStatus.markets} />
             {!historyReady && <p className="history-readiness" role="status">Historik sparas när portföljens värden är färdigladdade och kompletta.</p>}
             {historyReady && portfolioHistory.freshnessReason && <p className="history-readiness" role="status">Historik pausad: {portfolioHistory.freshnessReason} Uppdatera kurserna under Inställningar.</p>}
+            {!valuesLoading && <>
             <DailyMovers holdings={dailyHoldings} formatMoney={formatMoney} currency={currency} now={marketStatus.now} />
 
             <AssetList
@@ -124,6 +134,7 @@ function Dashboard({
             <AddHoldingForm
                 importHoldings={importHoldings}
             />
+            </>}
         </div>
     );
 }

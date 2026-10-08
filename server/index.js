@@ -1,3 +1,4 @@
+import { createMarketQuoteMiddleware } from "./marketQuoteMiddleware.js";
 import express from "express";
 import dotenv from "dotenv";
 
@@ -8,8 +9,13 @@ const PORT = 3001;
 
 app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+    res.setHeader("Access-Control-Allow-Headers", "authorization, apikey, content-type");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    if (req.method === "OPTIONS") return res.status(204).end();
     next();
 });
+
+app.use(createMarketQuoteMiddleware());
 
 // EODHD ...
 app.get("/api/search/:query", async (req, res) => {
@@ -106,47 +112,6 @@ app.get("/api/currency/:from/:to", async (req, res) => {
 
 // YAHOO ...
 
-app.get("/api/yahoo-price/:symbol", async (req, res) => {
-    const symbol = req.params.symbol;
-
-    try {
-        const url =
-            `https://query1.finance.yahoo.com/v8/finance/chart/` +
-            `${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            throw new Error("Kunde inte hämta Yahoo-kurs");
-        }
-
-        const data = await response.json();
-
-        const result = data.chart?.result?.[0];
-
-        if (!result) {
-            throw new Error("Yahoo returnerade inget instrument");
-        }
-
-        res.json({
-            symbol,
-            price: result.meta?.regularMarketPrice ?? null,
-            previousClose: result.meta?.chartPreviousClose ?? null,
-            timestamp: result.meta?.regularMarketTime ?? null,
-            currency: result.meta?.currency ?? null,
-            exchangeName: result.meta?.exchangeName ?? null,
-        });
-    } catch (error) {
-        console.error("Yahoo price error:", error);
-
-        res.status(500).json({
-            error: "Kunde inte hämta Yahoo-kurs",
-        });
-    }
-});
-
-// NORDNET ...
-
 app.get("/api/fund-price/:instrumentId", async (req, res) => {
     const {instrumentId} = req.params;
 
@@ -193,54 +158,6 @@ app.get("/api/fund-price/:instrumentId", async (req, res) => {
 });
 
 
-app.get("/api/nordnet-price/:instrumentId", async (req, res) => {
-    const {instrumentId} = req.params;
-
-    try {
-        const url =
-            `https://www.nordnet.se/api/2/instruments/price/${instrumentId}` +
-            `?request_realtime=false`;
-
-        const response = await fetch(url, {
-            headers: {
-                Accept: "application/json",
-                "Client-Id": "NEXT",
-                Referer: "https://www.nordnet.se/",
-                "X-Nn-Href": "https://www.nordnet.se/",
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error("Kunde inte hämta Nordnet-kurs");
-        }
-
-        const data = await response.json();
-
-        const priceData = data[0];
-
-        if (!priceData) {
-            throw new Error("Ingen kursdata hittades");
-        }
-
-        res.json({
-            instrumentId: priceData.instrument_id,
-            price: priceData.last ?? null,
-            bid: priceData.bid ?? null,
-            ask: priceData.ask ?? null,
-            previousClose: priceData.close ?? null,
-            timestamp: priceData.tick_timestamp ?? null,
-            delay: priceData.delay ?? null,
-        });
-
-    } catch (error) {
-        console.error("Nordnet price error:", error);
-
-        res.status(500).json({
-            error: "Kunde inte hämta Nordnet-kurs",
-        });
-    }
-});
-
 app.get("/api/nordnet-instrument/:instrumentId", async (req, res) => {
     const {instrumentId} = req.params;
 
@@ -273,7 +190,7 @@ app.get("/api/nordnet-instrument/:instrumentId", async (req, res) => {
             instrumentId:
                 instrument.instrument_info?.instrument_id ??
                 instrument.instrument_id ??
-                instrumentId,
+                null,
             name:
                 instrument.instrument_info?.name ??
                 instrument.name ??
@@ -314,55 +231,6 @@ app.get("/api/nordnet-instrument/:instrumentId", async (req, res) => {
 
         res.status(500).json({
             error: "Kunde inte hämta Nordnet-instrument",
-        });
-    }
-});
-
-app.get("/api/nordnet-search/:isin", async (req, res) => {
-    const {isin} = req.params;
-
-    try {
-        const url =
-            `https://www.nordnet.se/api/2/instrument_search/query/instrument` +
-            `?apply_filters=isin%3D${encodeURIComponent(isin)}`;
-
-        const response = await fetch(url, {
-            headers: {
-                Accept: "application/json",
-                "Client-Id": "NEXT",
-                Referer: "https://www.nordnet.se/",
-                "X-Nn-Href": "https://www.nordnet.se/",
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error("Kunde inte söka instrument hos Nordnet");
-        }
-
-        const data = await response.json();
-
-        const instrument = data.results?.[0];
-
-        if (!instrument) {
-            throw new Error("Inget instrument hittades");
-        }
-
-        res.json({
-            instrumentId: instrument.instrument_info.instrument_id,
-            name: instrument.instrument_info.name,
-            isin: instrument.instrument_info.isin,
-            currency: instrument.instrument_info.currency,
-            price: instrument.price_info?.last?.price ?? null,
-            previousClose: instrument.price_info?.close?.price ?? null,
-            timestamp: instrument.price_info?.tick_timestamp ?? null,
-            realtime: instrument.price_info?.realtime ?? false,
-        });
-
-    } catch (error) {
-        console.error("Nordnet search error:", error);
-
-        res.status(500).json({
-            error: "Kunde inte söka instrument hos Nordnet",
         });
     }
 });
@@ -475,74 +343,6 @@ app.get("/api/nordnet-search-query/:query", async (req, res) => {
 // AVANZA ...
 
 
-
-app.get("/api/avanza-search/:isin", async (req, res) => {
-    const {isin} = req.params;
-
-    try {
-        const response = await fetch(
-            "https://www.avanza.se/_api/search/filtered-search",
-            {
-                method: "POST",
-                headers: {
-                    Accept: "application/json",
-                    "Content-Type": "application/json",
-                    Referer: "https://www.avanza.se/",
-                },
-                body: JSON.stringify({
-                    query: isin,
-                    searchFilter: {
-                        types: [],
-                    },
-                    screenSize: "DESKTOP",
-                    pagination: {
-                        from: 0,
-                        size: 30,
-                    },
-                    originPath: "/",
-                    originPlatform: "PWA",
-                    searchSessionId: crypto.randomUUID(),
-                }),
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error("Kunde inte söka instrument hos Avanza");
-        }
-
-        const data = await response.json();
-
-        const hit = data.hits?.[0];
-
-        if (!hit) {
-            throw new Error("Inget instrument hittades hos Avanza");
-        }
-
-        const price =
-            hit.price?.last
-                ? Number(
-                    hit.price.last
-                        .replace(/\s/g, "")
-                        .replace(",", ".")
-                )
-                : null;
-
-        res.json({
-            name: hit.title,
-            type: hit.type,
-            orderBookId: hit.orderBookId,
-            price,
-            currency: hit.price?.currency ?? null,
-        });
-
-    } catch (error) {
-        console.error("Avanza search error:", error);
-
-        res.status(500).json({
-            error: "Kunde inte söka instrument hos Avanza",
-        });
-    }
-});
 
 app.get("/api/avanza-search-query/:query", async (req, res) => {
     const {query} = req.params;
@@ -662,56 +462,6 @@ app.get("/api/avanza-search-query/:query", async (req, res) => {
     }
 });
 
-app.get("/api/avanza-price/:instrumentId", async (req, res) => {
-    const {instrumentId} = req.params;
-
-    try {
-        const response = await fetch(
-            `https://www.avanza.se/_api/market-guide/stock/${encodeURIComponent(instrumentId)}`,
-            {
-                headers: {
-                    Accept: "application/json",
-                    Referer: "https://www.avanza.se/",
-                },
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error("Kunde inte hämta Avanza-kurs");
-        }
-
-        const data = await response.json();
-
-        res.json({
-            instrumentId,
-            price:
-                data.quote?.last ??
-                null,
-            previousClose:
-                data.quote?.previousClose ??
-                null,
-            currency:
-                data.quote?.currency ??
-                data.currency ??
-                null,
-            // Missing source time must not make an old quote appear freshly priced.
-            timestamp: data.quote?.timestamp ?? null,
-        });
-
-    } catch (error) {
-        console.error(
-            "Avanza price error:",
-            error
-        );
-
-        res.status(500).json({
-            error: "Kunde inte hämta Avanza-kurs",
-        });
-    }
-});
-
-// CRYPTO ...
-
 app.get("/api/crypto-search/:query", async (req, res) => {
     const {query} = req.params;
 
@@ -762,7 +512,7 @@ app.get("/api/crypto-price/:coinId", async (req, res) => {
         const response = await fetch(
             `https://api.coingecko.com/api/v3/simple/price` +
             `?ids=${encodeURIComponent(coinId)}` +
-            `&vs_currencies=sek`,
+            `&vs_currencies=sek&include_last_updated_at=true`,
             {
                 headers: {
                     Accept: "application/json",
@@ -785,6 +535,7 @@ app.get("/api/crypto-price/:coinId", async (req, res) => {
 
         res.json({
             coinId,
+            timestamp: data[coinId]?.last_updated_at ?? null,
             price,
             currency: "SEK",
         });

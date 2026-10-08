@@ -3,16 +3,18 @@ import assert from "node:assert/strict";
 import { calculateDailyMovers, availableHistoryPeriods, createValueSeries, stockholmDate, quoteDate } from "../src/utils/dashboardHistory.js";
 
 const today = "2026-10-04";
+const dailyNow = Date.parse("2026-10-08T12:00:00Z");
+const dailyMovers = (holdings) => calculateDailyMovers(holdings, dailyNow);
 const position = (overrides = {}) => ({ name: "Investor B", isin: "SE000INVESTOR",
-    quantity: 100, currentPrice: 110, previousClose: 100, currentValueSek: 11000,
-    priceUpdatedAt: Date.parse(`${today}T12:00:00Z`), ...overrides });
+    assetType: "STOCK", market: "XSTO", quantity: 100, currentPrice: 110, previousClose: 100, currentValueSek: 11000,
+    priceUpdatedAt: dailyNow, ...overrides });
 
 test("SEK impact outranks percentage and combines all accounts", () => {
-    const result = calculateDailyMovers([
+    const result = dailyMovers([
         position({ currentValueSek: 88000, platform: "Avanza" }),
         position({ currentValueSek: 88000, platform: "Nordnet" }),
         position({ name: "AVAX", isin: "AVAX", currentPrice: 150, previousClose: 100, currentValueSek: 6000 }),
-    ], today);
+    ]);
     assert.equal(result.best[0].name, "Investor B");
     assert.equal(result.best[0].changeSek, 16000);
     assert.ok(Math.abs(result.best[0].changePercent - 10) < 1e-9);
@@ -22,14 +24,14 @@ test("SEK impact outranks percentage and combines all accounts", () => {
 });
 
 test("percentage is weighted by previous SEK value", () => {
-    const result = calculateDailyMovers([position(), position({ currentPrice: 120, currentValueSek: 24000 })], today);
+    const result = dailyMovers([position(), position({ currentPrice: 120, currentValueSek: 24000 })]);
     assert.ok(Math.abs(result.best[0].changePercent - 100 / 6) < 1e-9);
     assert.equal(result.best[0].changeSek, 5000);
 });
 
 test("worst is sorted by negative SEK contribution", () => {
-    const result = calculateDailyMovers([position({ isin: "A", currentPrice: 90, currentValueSek: 9000 }),
-        position({ isin: "B", currentPrice: 50, currentValueSek: 500 })], today);
+    const result = dailyMovers([position({ isin: "A", currentPrice: 90, currentValueSek: 9000 }),
+        position({ isin: "B", currentPrice: 50, currentValueSek: 500 })]);
     assert.deepEqual(result.worst.map((item) => item.changeSek), [-1000, -500]);
     assert.equal(result.best.length, 0);
 });
@@ -37,24 +39,24 @@ test("worst is sorted by negative SEK contribution", () => {
 test("missing or stale quotes exclude the whole instrument", () => {
     for (const invalid of [{ previousClose: null }, { previousClose: 0 }, { currentValueSek: null },
         { priceUpdatedAt: Date.parse("2026-10-03T12:00:00Z") }, { quantity: 0 }]) {
-        const result = calculateDailyMovers([position(), position(invalid)], today);
+        const result = dailyMovers([position(), position(invalid)]);
         assert.equal(result.best.length, 0);
         assert.equal(result.excluded, 1);
     }
 });
 
 test("case and whitespace identifiers group across platforms", () => {
-    const result = calculateDailyMovers([position({ isin: "abc" }), position({ isin: " ABC " })], today);
+    const result = dailyMovers([position({ isin: "abc" }), position({ isin: " ABC " })]);
     assert.equal(result.best.length, 1);
 });
 
 test("a missing ISIN bridges through a unique ticker, without merging conflicting ISINs", () => {
-    const result = calculateDailyMovers([position({ ticker: "INVE-B" }),
-        position({ isin: null, ticker: "inve-b" })], today);
+    const result = dailyMovers([position({ ticker: "INVE-B" }),
+        position({ isin: null, ticker: "inve-b" })]);
     assert.equal(result.best.length, 1);
     assert.equal(result.best[0].positions.length, 2);
-    const ambiguous = calculateDailyMovers([position({ isin: "A", ticker: "SAME" }),
-        position({ isin: "B", ticker: "SAME" }), position({ isin: null, ticker: "SAME" })], today);
+    const ambiguous = dailyMovers([position({ isin: "A", ticker: "SAME" }),
+        position({ isin: "B", ticker: "SAME" }), position({ isin: null, ticker: "SAME" })]);
     assert.equal(ambiguous.best.length, 3);
 });
 

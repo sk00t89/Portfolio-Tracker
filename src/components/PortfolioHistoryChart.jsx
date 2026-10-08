@@ -37,7 +37,9 @@ export default function PortfolioHistoryChart({ history, formatMoney, currency }
             </div>
             {history.error && <p role="alert">{history.error}</p>}
             {history.loading ? <p role="status">Laddar historik…</p> : points.length < 2 ?
-                <p>Grafen visas när värden finns för minst två olika dagar. Längre perioder visas när historiken täcker dem.</p> : <>
+                <p>Grafen visas när värden finns för minst två olika dagar. Längre perioder visas när historiken täcker dem.
+                    {history.points.length === 1 && ` Senast sparat: ${formatMoney(history.points[0].valueSek)} (${history.points[0].date}).`}
+                </p> : <>
                     <div className="history-detail" aria-live="polite">
                         <strong>{formatMoney(active.value)}</strong><span className="muted">{active.date}</span>
                         <span className="muted">Faktisk start {first.date}</span>

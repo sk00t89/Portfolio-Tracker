@@ -7,7 +7,8 @@ const now = Date.parse("2026-10-04T12:00:00Z");
 const minute = 60_000;
 function valuation(overrides = {}, checkOverrides = {}) {
     const holding = { id: "h1", name: "Investor", assetType: "STOCK", platform: "Avanza", currency: "SEK",
-        quantity: 10, currentPrice: 100, currentValueSek: 1000, priceUpdatedAt: now, ...overrides };
+        market: "XSTO", quantity: 10, currentPrice: 100, currentValueSek: 1000,
+        priceUpdatedAt: Date.parse("2026-10-02T15:30:00Z"), ...overrides };
     return { userId: "user1", holdings: [holding], checks: { h1: {
         userId: "user1", success: true, checkedAt: now, valueKey: quoteValuationKey(holding), ...checkOverrides,
     } } };
@@ -26,14 +27,15 @@ test("a failed latest refresh blocks history even when the old price is fresh", 
     assert.equal(validateValuationFreshness(valuation({}, { success: false, checkedAt: now }), now).ready, false);
 });
 
-test("stock prices allow four Stockholm calendar days, not five", () => {
-    assert.equal(validateValuationFreshness(valuation({ priceUpdatedAt: "2026-09-30T08:00:00Z" }), now).ready, true);
-    assert.equal(validateValuationFreshness(valuation({ priceUpdatedAt: "2026-09-29T23:00:00Z" }), now).ready, true);
-    assert.equal(validateValuationFreshness(valuation({ priceUpdatedAt: "2026-09-29T08:00:00Z" }), now).ready, false);
+test("stocks require the latest actual session, not an arbitrary four-day allowance", () => {
+    assert.equal(validateValuationFreshness(valuation(), now).ready, true);
+    for (const priceUpdatedAt of ["2026-10-01T15:30:00Z", "2026-10-02T08:00:00Z", "2026-10-04T10:00:00Z"]) {
+        assert.equal(validateValuationFreshness(valuation({ priceUpdatedAt }), now).ready, false);
+    }
 });
 
 test("fund and Lysa prices allow seven calendar days, not eight", () => {
-    for (const identity of [{ assetType: "FUND" }, { platform: "Lysa" }]) {
+    for (const identity of [{ assetType: "FUND", market: null }, { platform: "Lysa" }]) {
         assert.equal(validateValuationFreshness(valuation({ ...identity, priceUpdatedAt: "2026-09-27" }), now).ready, true);
         assert.equal(validateValuationFreshness(valuation({ ...identity, priceUpdatedAt: "2026-09-26" }), now).ready, false);
     }
@@ -41,15 +43,16 @@ test("fund and Lysa prices allow seven calendar days, not eight", () => {
 
 test("today's date-only NAV is valid before noon, but tomorrow's NAV is not", () => {
     const morning = Date.parse("2026-10-04T07:00:00Z");
-    assert.equal(validateValuationFreshness(valuation({ assetType: "FUND", priceUpdatedAt: "2026-10-04" }, { checkedAt: morning }), morning).ready, true);
-    assert.equal(validateValuationFreshness(valuation({ assetType: "FUND", priceUpdatedAt: "2026-10-05" }, { checkedAt: morning }), morning).ready, false);
+    assert.equal(validateValuationFreshness(valuation({ assetType: "FUND", market: null, priceUpdatedAt: "2026-10-04" }, { checkedAt: morning }), morning).ready, true);
+    assert.equal(validateValuationFreshness(valuation({ assetType: "FUND", market: null, priceUpdatedAt: "2026-10-05" }, { checkedAt: morning }), morning).ready, false);
     assert.equal(validateValuationFreshness(valuation({ assetType: "CRYPTO", priceUpdatedAt: "2026-10-04" }), now).ready, false);
 });
 
 test("direct crypto expires at thirty minutes; listed crypto ETP follows stock rule", () => {
     assert.equal(validateValuationFreshness(valuation({ assetType: "CRYPTO", priceUpdatedAt: now - 30 * minute }), now).ready, true);
     assert.equal(validateValuationFreshness(valuation({ assetType: "CRYPTO", priceUpdatedAt: now - 30 * minute - 1 }), now).ready, false);
-    assert.equal(validateValuationFreshness(valuation({ assetType: "CRYPTO", isin: "SEETP", priceUpdatedAt: "2026-10-02" }), now).ready, true);
+    assert.equal(validateValuationFreshness(valuation({ assetType: "CRYPTO", isin: "SEETP" }), now).ready, true);
+    assert.equal(validateValuationFreshness(valuation({ assetType: "CRYPTO", isin: "SEETP", priceUpdatedAt: "2026-10-02" }), now).ready, false);
 });
 
 test("missing, invalid, future timestamps and imported reserve values are blocked", () => {
@@ -71,7 +74,7 @@ test("quote timestamps parse seconds, milliseconds, ISO and NAV dates without fe
     assert.equal(normalizeQuoteTimestamp(now / 1000), now);
     assert.equal(normalizeQuoteTimestamp(now), now);
     assert.equal(normalizeQuoteTimestamp("2026-10-04T12:00:00Z"), now);
-    assert.equal(normalizeQuoteTimestamp("2026-10-04"), now);
+    assert.equal(normalizeQuoteTimestamp("2026-10-04"), Date.parse("2026-10-03T22:00:00Z"));
     for (const value of [null, "", "bad", 0]) assert.equal(normalizeQuoteTimestamp(value), null);
 });
 

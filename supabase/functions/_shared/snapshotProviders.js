@@ -3,6 +3,7 @@ import { cryptoCoinIds, lysaFundIsins } from "./instrumentCatalog.js";
 import { createFundNavProvider } from "./fundNavProviders.js";
 import { createListedProductProvider, isListedProduct } from "./listedProductProviders.js";
 import { providerHttpError } from "./providerDiagnostics.js";
+import { normalizeYahooSymbol } from "./yahooSymbol.js";
 
 // These maps are bundled into the function; no client API keys are used.
 export function createSnapshotProviders({ fetcher = fetch, coinGeckoKey = "", clock = Date.now, budgetMs = 65000 } = {}) {
@@ -25,13 +26,7 @@ export function createSnapshotProviders({ fetcher = fetch, coinGeckoKey = "", cl
         return cache.get(key);
     }
     function yahooClose(holding, session, verifyIsin = false, request = get) {
-        const raw = holding.ticker.replaceAll(" ", "-");
-        // A single-letter class suffix uses '-' at Yahoo; exchange suffixes stay intact.
-        // Normalize only the outgoing symbol, never the saved holding ticker.
-        const stockholm = session.market === "STOCKHOLM";
-        const base = stockholm && /\.ST$/i.test(raw) ? raw.slice(0, -3) : raw;
-        const classSymbol = base.replace(/^([A-Z0-9-]+)\.([A-Z])$/i, "$1-$2");
-        const symbol = stockholm ? `${classSymbol}.ST` : classSymbol;
+        const symbol = normalizeYahooSymbol(holding.ticker, session.market);
         return once(`close:${symbol}:${session.date}:${verifyIsin ? holding.isin : "listing"}`, async () => {
             const start = Math.floor(Date.parse(`${session.date}T00:00:00Z`) / 1000);
             const end = Math.floor(Date.parse(`${addCalendarDays(session.date, 2)}T00:00:00Z`) / 1000);

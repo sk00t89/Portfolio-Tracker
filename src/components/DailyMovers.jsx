@@ -1,10 +1,9 @@
 import { calculateDailyMovers } from "../utils/dashboardHistory.js";
 import { formatSek } from "../utils/formatting.js";
 import { dailyMissingReasons } from "../../supabase/functions/_shared/marketCalendar.js";
-import { stockholmDate } from "../utils/dashboardHistory.js";
 
 export default function DailyMovers({ holdings, formatMoney, currency, now }) {
-    const { best, worst, excluded } = calculateDailyMovers(holdings, stockholmDate(now));
+    const { best, worst, excluded } = calculateDailyMovers(holdings, now);
     const reasons = excluded > 0 ? dailyMissingReasons(holdings, now) : [];
     return <section className="card daily-movers-card">
         <div className="section-heading"><div><span className="eyebrow">Påverkan på portföljen</span><h2>Dagens förändring</h2></div></div>

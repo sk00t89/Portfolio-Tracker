@@ -79,3 +79,12 @@ export const getNordnetInstrumentById = async (instrumentId) => {
 
     return response.json();
 };
+
+export const getFundNav = async (holding) => {
+    const query = new URLSearchParams();
+    for (const key of ["provider", "instrumentId", "isin"]) {
+        if (holding[key] != null) query.set(key, holding[key]);
+    }
+    const response = await apiFetch(`/api/fund-nav?${query}`);
+    return response.json();
+};

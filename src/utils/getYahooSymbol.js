@@ -1,28 +1,7 @@
-const getYahooSymbol = (holding) => {
-    if (!holding || !holding.ticker) {
-        return null;
-    }
+import { normalizeYahooSymbol } from "../../supabase/functions/_shared/yahooSymbol.js";
+import { isMutualFund } from "../../supabase/functions/_shared/snapshotEngine.js";
 
-    if (holding.assetType === "FUND") {
-        return null;
-    }
-
-    if (
-        holding.market === "ST" ||
-        holding.market === "XSTO" ||
-        holding.market === "XSAT" ||
-        holding.country === "SE"
-    ) {
-        const ticker = holding.ticker.replaceAll(" ", "-");
-
-        return `${ticker}.ST`;
-    }
-
-    if (holding.market === "LSE") {
-        return `${holding.ticker}.L`;
-    }
-
-    return holding.ticker;
-};
+const getYahooSymbol = (holding) => !holding || isMutualFund(holding) ? null
+    : normalizeYahooSymbol(holding.ticker, holding.market);
 
 export default getYahooSymbol;

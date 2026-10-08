@@ -1,9 +1,9 @@
 import {formatSek} from "../utils/formatting.js";
 
-function PortfolioSummary({portfolioValue, investedCapital, formatMoney = formatSek}) {
+function PortfolioSummary({portfolioValue, investedCapital, formatMoney = formatSek, dailyChange, updatingPrices, valuesLoading}) {
     const hasInvestedCapital = investedCapital > 0;
-    const profit = portfolioValue - investedCapital;
-    const profitPercent = hasInvestedCapital
+    const profit = portfolioValue == null || valuesLoading ? null : portfolioValue - investedCapital;
+    const profitPercent = hasInvestedCapital && profit != null
         ? (portfolioValue / investedCapital - 1) * 100
         : null;
 
@@ -16,10 +16,27 @@ function PortfolioSummary({portfolioValue, investedCapital, formatMoney = format
         <section className="card summary-card">
             <div className="summary-main">
                 <span className="eyebrow">Total portfölj</span>
-                <h1>{formatMoney(portfolioValue)}</h1>
+                <h1>{portfolioValue == null ? "–" : formatMoney(portfolioValue)}</h1>
+                {(updatingPrices || valuesLoading) && <small className="muted" role="status">
+                    {valuesLoading ? "Läser sparat portföljvärde…" : "Uppdaterar kurser… tidigare värden visas"}
+                </small>}
                 <p className="muted">
                     Insatt kapital {formatMoney(investedCapital)}
                 </p>
+            </div>
+
+            <div className={`summary-change ${dailyChange?.complete ? (dailyChange.changeSek >= 0 ? "positive" : "negative") : ""}`}>
+                <span>Idag</span>
+                {dailyChange?.complete && !valuesLoading ? <>
+                    <strong>{dailyChange.changeSek >= 0 ? "+" : ""}{formatSek(dailyChange.changeSek)}</strong>
+                    <small className={dailyChange.changeSek >= 0 ? "positive-text" : "negative-text"}>
+                        {dailyChange.changePercent >= 0 ? "+" : ""}{dailyChange.changePercent.toFixed(2)} %
+                    </small>
+                </> : <>
+                    <strong>–</strong>
+                    <small>Ofullständigt underlag · {valuesLoading ? "–" : Math.floor(dailyChange?.coveragePercent ?? 0)} % kurstäckning</small>
+                    <small>{dailyChange?.reasons?.[0] ?? "Verifierade dagskurser saknas"}</small>
+                </>}
             </div>
 
             <div className={profitClass}>
@@ -30,8 +47,7 @@ function PortfolioSummary({portfolioValue, investedCapital, formatMoney = format
                         : `${profitPercent >= 0 ? "+" : ""}${profitPercent.toFixed(2)} %`}
                 </strong>
                 <small>
-                    {profit >= 0 ? "+" : ""}
-                    {formatMoney(profit)}
+                    {profit == null ? "–" : `${profit >= 0 ? "+" : ""}${formatMoney(profit)}`}
                 </small>
             </div>
         </section>

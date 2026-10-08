@@ -1,12 +1,7 @@
 import getInstrumentKey from "./instrumentKey.js";
-
-export function stockholmDate(value = new Date()) {
-    const date = new Date(value);
-    if (!Number.isFinite(date.getTime())) return null;
-    return new Intl.DateTimeFormat("sv-SE", {
-        timeZone: "Europe/Stockholm", year: "numeric", month: "2-digit", day: "2-digit",
-    }).format(date);
-}
+import { stockholmDate } from "./calendarDate.js";
+import { hasCompleteDailyQuote } from "./dailyQuote.js";
+export { stockholmDate } from "./calendarDate.js";
 
 export function quoteDate(timestamp) {
     if (timestamp == null) return null;
@@ -19,7 +14,9 @@ const numberOrNull = (value) => value == null || value === "" || !Number.isFinit
     ? null : Number(value);
 
 // Group first: a missing/stale position excludes the whole instrument, never a partial ranking.
-export function calculateDailyMovers(holdings, today = stockholmDate()) {
+export function calculateDailyMovers(holdings, now = Date.now()) {
+    // Preserve date-based callers; the component supplies the actual observation instant.
+    if (typeof now === "string" && /^\d{4}-\d{2}-\d{2}$/.test(now)) now = Date.parse(`${now}T12:00:00Z`);
     const aliases = new Map();
     const normalize = (value) => String(value ?? "").trim().toUpperCase();
     for (const holding of holdings) {
@@ -52,7 +49,9 @@ export function calculateDailyMovers(holdings, today = stockholmDate()) {
             const close = numberOrNull(position.previousClose);
             const value = numberOrNull(position.currentValueSek);
             if (!(price > 0) || !(close > 0) || value === null || !(value >= 0) ||
-                !(Number(position.quantity) > 0) || quoteDate(position.priceUpdatedAt) !== today) {
+                !(Number(position.quantity) > 0) || !hasCompleteDailyQuote(position, {
+                    price, previousClose: close, timestamp: position.priceUpdatedAt,
+                }, now)) {
                 complete = false;
                 break;
             }
