@@ -2,6 +2,7 @@ import "./App.css";
 import usePortfolioHistory from "./hooks/usePortfolioHistory.js";
 import useManualAssets from "./hooks/useManualAssets.js";
 import { normalizeQuoteTimestamp, quoteFreshnessReason, quoteValuationKey, VERIFIED_QUOTE_MAX_AGE } from "./utils/valuationFreshness.js";
+import { evaluateLiveValuation } from "./utils/portfolioPeriod.js";
 import Navbar from "./components/Navbar.jsx";
 import InstallPrompt from "./components/InstallPrompt.jsx";
 import {Routes, Route} from "react-router-dom";
@@ -98,6 +99,7 @@ function App() {
     const [refreshDisplay, setRefreshDisplay] = useState(null);
     const displayedValueRef = useRef(null);
     const [quoteChecks, setQuoteChecks] = useState({});
+    const [quotePublication, setQuotePublication] = useState(null);
     const [lysaQuoteCheck, setLysaQuoteCheck] = useState({ success: false, checkedAt: null });
 
     const [theme, setTheme] = useState(() => {
@@ -310,6 +312,7 @@ function App() {
                             setLysaQuoteCheck({ success: lysaResult.success, checkedAt: lysaResult.checkedAt });
                         }
                         setPriceUpdatesInProgress((count) => count - 1);
+                        setQuotePublication({ userId, observedAt: Date.now() });
                         published = true;
                     },
                 });
@@ -1613,6 +1616,8 @@ function App() {
                 <Route path="/" element={
                     <Dashboard
                         portfolioHistory={portfolioHistory}
+                        liveValuation={evaluateLiveValuation({ publication: quotePublication,
+                            ready: !valuesLoading, inputs: valuationInputs })}
                         historyReady={historyReady}
                         dailyHoldings={holdingsForDisplay}
                         updatingPrices={priceUpdatesInProgress > 0}

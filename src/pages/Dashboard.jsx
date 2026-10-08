@@ -33,6 +33,7 @@ function Dashboard({
     groupedHoldings,
     lysaTransactions,
     portfolioHistory,
+    liveValuation,
     historyReady,
     dailyHoldings,
     updatingPrices,
@@ -41,8 +42,10 @@ function Dashboard({
 }) {
     const { currency, setCurrency, formatMoney, rate, error } = useDisplayCurrency();
     const marketStatus = useMarketStatus(dailyHoldings);
+    // The completed batch may be newer than the market-status timer. Use its real evaluation clock immediately.
+    const valuationNow = Math.max(marketStatus.now, liveValuation?.evaluatedAt ?? 0);
     const dailyChange = calculatePortfolioDailyChange({ holdings: dailyHoldings, manualAssets: assets,
-        transactions, lysaTransactions }, marketStatus.now);
+        transactions, lysaTransactions }, valuationNow);
     const lysaInvestedCapital =
         calculateLysaDeposits(lysaTransactions);
 
@@ -93,8 +96,9 @@ function Dashboard({
                 valuesLoading={valuesLoading}
                 history={portfolioHistory}
                 currency={currency}
-                today={stockholmDate(marketStatus.now)}
-                now={marketStatus.now}
+                today={stockholmDate(valuationNow)}
+                now={valuationNow}
+                liveValuation={liveValuation}
             />
 
             <MarketStatus markets={marketStatus.markets} />

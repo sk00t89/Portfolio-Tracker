@@ -4,13 +4,13 @@ import { nearestHistoryPoint } from "../utils/portfolioPeriod.js";
 export default function PortfolioHistoryChart({ view, focused, onFocus, formatMoney, currency }) {
     const gradientId = `portfolio-area-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
     const comparison = view.comparison.available;
-    const points = comparison ? view.comparison.series : view.points.map((point) => ({ date: point.date, value: point.valueSek }));
+    const points = comparison ? view.comparison.series : view.points.map((point) => ({ ...point, value: point.valueSek }));
     const active = points.find((point) => point.date === focused) ?? points.at(-1);
     if (!view.available) return <div className="portfolio-chart-empty" role="status">
         <span className="portfolio-empty-icon" aria-hidden="true">↗</span>
-        <strong>{view.historyCount < 2 ? "Din historik börjar här" : "Lite mer historik behövs"}</strong>
+        <strong>{view.dailyAvailable ? "Dagens förändring är verifierad" : view.reason.includes("intradagskurva") ? "Ingen intradagskurva" : view.historyCount < 2 ? "Din historik börjar här" : "Lite mer historik behövs"}</strong>
         <p>{view.reason}</p>
-        {view.latestObservation && <small>Senast sparat {view.latestObservation.date} · {formatMoney(view.latestObservation.valueSek)}</small>}
+        {view.latestObservation && <small>{view.latestObservation.live ? "Livevärde" : "Senast sparat"} {view.latestObservation.date} · {formatMoney(view.latestObservation.valueSek)}</small>}
     </div>;
     const values = points.flatMap((point) => comparison ? [point.value, point.benchmark] : [point.value]);
     const min = Math.min(...values), max = Math.max(...values);
@@ -29,12 +29,12 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
     const signedPercent = (value) => `${value >= 0 ? "+" : ""}${value.toFixed(2)} %`;
     return <figure className={`portfolio-chart ${(comparison ? view.comparison.portfolioPercent : view.changeSek) < 0 ? "is-negative" : ""}`}>
         <div className="portfolio-chart-readout" aria-live="polite" aria-atomic="true">
-            <span>{focused ? active.date : "Senast sparat"}</span>
+            <span>{active.live ? `Live · ${active.date}` : focused ? active.date : "Senast sparat"}</span>
             <strong>{comparison ? signedPercent(active.value) : formatMoney(active.value)}</strong>
             {comparison && <span className="portfolio-index-readout">Index {signedPercent(active.benchmark)}</span>}
         </div>
         <svg viewBox="0 0 1000 250" preserveAspectRatio="none" className="portfolio-chart-svg" role="img"
-            aria-label={`${comparison ? "Verifierad avkastning" : `Portföljvärde i ${currency}`} från ${points[0].date} till ${points.at(-1).date}. ${points.length} verkliga observationer.`}
+            aria-label={`${comparison ? "Verifierad avkastning" : `Portföljvärde i ${currency}`} från ${points[0].date} till ${points.at(-1).date}. ${points.length} verkliga observationer.${points.at(-1).live ? " Dagens slutpunkt är ett verifierat livevärde." : ""}`}
             onPointerMove={selectPoint} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); selectPoint(event); }}
             onPointerLeave={(event) => { if (event.pointerType === "mouse") onFocus(null); }}>
             <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -56,6 +56,6 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
                 aria-label="Visa sparad historikpunkt" aria-valuetext={`${active.date}: ${comparison ? signedPercent(active.value) : formatMoney(active.value)}`}
                 onChange={(event) => onFocus(points[Number(event.target.value)].date)} />
         </label>
-        <figcaption>{comparison ? "Portfölj och index · verifierad avkastning i SEK" : "Sparade dagsvärden · dagar utan observation fylls inte i"}</figcaption>
+        <figcaption>{comparison ? "Portfölj och index · verifierad avkastning i SEK" : points.at(-1).live ? "Sparade dagsvärden och dagens livevärde · inga mellanliggande observationer skapas" : "Sparade dagsvärden · dagar utan observation fylls inte i"}</figcaption>
     </figure>;
 }

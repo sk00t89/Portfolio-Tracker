@@ -520,6 +520,7 @@ p {
 .portfolio-periods button:focus-visible, .portfolio-chart-scrubber input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 .portfolio-benchmark-picker { width: 185px; flex-shrink: 0; }
 .portfolio-benchmark-picker select { padding: 9px 11px; font-size: 12px; border-color: var(--border-soft); background: transparent; }
+.portfolio-benchmark-picker select:disabled { opacity: .6; cursor: not-allowed; }
 .portfolio-chart { margin: 0; color: var(--accent); }
 .portfolio-chart.is-negative { color: var(--danger); }
 .portfolio-chart-readout { display: flex; align-items: baseline; gap: 12px; min-height: 38px; padding-top: 4px; color: var(--text); font-size: 13px; font-variant-numeric: tabular-nums; }

@@ -38,12 +38,13 @@ test('period anchors cannot shorten a calendar period, and a valid earlier ancho
     assert.equal(view.last.date, today);
 });
 
-test('1D requires today and yesterday and uses their identical graph/metric endpoints', () => {
+test('1D uses the verified daily calculation without fabricating an intraday line', () => {
     const points = [...history, { date: '2026-10-07', valueSek: 120000 }];
-    const view = build({ points, period: '1D' });
-    assert.equal(view.available, true);
-    assert.deepEqual(view.points.map(p => p.date), ['2026-10-07', today]);
-    assert.equal(view.changeSek, view.last.valueSek - view.first.valueSek);
+    const view = build({ points, period: '1D', dailyChange: { complete:true, changeSek:150, changePercent:0.12 } });
+    assert.equal(view.available, false);
+    assert.equal(view.dailyAvailable, true);
+    assert.deepEqual(view.points, []);
+    assert.equal(view.changeSek, 150);
     assert.equal(build({ points: points.slice(0, 1), period: '1D' }).available, false);
 });
 

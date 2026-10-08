@@ -25,6 +25,8 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     assert.match(initial, /0.08 %/);
     assert.equal((initial.match(/<section/g) ?? []).length, 1, 'history is inside the same card');
     assert.equal((initial.match(/aria-pressed=/g) ?? []).length, 7);
+    assert.match(initial, /<select[^>]+disabled=""/);
+    assert.match(initial, /Ingen verifierad indexkälla är ansluten/);
     assert.match(initial, /2 verkliga observationer/);
     const refreshing = render({ updatingPrices: true });
     assert.match(refreshing, /Uppdaterar kurser/);
@@ -35,4 +37,9 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     assert.match(partial, /2 verkliga observationer/, 'incomplete current quotes do not hide valid historical snapshots');
     assert.match(render({ history: { points: [] } }), /Din historik börjar här/);
     assert.match(render({ history: { points: [props.history.points[0]] } }), /minst två verkliga dagsvärden/);
+    const liveNow = Date.parse('2026-10-08T12:00:00Z');
+    const liveMarkup = render({now:liveNow,liveValuation:{verified:true,userId:'u',publication:{userId:'u',observedAt:liveNow}}});
+    assert.match(liveMarkup,/Dagens slutpunkt är ett verifierat livevärde/);
+    assert.match(liveMarkup,/<h1>125000 SEK<\/h1>/);
+    assert.match(liveMarkup,/Live · 2026-10-08/);
 });

@@ -24,7 +24,7 @@ test("actual App refresh stages Supabase save results and calls setHoldings only
     const body = source.slice(source.indexOf("    const performHoldingPriceUpdate ="), source.indexOf("    const enrichHoldingSmart ="));
     const originals = [holding("a"), holding("b")];
     const waits = originals.map(deferred);
-    let writes = 0, state = originals, inProgress = 0;
+    let writes = 0, state = originals, inProgress = 0, publication = null;
     const context = {
         holdings: originals, userId: "u", session: { user: { id: "u" } }, activeUser: { current: "u" },
         quoteChecks: {}, PRICE_UPDATE_INTERVAL: 1200000, VERIFIED_QUOTE_MAX_AGE: 1200000,
@@ -38,6 +38,7 @@ test("actual App refresh stages Supabase save results and calls setHoldings only
         getExchangeRate() { assert.fail("SEK must not fetch FX"); },
         updateDatabaseHoldingQuote: (id, h) => waits[originals.findIndex((item) => item.id === id)].promise.then(() => ({ data: h, error: null })),
         setHoldings(fn) { writes++; state = fn(state); }, setQuoteChecks() {},
+        setQuotePublication(value) { publication = value; },
         getLysaFundPrices: async () => ({}), setLysaFundPrices() {}, setLysaQuoteCheck() {},
         runAtomicQuoteRefresh, mergeQuoteRefresh,
     };
@@ -48,9 +49,12 @@ test("actual App refresh stages Supabase save results and calls setHoldings only
     waits[0].resolve(); await Promise.resolve(); await Promise.resolve();
     assert.equal(writes, 0);
     assert.equal(state, originals);
+    assert.equal(publication, null, 'no live endpoint before the atomic publication');
     waits[1].resolve(); await pending;
     assert.equal(writes, 1);
     assert.equal(inProgress, 0);
+    assert.equal(publication.userId, 'u');
+    assert.equal(Number.isFinite(publication.observedAt), true);
     assert.deepEqual(state.map((h) => h.currentValueSek), [1200, 1200]);
 });
 

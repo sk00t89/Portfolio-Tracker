@@ -1,11 +1,36 @@
 import { createValueSeries, stockholmDate } from "./dashboardHistory.js";
-import { normalizeQuoteTimestamp } from "./valuationFreshness.js";
+import { normalizeQuoteTimestamp, validateValuationFreshness, VERIFIED_QUOTE_MAX_AGE } from "./valuationFreshness.js";
 
 export const PORTFOLIO_PERIODS = [
     { id: "1D", label: "1D" }, { id: "1V", label: "1V" }, { id: "1M", label: "1M" },
     { id: "3M", label: "3M" }, { id: "YTD", label: "i år" }, { id: "1Å", label: "1Å" }, { id: "All", label: "ALL" },
 ];
 export const BENCHMARKS = [{ id: "OMXS30", label: "OMXS30" }, { id: "SIXRX", label: "SIXRX" }, { id: "SP500", label: "S&P 500" }];
+export function evaluateLiveValuation({ publication, inputs, ready }, now = Date.now()) {
+    return { publication, userId: inputs.userId, evaluatedAt: now,
+        verified: ready && validateValuationFreshness(inputs, now).ready };
+}
+// This is view data only. Publication time describes our completed batch, never a provider quote time.
+export function livePortfolioPoint({ publication, verified, userId, valueSek, today, now }) {
+    if (!userId || publication?.userId !== userId || verified !== true || !Number.isFinite(valueSek) || valueSek < 0
+        || !Number.isFinite(publication.observedAt) || publication.observedAt > now
+        || now - publication.observedAt > VERIFIED_QUOTE_MAX_AGE || stockholmDate(publication.observedAt) !== today) return null;
+    return { date: today, valueSek, live: true, observedAt: publication.observedAt };
+}
+
+export function mergeLiveHistory(points, livePoint, today) {
+    const history = validHistory(points, today);
+    if (!livePoint?.live || livePoint.date !== today || !Number.isFinite(livePoint.valueSek) || livePoint.valueSek < 0) return history;
+    return [...history.filter(point => point.date !== today), { ...livePoint }];
+}
+
+export function availableBenchmarkIds(benchmarks = {}, now = Date.now()) {
+    // No choice is activated merely because its name is known: a trusted adapter must be connected.
+    return BENCHMARKS.filter(({ id }) => benchmarks[id]?.id === id && benchmarks[id]?.verified === true
+        && benchmarks[id]?.currency === "SEK" && benchmarks[id]?.source?.trim()
+        && Array.isArray(benchmarks[id]?.points) && benchmarks[id].points.length >= 2
+        && returnSeries(benchmarks[id], benchmarks[id].points[0].date, benchmarks[id].points.at(-1).date, now)).map(({ id }) => id);
+}
 const validDate = (date) => typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)
     && Number.isFinite(Date.parse(date)) && new Date(date).toISOString().slice(0, 10) === date;
 
@@ -32,6 +57,7 @@ function returnSeries(data, start, end, now) {
 export function compareVerifiedBenchmark(points, portfolioReturns, benchmark, now = Date.now()) {
     const unavailable = (reason) => ({ available: false, reason });
     if (points.length < 2) return unavailable("Historiken räcker inte för vald period.");
+    if (points.some(point => point.live)) return unavailable("Verifierad liveindexdata och tidsmässigt jämförbar liveavkastning saknas.");
     if (portfolioReturns?.method !== "TWR" || portfolioReturns.cashFlowCoverage !== "complete") {
         return unavailable("Verifierad investeringsavkastning och komplett kassaflödesunderlag saknas.");
     }
@@ -55,28 +81,31 @@ export function compareVerifiedBenchmark(points, portfolioReturns, benchmark, no
         excessPercentagePoints: portfolioPercent - benchmarkPercent };
 }
 
-export function buildPortfolioPeriod({ points = [], period = "All", now = Date.now(), today = stockholmDate(now), portfolioReturns, benchmark }) {
-    const valid = validHistory(points, today);
+export function buildPortfolioPeriod({ points = [], period = "All", now = Date.now(), today = stockholmDate(now), portfolioReturns, benchmark,
+    livePoint = null, dailyChange }) {
+    const valid = mergeLiveHistory(points, livePoint, today);
     let selected = [];
     if (PORTFOLIO_PERIODS.some((item) => item.id === period)) {
         if (period === "1D") {
-            const previous = new Date(`${today}T12:00:00Z`);
-            previous.setUTCDate(previous.getUTCDate() - 1);
-            selected = valid.filter((point) => point.date === today || point.date === previous.toISOString().slice(0, 10));
-            if (selected.length !== 2) selected = [];
+            // Daily snapshots cannot establish an intraday path or a prior market close.
+            selected = [];
         } else {
-            selected = createValueSeries(valid, period, today, { allowAnchorAfterStart: false }).points
-                .map((point) => ({ date: point.date, valueSek: point.value }));
+            const dates = new Set(createValueSeries(valid, period, today, { allowAnchorAfterStart: false }).points.map(point => point.date));
+            selected = valid.filter(point => dates.has(point.date));
         }
     }
     const first = selected[0], last = selected.at(-1);
     const available = selected.length >= 2;
-    const changeSek = available ? last.valueSek - first.valueSek : null;
-    const changePercent = available && first.valueSek > 0 ? changeSek / first.valueSek * 100 : null;
+    const dailyAvailable = period === "1D" && dailyChange?.complete === true
+        && Number.isFinite(dailyChange.changeSek) && Number.isFinite(dailyChange.changePercent);
+    const changeSek = period === "1D" ? dailyAvailable ? dailyChange.changeSek : null : available ? last.valueSek - first.valueSek : null;
+    const changePercent = period === "1D" ? dailyAvailable ? dailyChange.changePercent : null
+        : available && first.valueSek > 0 ? changeSek / first.valueSek * 100 : null;
     const comparison = compareVerifiedBenchmark(selected, portfolioReturns, benchmark, now);
     return { available, points: selected, first, last, changeSek, changePercent, comparison,
-        historyCount: valid.length, latestObservation: valid.at(-1),
-        reason: period === "1D" ? "1D behöver sparade värden för idag och igår. Intradagshistorik finns ännu inte."
+        historyCount: valid.length, latestObservation: valid.at(-1), dailyAvailable,
+        reason: period === "1D" ? dailyAvailable ? "Verifierad dagsförändring visas ovan. Intradagshistorik saknas; ingen intradagskurva ritas."
+            : "Dagsförändringen saknar komplett verifierat underlag. Ingen intradagskurva ritas."
             : valid.length < 2 ? "Grafen visas när minst två verkliga dagsvärden har sparats."
                 : "Historiken täcker ännu inte den valda perioden. Välj ALL för att se sparade värden.",
     };

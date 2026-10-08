@@ -1,16 +1,20 @@
 import { useState } from "react";
 import { formatSek } from "../utils/formatting.js";
-import { buildPortfolioPeriod, PORTFOLIO_PERIODS, BENCHMARKS } from "../utils/portfolioPeriod.js";
+import { buildPortfolioPeriod, PORTFOLIO_PERIODS, BENCHMARKS, livePortfolioPoint, availableBenchmarkIds } from "../utils/portfolioPeriod.js";
 import PortfolioHistoryChart from "./PortfolioHistoryChart.jsx";
 
 export default function PortfolioSummary({ portfolioValue, investedCapital, formatMoney = formatSek,
     dailyChange, updatingPrices, valuesLoading, history = { points: [] }, currency = "SEK", today, now,
-    benchmarks = {}, portfolioReturns = null }) {
+    benchmarks = {}, portfolioReturns = null, liveValuation }) {
     const [period, setPeriod] = useState("All");
     const [benchmarkId, setBenchmarkId] = useState("");
     const [focused, setFocused] = useState(null);
-    const view = buildPortfolioPeriod({ points: history.points, period, today, now, portfolioReturns,
-        benchmark: benchmarks[benchmarkId]?.id === benchmarkId ? benchmarks[benchmarkId] : null });
+    const livePoint = livePortfolioPoint({ ...liveValuation, valueSek: portfolioValue, today, now });
+    const availableIndexes = availableBenchmarkIds(benchmarks, now);
+    const activeBenchmark = availableIndexes.includes(benchmarkId) ? benchmarkId : "";
+    const view = buildPortfolioPeriod({ points: history.points, period, today, now, portfolioReturns, livePoint,
+        dailyChange: valuesLoading ? null : dailyChange,
+        benchmark: benchmarks[activeBenchmark] ?? null });
     const profit = portfolioValue == null || valuesLoading ? null : portfolioValue - investedCapital;
     const profitPercent = profit != null && investedCapital > 0 ? profit / investedCapital * 100 : null;
     const signed = (value, formatter = formatMoney) => `${value >= 0 ? "+" : ""}${formatter(value)}`;
@@ -29,9 +33,10 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
             </div>
         </div>
         <div className="portfolio-hero-metrics">
-            <div className="portfolio-metric"><span>Värdeförändring · {PORTFOLIO_PERIODS.find((item) => item.id === period)?.label}</span>
+            <div className="portfolio-metric"><span>{period === "1D" ? "Dagsförändring" : "Värdeförändring"} · {PORTFOLIO_PERIODS.find((item) => item.id === period)?.label}</span>
                 <strong className={color(view.changeSek)}>{view.changeSek == null ? "–" : signed(view.changeSek)}</strong>
-                <small className={color(view.changePercent)}>{view.changePercent == null ? "Historiken räcker inte" : `${percent(view.changePercent)} · värde, inte investeringsavkastning`}</small>
+                <small className={color(view.changePercent)}>{view.changePercent == null ? period === "1D" ? "Ofullständigt dagsunderlag" : "Historiken räcker inte"
+                    : `${percent(view.changePercent)} · ${period === "1D" ? "verifierad dagsförändring" : "värde, inte investeringsavkastning"}`}</small>
             </div>
             <div className="portfolio-metric"><span>Idag</span>
                 <strong className={color(dailyChange?.complete && !valuesLoading ? dailyChange.changeSek : null)}>
@@ -53,8 +58,8 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
                 <button key={item.id} type="button" aria-pressed={period === item.id}
                     onClick={() => { setPeriod(item.id); setFocused(null); }}>{item.label}</button>)}</div>
             <label className="portfolio-benchmark-picker"><span className="sr-only">Jämför med index</span>
-                <select aria-label="Jämför med index" value={benchmarkId} onChange={(event) => { setBenchmarkId(event.target.value); setFocused(null); }}>
-                    <option value="">Jämför med index</option>{BENCHMARKS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+                <select aria-label="Jämför med index" disabled={!availableIndexes.length} value={activeBenchmark} onChange={(event) => { setBenchmarkId(event.target.value); setFocused(null); }}>
+                    <option value="">{availableIndexes.length ? "Jämför med index" : "Indexdata saknas"}</option>{BENCHMARKS.map((item) => <option key={item.id} value={item.id} disabled={!availableIndexes.includes(item.id)}>{item.label}</option>)}
                 </select>
             </label>
         </div>
@@ -64,17 +69,19 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
         <div className="portfolio-hero-footer">
             <div><span className="portfolio-footer-label">{view.available ? `${view.first.date} — ${view.last.date}` : "Verkliga observationer"}</span>
                 <span>Insättningar och uttag ingår i värdeförändringen. Investeringsavkastning kräver verifierade kassaflöden.</span>
+                <span>{livePoint ? "Dagens livevärde är visningsdata och ändrar inte sparad historik."
+                    : "Livepunkt visas efter en komplett verifierad kursuppdatering. Sparad historik behålls."}</span>
                 {currency !== "SEK" && <span>Visningsbelopp använder aktuell valutakurs. Periodens procent och indexjämförelser utgår från SEK.</span>}
             </div>
             <div className="portfolio-comparison" role="status">
-                {benchmarkId ? view.comparison.available ? <>
+                {activeBenchmark ? view.comparison.available ? <>
                     <span className="portfolio-footer-label">Mot {benchmarkLabel}</span>
                     <strong className={color(view.comparison.excessPercentagePoints)}>
                         {view.comparison.excessPercentagePoints >= 0 ? "+" : ""}{view.comparison.excessPercentagePoints.toFixed(2)} procentenheter
                         <span role="img" aria-label={view.comparison.excessPercentagePoints >= 0 ? "Över index" : "Under index"}>{view.comparison.excessPercentagePoints >= 0 ? " 😄" : " 😟"}</span>
                     </strong>
                 </> : <><span className="portfolio-footer-label">{benchmarkLabel} · jämförelse otillgänglig</span><span>{view.comparison.reason}</span></>
-                    : <><span className="portfolio-footer-label">Indexjämförelse</span><span>Välj ett index. Endast verifierat och jämförbart underlag används.</span></>}
+                    : <><span className="portfolio-footer-label">Indexjämförelse</span><span>{availableIndexes.length ? "Välj ett index. Endast verifierat och jämförbart underlag används." : "Ingen verifierad indexkälla är ansluten. Jämförelsen är otillgänglig."}</span></>}
             </div>
         </div>
     </section>;
