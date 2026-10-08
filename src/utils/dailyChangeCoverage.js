@@ -16,6 +16,8 @@ export function dailyHoldingCoverage(holding, now) {
     const timestamp = normalizeQuoteTimestamp(holding.priceUpdatedAt);
     const instrumentCovered = !holding.quoteStale && positive(price) && timestamp != null && !quoteFreshnessReason(holding, now);
     let currentPrice = price, previousPrice = previousClose, currentDate, previousDate, navChange = null;
+    const navObservation = fund && instrumentCovered ? { date: zonedParts(timestamp, "Europe/Stockholm").date,
+        price, currency: holding.currency } : null;
     const market = LISTING_CALENDARS[normalizeMarketCode(holding.market)];
     const status = getMarketStatus(fund ? "STOCKHOLM" : market, now);
     const session = status.status === "open" ? status : latestCompletedSession(fund ? "STOCKHOLM" : market, now);
@@ -30,8 +32,8 @@ export function dailyHoldingCoverage(holding, now) {
             if (!navValid(nav.previous, holding, now) || nav.previous.sourceDate >= currentDate) reasons.push("Föregående publicerade NAV saknas");
             else {
                 previousDate = nav.previous.sourceDate; previousPrice = nav.previous.price; currentPrice = nav.current.price;
-                navChange = { date: currentDate, previousDate, percent: (currentPrice / previousPrice - 1) * 100,
-                    label: "Senast publicerade NAV-förändring" };
+                navChange = instrumentCovered ? { date: currentDate, previousDate, percent: (currentPrice / previousPrice - 1) * 100,
+                    label: "Senast publicerade NAV-förändring" } : null;
             }
             if (currentDate !== session?.date) reasons.push(`Senaste NAV ${currentDate}; NAV för ${session?.date ?? "relevant handelsdag"} saknas`);
             const preceding = session && latestCompletedSession("STOCKHOLM", session.opensAt - 1);
@@ -63,7 +65,7 @@ export function dailyHoldingCoverage(holding, now) {
     const currentValue = quantity * currentPrice * currentFx, previousValue = quantity * previousPrice * previousFx;
     if (reasons.length === 0 && (!positive(currentValue) || !positive(previousValue))) reasons.push("SEK-jämförelsevärdet är ogiltigt");
     return { id: holding.id, name: holding.name, instrumentCovered, covered: reasons.length === 0,
-        reasons, currentDate, previousDate, navChange, referenceFx: foreign,
+        reasons, currentDate, previousDate, navChange, navObservation, referenceFx: foreign,
         currentValue: reasons.length ? null : currentValue,
         previousValue: reasons.length ? null : previousValue };
 }

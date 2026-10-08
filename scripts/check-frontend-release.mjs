@@ -16,6 +16,8 @@ const checks = { html: htmlResponse.ok, javascript: assetResponse.ok,
     dailyCoverage: code.includes("kurstäckning"),
     datedReferences: code.includes("daily-reference-v1") && code.includes("Instrumentkurser") && code.includes("Dagsförändring i SEK")
         && code.includes("Underlag per innehav") && code.includes("Dagliga referensvalutakurser från Frankfurter"),
+    verifiedSubset: code.includes("DELMÄNGD") && code.includes("inte totalportföljen") && code.includes("av portföljens visade värde")
+        && code.includes("Senast publicerade fond-NAV") && code.includes("YAHOO_LISTING_UNVERIFIED"),
     integratedHistory: code.includes("Portföljöversikt med historik"),
     liveEndpoint: code.includes("Dagens slutpunkt är ett verifierat livevärde"),
     noArtificialIntraday: code.includes("Ingen intradagskurva ritas"),

@@ -104,6 +104,8 @@ export function buildPortfolioPeriod({ points = [], period = "All", now = Date.n
     const calculationStart = calculationPoints[0], calculationEnd = calculationPoints.at(-1);
     const dailyAvailable = period === "1D" && dailyChange?.complete === true
         && Number.isFinite(dailyChange.changeSek) && Number.isFinite(dailyChange.changePercent);
+    const dailySubsetAvailable = period === "1D" && dailyChange?.subset?.available === true
+        && Number.isFinite(dailyChange.subset.changeSek) && Number.isFinite(dailyChange.subset.changePercent);
     const changeSek = period === "1D" ? dailyAvailable ? dailyChange.changeSek : null
         : periodCovered ? calculationEnd.valueSek - calculationStart.valueSek : null;
     const changePercent = period === "1D" ? dailyAvailable ? dailyChange.changePercent : null
@@ -115,9 +117,10 @@ export function buildPortfolioPeriod({ points = [], period = "All", now = Date.n
     return { available, points: selected, first, last, changeSek, changePercent, comparison,
         periodCovered, calculationStart, calculationEnd,
         visibleChangeSek: selected.length >= 2 ? last.valueSek - first.valueSek : 0,
-        historyCount: valid.length, latestObservation: valid.at(-1), dailyAvailable,
+        historyCount: valid.length, latestObservation: valid.at(-1), dailyAvailable, dailySubsetAvailable,
         reason: period === "1D" ? dailyAvailable ? "Verifierad dagsförändring visas ovan. Intradagshistorik saknas; ingen intradagskurva ritas."
-            : "Dagsförändringen saknar komplett verifierat underlag. Ingen intradagskurva ritas."
+            : dailySubsetAvailable ? "Verifierad förändring för en DELMÄNGD visas ovan, inte totalportföljen. Ingen intradagskurva ritas."
+                : "Dagsförändringen saknar komplett verifierat underlag. Ingen intradagskurva ritas."
             : "Inga verifierade observationer finns inom den valda perioden.",
     };
 }

@@ -39,6 +39,14 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     assert.match(diagnostic,/Instrumentkurser 100 %/);assert.match(diagnostic,/Dagsförändring i SEK 67 %/);
     assert.match(diagnostic,/Dagliga referensvalutakurser från Frankfurter/);
     assert.match(diagnostic,/Underlag per innehav/);assert.match(diagnostic,/Avanza Zero/);assert.match(diagnostic,/2026-10-06 → 2026-10-07/);
+    assert.match(diagnostic,/Senast publicerade fond-NAV/);
+    const subset = render({dailyChange:{complete:false,instrumentCoveragePercent:100,sekCoveragePercent:42,reasons:['NAV för idag saknas'],
+        subset:{available:true,currentDate:'2026-10-08',previousDate:'2026-10-07',changeSek:420,changePercent:2.1,
+            portfolioValueSek:52500,coveragePercent:42,positionCount:12},positions:[]}});
+    assert.match(subset,/Idag · DELMÄNGD/);assert.match(subset,/\+420 kr/);assert.match(subset,/2.10 % för delmängden/);
+    assert.match(subset,/inte totalportföljen/);assert.match(subset,/42.0 % täckning/);assert.match(subset,/12 positioner/);
+    const loadingSubset = render({valuesLoading:true,dailyChange:{complete:false,subset:{available:true,changeSek:999999,changePercent:2}}});
+    assert.doesNotMatch(loadingSubset,/999999|DELMÄNGD/);
     assert.doesNotMatch(partial, /999999/);
     assert.match(partial, /2 verkliga observationer/, 'incomplete current quotes do not hide valid historical snapshots');
     assert.match(render({ history: { points: [] } }), /Din historik börjar här/);

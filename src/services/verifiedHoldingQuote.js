@@ -5,6 +5,7 @@ import { isMutualFund } from "../../supabase/functions/_shared/snapshotEngine.js
 import { safeQuoteDiagnostics } from "../../supabase/functions/_shared/quoteDiagnostics.js";
 import { hasCompleteDailyQuote } from "../utils/dailyQuote.js";
 import { zonedParts } from "../../supabase/functions/_shared/marketCalendar.js";
+import { yahooListingUnverified } from "../utils/yahooQuoteEligibility.js";
 
 const invalid = (code) => Object.assign(new Error(code), { code });
 const equal = (a, b) => String(a ?? "").toUpperCase() === String(b ?? "").toUpperCase();
@@ -14,6 +15,7 @@ export async function getVerifiedHoldingQuote(holding, providers, clock = Date.n
     const diagnostics = [];
     let valuationQuote = null;
     let valuationSource;
+    let yahooSkipped = false;
     const resolvedPrimaryIsins = new Set();
     const fund = isMutualFund(holding);
     const directCrypto = String(holding.assetType).toUpperCase() === "CRYPTO" && !holding.isin && holding.productType !== "ETP";
@@ -48,7 +50,8 @@ export async function getVerifiedHoldingQuote(holding, providers, clock = Date.n
             add("Nordnet", "isin", () => byIsin(providers.getNordnetPriceByIsin));
         }
         const symbol = getYahooSymbol(holding);
-        if (symbol) add("Yahoo", "chart", async () => {
+        yahooSkipped = Boolean(symbol && yahooListingUnverified(holding, symbol));
+        if (symbol && !yahooSkipped) add("Yahoo", "chart", async () => {
             const quote = await providers.getYahooPrice(symbol);
             if (!equal(quote?.symbol, symbol)) throw invalid("QUOTE_IDENTITY_MISMATCH");
             const market = LISTING_CALENDARS[normalizeMarketCode(holding.market)];
@@ -91,6 +94,7 @@ export async function getVerifiedHoldingQuote(holding, providers, clock = Date.n
             diagnostics.push({ provider, stage, outcome: "rejected", reasonCode: error.code ?? "PROVIDER_UNAVAILABLE", httpStatus: error.httpStatus });
         }
     }
+    if (yahooSkipped) diagnostics.push({ provider: "Yahoo", stage: "identity", outcome: "received", reasonCode: "YAHOO_LISTING_UNVERIFIED" });
     if (valuationQuote) diagnostics.push({ ...valuationSource, outcome: "accepted", reasonCode: "VALUATION_ONLY" });
     const safe = safeQuoteDiagnostics(diagnostics);
     onDiagnostics(safe);
@@ -102,8 +106,8 @@ export async function getVerifiedHoldingQuote(holding, providers, clock = Date.n
 export function createVerifiedQuoteBatch(userId, providers, clock = Date.now) {
     const cache = new Map();
     return async (holding, onDiagnostics = () => {}) => {
-        const key = JSON.stringify([userId, holding.provider, holding.instrumentId, holding.isin, holding.ticker,
-            holding.assetType, holding.productType, holding.market, holding.currency, holding.coinId]);
+        const key = JSON.stringify([userId, holding.provider, holding.instrumentId, holding.isin, getYahooSymbol(holding) ?? holding.ticker,
+            holding.assetType, holding.productType, LISTING_CALENDARS[normalizeMarketCode(holding.market)] ?? normalizeMarketCode(holding.market), holding.currency, holding.coinId]);
         if (!cache.has(key)) cache.set(key, (async () => {
             let diagnostics;
             const quote = await getVerifiedHoldingQuote(holding, providers, clock, (value) => { diagnostics = value; });

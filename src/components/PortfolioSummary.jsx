@@ -20,6 +20,8 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
     const signed = (value, formatter = formatMoney) => `${value >= 0 ? "+" : ""}${formatter(value)}`;
     const percent = (value) => `${value >= 0 ? "+" : ""}${value.toFixed(2)} %`;
     const color = (value) => value == null ? "" : value >= 0 ? "positive-text" : "negative-text";
+    const subset = !valuesLoading && !dailyChange?.complete && dailyChange?.subset?.available ? dailyChange.subset : null;
+    const dailyDisplay = valuesLoading ? null : dailyChange?.complete ? dailyChange : subset;
     const benchmarkLabel = BENCHMARKS.find((item) => item.id === benchmarkId)?.label;
     return <section className="card portfolio-hero" aria-label="Portföljöversikt med historik">
         <div className="portfolio-hero-top">
@@ -39,16 +41,21 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
                     : view.periodCovered ? "Procent kan inte beräknas från nollvärde" : "Periodjämförelse saknas"
                     : `${percent(view.changePercent)} · ${period === "1D" ? "verifierad dagsförändring" : "värde, inte investeringsavkastning"}`}</small>
             </div>
-            <div className="portfolio-metric"><span>{dailyChange?.label ?? "Idag"}</span>
-                <strong className={color(dailyChange?.complete && !valuesLoading ? dailyChange.changeSek : null)}>
-                    {dailyChange?.complete && !valuesLoading ? signed(dailyChange.changeSek, formatSek) : "–"}
+            <div className="portfolio-metric"><span>{subset ? `${subset.currentDate === today ? "Idag" : subset.currentDate} · DELMÄNGD` : dailyChange?.label ?? "Idag"}</span>
+                <strong className={color(dailyDisplay?.changeSek)}>
+                    {dailyDisplay ? signed(dailyDisplay.changeSek, formatSek) : "–"}
                 </strong>
-                <small className={color(dailyChange?.complete && !valuesLoading ? dailyChange.changePercent : null)}>
-                    {dailyChange?.complete && !valuesLoading ? percent(dailyChange.changePercent)
+                <small className={color(dailyDisplay?.changePercent)}>
+                    {dailyDisplay ? `${percent(dailyDisplay.changePercent)}${subset ? " för delmängden" : ""}`
                         : dailyChange?.instrumentCoveragePercent != null ? "Ofullständigt underlag"
                             : `Ofullständigt underlag · ${valuesLoading ? "–" : Math.floor(dailyChange?.coveragePercent ?? 0)} % kurstäckning`}
                 </small>
                 {!dailyChange?.complete && <span className="portfolio-metric-note">{dailyChange?.reasons?.[0]}</span>}
+                {subset && <>
+                    <span className="portfolio-metric-note">DELMÄNGD — inte totalportföljen. Fullständig total dagsförändring saknas.</span>
+                    <span className="portfolio-metric-note">{subset.previousDate} → {subset.currentDate} · {subset.positionCount} positioner</span>
+                    <span className="portfolio-metric-note">{formatSek(subset.portfolioValueSek)} av portföljens visade värde · {subset.coveragePercent == null ? "Andel kan inte beräknas" : `${subset.coveragePercent.toFixed(1)} % täckning`}</span>
+                </>}
                 {dailyChange?.instrumentCoveragePercent != null && <span className="portfolio-metric-note">
                     Instrumentkurser {valuesLoading ? "–" : Math.floor(dailyChange.instrumentCoveragePercent)} % · Dagsförändring i SEK {valuesLoading ? "–" : Math.floor(dailyChange.sekCoveragePercent)} %
                 </span>}
@@ -59,11 +66,19 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
                 <small className={color(profitPercent)}>{profitPercent == null ? "Jämförelse mot insatt kapital" : `${percent(profitPercent)} mot insatt kapital`}</small>
             </div>
         </div>
-        {dailyChange?.positions?.some(position => !position.covered || position.navChange) && <details className="portfolio-daily-coverage">
+        {dailyChange?.positions?.some(position => !position.covered) && <details className="portfolio-daily-coverage">
             <summary>Underlag per innehav</summary>
-            <ul>{dailyChange.positions.filter(position => !position.covered || position.navChange).map((position, index) => <li key={`${position.id ?? position.name}-${index}`}>
+            <ul>{dailyChange.positions.filter(position => !position.covered).map((position, index) => <li key={`${position.id ?? position.name}-${index}`}>
                 <strong>{position.name}</strong>{position.reasons.length > 0 && <span> — {position.reasons.join("; ")}</span>}
-                {position.navChange && <span> · {position.navChange.label} {position.navChange.previousDate} → {position.navChange.date}: {percent(position.navChange.percent)}</span>}
+            </li>)}</ul>
+        </details>}
+        {dailyChange?.positions?.some(position => position.navObservation || position.navChange) && <details className="portfolio-daily-coverage">
+            <summary>Senast publicerade fond-NAV</summary>
+            <ul>{dailyChange.positions.filter(position => position.navObservation || position.navChange).map((position, index) => <li key={`${position.id ?? position.name}-${index}`}>
+                <strong>{position.name}</strong>
+                {position.navObservation && <span> — NAV {position.navObservation.date}: {new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 4 }).format(position.navObservation.price)} {position.navObservation.currency}</span>}
+                <span> · {position.navChange ? `${position.navChange.label} ${position.navChange.previousDate} → ${position.navChange.date}: ${percent(position.navChange.percent)}` : "Föregående verifierat NAV saknas"}</span>
+                <span> · Publicerat NAV, inte en intradagskurs.</span>
             </li>)}</ul>
         </details>}
         <div className="portfolio-chart-toolbar">
