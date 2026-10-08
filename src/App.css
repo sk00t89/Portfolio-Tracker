@@ -547,6 +547,8 @@ p {
 .portfolio-chart-empty p { margin: 0; max-width: 450px; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .portfolio-chart-empty small { color: var(--muted); font-size: 11px; }
 .portfolio-chart-notice { padding: 12px 0; color: var(--danger); font-size: 12px; }
+.portfolio-period-coverage { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.portfolio-period-coverage strong { color: var(--text); font-weight: 500; }
 .portfolio-hero-footer { display: grid; grid-template-columns: 1.2fr 1fr; gap: 26px; border-top: 1px solid var(--border-soft); padding-top: 17px; }
 .portfolio-hero-footer > div { display: flex; flex-direction: column; gap: 6px; font-size: 11px; line-height: 1.65; color: var(--muted); }
 .portfolio-footer-label { font-size: 11px; color: var(--text); font-weight: 500; }

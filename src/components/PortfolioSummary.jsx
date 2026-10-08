@@ -5,8 +5,8 @@ import PortfolioHistoryChart from "./PortfolioHistoryChart.jsx";
 
 export default function PortfolioSummary({ portfolioValue, investedCapital, formatMoney = formatSek,
     dailyChange, updatingPrices, valuesLoading, history = { points: [] }, currency = "SEK", today, now,
-    benchmarks = {}, portfolioReturns = null, liveValuation }) {
-    const [period, setPeriod] = useState("All");
+    benchmarks = {}, portfolioReturns = null, liveValuation, initialPeriod = "All" }) {
+    const [period, setPeriod] = useState(initialPeriod);
     const [benchmarkId, setBenchmarkId] = useState("");
     const [focused, setFocused] = useState(null);
     const livePoint = livePortfolioPoint({ ...liveValuation, valueSek: portfolioValue, today, now });
@@ -35,7 +35,8 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
         <div className="portfolio-hero-metrics">
             <div className="portfolio-metric"><span>{period === "1D" ? "Dagsförändring" : "Värdeförändring"} · {PORTFOLIO_PERIODS.find((item) => item.id === period)?.label}</span>
                 <strong className={color(view.changeSek)}>{view.changeSek == null ? "–" : signed(view.changeSek)}</strong>
-                <small className={color(view.changePercent)}>{view.changePercent == null ? period === "1D" ? "Ofullständigt dagsunderlag" : "Historiken räcker inte"
+                <small className={color(view.changePercent)}>{view.changePercent == null ? period === "1D" ? "Ofullständigt dagsunderlag"
+                    : view.periodCovered ? "Procent kan inte beräknas från nollvärde" : "Periodjämförelse saknas"
                     : `${percent(view.changePercent)} · ${period === "1D" ? "verifierad dagsförändring" : "värde, inte investeringsavkastning"}`}</small>
             </div>
             <div className="portfolio-metric"><span>Idag</span>
@@ -63,12 +64,19 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
                 </select>
             </label>
         </div>
+        {period !== "1D" && !view.periodCovered && <p className="portfolio-period-coverage" role="status">
+            {view.first && <strong>Historik tillgänglig sedan {new Intl.DateTimeFormat("sv-SE", {
+                day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Stockholm",
+            }).format(new Date(`${view.first.date}T12:00:00Z`))}. </strong>}
+            Periodens avkastning kan ännu inte beräknas. Jämförbar startpunkt eller slutpunkt för hela perioden saknas.
+        </p>}
         {history.error && <p className="portfolio-chart-notice" role="alert">{history.error}</p>}
         {history.loading ? <div className="portfolio-chart-empty" role="status"><strong>Läser din historik…</strong><p>Sparade dagsvärden hämtas från Supabase.</p></div>
             : <PortfolioHistoryChart view={view} focused={focused} onFocus={setFocused} formatMoney={formatMoney} currency={currency} />}
         <div className="portfolio-hero-footer">
             <div><span className="portfolio-footer-label">{view.available ? `${view.first.date} — ${view.last.date}` : "Verkliga observationer"}</span>
                 <span>Insättningar och uttag ingår i värdeförändringen. Investeringsavkastning kräver verifierade kassaflöden.</span>
+                {view.periodCovered && view.calculationStart.date !== view.first?.date && <span>Periodjämförelsens startobservation: {view.calculationStart.date}.</span>}
                 <span>{livePoint ? "Dagens livevärde är visningsdata och ändrar inte sparad historik."
                     : "Livepunkt visas efter en komplett verifierad kursuppdatering. Sparad historik behålls."}</span>
                 {currency !== "SEK" && <span>Visningsbelopp använder aktuell valutakurs. Periodens procent och indexjämförelser utgår från SEK.</span>}

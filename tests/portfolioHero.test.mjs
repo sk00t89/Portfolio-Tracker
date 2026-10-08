@@ -36,10 +36,21 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     assert.doesNotMatch(partial, /999999/);
     assert.match(partial, /2 verkliga observationer/, 'incomplete current quotes do not hide valid historical snapshots');
     assert.match(render({ history: { points: [] } }), /Din historik börjar här/);
-    assert.match(render({ history: { points: [props.history.points[0]] } }), /minst två verkliga dagsvärden/);
+    const single = render({ history: { points: [props.history.points[0]] } });
+    assert.match(single, /1 verkliga observationer/);
+    assert.doesNotMatch(single, /<polyline|<polygon/, 'one observation cannot create a line or filled triangle');
     const liveNow = Date.parse('2026-10-08T12:00:00Z');
     const liveMarkup = render({now:liveNow,liveValuation:{verified:true,userId:'u',publication:{userId:'u',observedAt:liveNow}}});
     assert.match(liveMarkup,/Dagens slutpunkt är ett verifierat livevärde/);
     assert.match(liveMarkup,/<h1>125000 SEK<\/h1>/);
     assert.match(liveMarkup,/Live · 2026-10-08/);
+    for (const initialPeriod of ['1V','1M','3M','YTD','1Å']) {
+        const partialHistory = render({initialPeriod,now:liveNow,
+            liveValuation:{verified:true,userId:'u',publication:{userId:'u',observedAt:liveNow}}});
+        assert.match(partialHistory,/2 verkliga observationer/);
+        assert.match(partialHistory,/Historik tillgänglig sedan 4 oktober 2026/);
+        assert.match(partialHistory,/Periodens avkastning kan ännu inte beräknas/);
+        assert.match(partialHistory,/Live · 2026-10-08/);
+        assert.doesNotMatch(partialHistory,/\+25000 SEK|\+25.00 %/,'partial history cannot claim the selected full-period return');
+    }
 });

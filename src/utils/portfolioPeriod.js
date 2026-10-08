@@ -1,4 +1,4 @@
-import { createValueSeries, stockholmDate } from "./dashboardHistory.js";
+import { createValueSeries, stockholmDate, periodStart } from "./dashboardHistory.js";
 import { normalizeQuoteTimestamp, validateValuationFreshness, VERIFIED_QUOTE_MAX_AGE } from "./valuationFreshness.js";
 
 export const PORTFOLIO_PERIODS = [
@@ -85,29 +85,40 @@ export function buildPortfolioPeriod({ points = [], period = "All", now = Date.n
     livePoint = null, dailyChange }) {
     const valid = mergeLiveHistory(points, livePoint, today);
     let selected = [];
+    let calculationPoints = [];
     if (PORTFOLIO_PERIODS.some((item) => item.id === period)) {
         if (period === "1D") {
             // Daily snapshots cannot establish an intraday path or a prior market close.
             selected = [];
         } else {
+            const start = period === "All" ? null : periodStart(period, today);
+            // Display every actual in-window observation, independently of full-period coverage.
+            selected = valid.filter(point => start == null || point.date >= start);
             const dates = new Set(createValueSeries(valid, period, today, { allowAnchorAfterStart: false }).points.map(point => point.date));
-            selected = valid.filter(point => dates.has(point.date));
+            calculationPoints = valid.filter(point => dates.has(point.date));
         }
     }
     const first = selected[0], last = selected.at(-1);
-    const available = selected.length >= 2;
+    const available = selected.length > 0;
+    const periodCovered = calculationPoints.length >= 2;
+    const calculationStart = calculationPoints[0], calculationEnd = calculationPoints.at(-1);
     const dailyAvailable = period === "1D" && dailyChange?.complete === true
         && Number.isFinite(dailyChange.changeSek) && Number.isFinite(dailyChange.changePercent);
-    const changeSek = period === "1D" ? dailyAvailable ? dailyChange.changeSek : null : available ? last.valueSek - first.valueSek : null;
+    const changeSek = period === "1D" ? dailyAvailable ? dailyChange.changeSek : null
+        : periodCovered ? calculationEnd.valueSek - calculationStart.valueSek : null;
     const changePercent = period === "1D" ? dailyAvailable ? dailyChange.changePercent : null
-        : available && first.valueSek > 0 ? changeSek / first.valueSek * 100 : null;
-    const comparison = compareVerifiedBenchmark(selected, portfolioReturns, benchmark, now);
+        : periodCovered && calculationStart.valueSek > 0 ? changeSek / calculationStart.valueSek * 100 : null;
+    const comparison = periodCovered ? compareVerifiedBenchmark(calculationPoints, portfolioReturns, benchmark, now)
+        : { available: false, reason: "Jämförbar startpunkt eller slutpunkt för hela perioden saknas." };
+    const displayedDates = new Set(selected.map(point => point.date));
+    if (comparison.available) comparison.series = comparison.series.filter(point => displayedDates.has(point.date));
     return { available, points: selected, first, last, changeSek, changePercent, comparison,
+        periodCovered, calculationStart, calculationEnd,
+        visibleChangeSek: selected.length >= 2 ? last.valueSek - first.valueSek : 0,
         historyCount: valid.length, latestObservation: valid.at(-1), dailyAvailable,
         reason: period === "1D" ? dailyAvailable ? "Verifierad dagsförändring visas ovan. Intradagshistorik saknas; ingen intradagskurva ritas."
             : "Dagsförändringen saknar komplett verifierat underlag. Ingen intradagskurva ritas."
-            : valid.length < 2 ? "Grafen visas när minst två verkliga dagsvärden har sparats."
-                : "Historiken täcker ännu inte den valda perioden. Välj ALL för att se sparade värden.",
+            : "Inga verifierade observationer finns inom den valda perioden.",
     };
 }
 

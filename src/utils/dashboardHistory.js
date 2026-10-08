@@ -72,7 +72,7 @@ export function calculateDailyMovers(holdings, now = Date.now()) {
     };
 }
 
-function periodStart(period, today) {
+export function periodStart(period, today) {
     const date = new Date(`${today}T12:00:00Z`);
     if (period === "1V") date.setUTCDate(date.getUTCDate() - 7);
     if (period === "1M" || period === "3M" || period === "1Å") {

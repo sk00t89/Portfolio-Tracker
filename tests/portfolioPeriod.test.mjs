@@ -19,11 +19,13 @@ test('all seven controls use actual observations and do not mutate history', () 
     assert.equal(view.comparison.available, false, 'value increase cannot prove investment return');
 });
 
-test('insufficient periods never silently show ALL or fabricate anchors', () => {
+test('shorter history remains visible without claiming full-period returns or inventing anchors', () => {
     for (const period of ['1D', '1V', '1M', '3M', 'YTD', '1Å']) {
         const view = build({ period });
-        assert.equal(view.available, false, period);
-        assert.deepEqual(view.points, []);
+        assert.equal(view.available, period !== '1D', period);
+        assert.deepEqual(view.points, period === '1D' ? [] : history);
+        assert.equal(view.periodCovered, false);
+        assert.equal(view.comparison.available, false);
         assert.equal(view.changeSek, null);
         assert.equal(view.changePercent, null);
         assert.equal(view.latestObservation.date, today);
@@ -33,9 +35,46 @@ test('insufficient periods never silently show ALL or fabricate anchors', () => 
 test('period anchors cannot shorten a calendar period, and a valid earlier anchor wins', () => {
     const points = [{ date: '2026-09-30', valueSek: 90 }, { date: '2026-10-02', valueSek: 95 }, ...history];
     const view = build({ points, period: '1V' });
-    assert.equal(view.first.date, '2026-09-30');
+    assert.equal(view.first.date, '2026-10-02', 'graph stays inside the selected calendar window');
+    assert.equal(view.calculationStart.date, '2026-09-30', 'comparison keeps its verified earlier start anchor');
     assert.equal(view.changeSek, 124910);
     assert.equal(view.last.date, today);
+});
+
+test('graph filters by the calendar window even when its comparison anchor is missing', () => {
+    const points = [{date:'2026-08-01',valueSek:50000}, ...history];
+    const monthly = build({points,period:'1M'});
+    assert.deepEqual(monthly.points,history);
+    assert.equal(monthly.periodCovered,false);
+    assert.equal(monthly.changeSek,null);
+    assert.equal(monthly.changePercent,null);
+    assert.deepEqual(build({points,period:'All'}).points,points);
+    assert.deepEqual(build({points:[points[0]],period:'1M'}).points,[]);
+});
+
+test('short period histories keep one genuine live endpoint without changing saved data', () => {
+    const livePoint = {date:today,valueSek:130000,live:true,observedAt:now};
+    const original = structuredClone(history);
+    for (const period of ['1V','1M','3M','YTD','1Å']) {
+        const view = build({period,livePoint});
+        assert.equal(view.available,true);
+        assert.equal(view.points.length,2);
+        assert.equal(view.points.filter(p=>p.date===today).length,1);
+        assert.equal(view.last.live,true);
+        assert.equal(view.last.valueSek,130000);
+        assert.equal(view.periodCovered,false);
+        assert.equal(view.changeSek,null);
+        assert.equal(view.changePercent,null);
+    }
+    assert.deepEqual(history,original);
+});
+
+test('a comparable short return series cannot pretend to cover the selected full month', () => {
+    const view = build({period:'1M',portfolioReturns:portfolio(),benchmark:benchmark()});
+    assert.equal(view.available,true);
+    assert.equal(view.periodCovered,false);
+    assert.equal(view.comparison.available,false);
+    assert.match(view.comparison.reason,/hela perioden/);
 });
 
 test('1D uses the verified daily calculation without fabricating an intraday line', () => {
@@ -66,10 +105,12 @@ test('reject future, conflicting, impossible and invalid history without inserti
     assert.deepEqual(view.points, history);
 });
 
-test('zero starting value has no fabricated percentage; empty and single point stay unavailable', () => {
+test('zero starting value has no fabricated percentage; a single observation has no invented return', () => {
     assert.equal(build({ points: [{ date: '2026-10-04', valueSek: 0 }, history[1]] }).changePercent, null);
     assert.equal(build({ points: [] }).available, false);
-    assert.equal(build({ points: [history[1]] }).available, false);
+    assert.equal(build({ points: [history[1]] }).available, true);
+    assert.equal(build({ points: [history[1]] }).periodCovered, false);
+    assert.equal(build({ points: [history[1]] }).changeSek, null);
 });
 
 function returns(last, extra = {}) {

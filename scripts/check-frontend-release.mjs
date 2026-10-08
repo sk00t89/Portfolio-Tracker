@@ -18,6 +18,7 @@ const checks = { html: htmlResponse.ok, javascript: assetResponse.ok,
     liveEndpoint: code.includes("Dagens slutpunkt är ett verifierat livevärde"),
     noArtificialIntraday: code.includes("Ingen intradagskurva ritas"),
     inactiveIndexes: code.includes("Ingen verifierad indexkälla är ansluten"),
+    partialPeriodHistory: code.includes("Historik tillgänglig sedan") && code.includes("Periodens avkastning kan ännu inte beräknas"),
     verifiedReturnGuard: code.includes("Investeringsavkastning kräver verifierade kassaflöden"),
     edgeBackend: code.includes("https://ertvxedbqcqydeypnorm.supabase.co/functions/v1/market-api") };
 console.log(JSON.stringify({ url, asset, checks, verified: Object.values(checks).every(Boolean) }));

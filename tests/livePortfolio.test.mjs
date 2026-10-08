@@ -57,7 +57,10 @@ test('append today without waiting for a snapshot, but never manufacture a start
     const view = buildPortfolioPeriod({points:past,livePoint:live(),period:'1V',today,now});
     assert.deepEqual(view.points.map(p=>p.date),['2026-10-01',today]);
     assert.deepEqual(past,[{date:'2026-10-01',valueSek:1000}]);
-    assert.equal(buildPortfolioPeriod({points:[],livePoint:live(),today,now}).available,false);
+    const loneLive = buildPortfolioPeriod({points:[],livePoint:live(),today,now});
+    assert.equal(loneLive.available,true);
+    assert.equal(loneLive.points.length,1);
+    assert.equal(loneLive.periodCovered,false);
     const daily = buildPortfolioPeriod({points:[],period:'1D',livePoint:live(),today,now,
         dailyChange:{complete:true,changeSek:75,changePercent:6.67}});
     assert.equal(daily.dailyAvailable,true);
