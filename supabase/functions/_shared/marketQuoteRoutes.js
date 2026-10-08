@@ -1,4 +1,5 @@
 import { createFundNavProvider } from "./fundNavProviders.js";
+import { createReferenceDataRoutes } from "./referenceDataRoutes.js";
 import { providerHttpError } from "./providerDiagnostics.js";
 import { normalizeYahooSymbol } from "./yahooSymbol.js";
 import { MARKET_QUOTE_VERSION, safeQuoteDiagnostics } from "./quoteDiagnostics.js";
@@ -11,6 +12,7 @@ const fault = (code) => Object.assign(new Error(code), { code });
 // Runtime-neutral: used by both Express and Deno. Only public, allowlisted diagnostics leave this module.
 export function createMarketQuoteRoutes({ fetcher = fetch, clock = Date.now,
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console } = {}) {
+    const referenceRoute = createReferenceDataRoutes({ fetcher, clock });
     async function request(url, headers = {}, options = {}) {
         for (let attempt = 0; ; attempt++) {
             let response;
@@ -45,6 +47,8 @@ export function createMarketQuoteRoutes({ fetcher = fetch, clock = Date.now,
             timestamp: data.quote?.timestamp ?? data.quote?.timeOfLast ?? null };
     }
     return async function route(url) {
+        const reference = await referenceRoute(url);
+        if (reference) return reference;
         const path = url.pathname.replace(/^.*\/market-api(?=\/api\/)/, "");
         const diagnostics = [];
         let provider, stage;

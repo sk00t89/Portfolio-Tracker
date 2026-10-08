@@ -39,21 +39,33 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
                     : view.periodCovered ? "Procent kan inte beräknas från nollvärde" : "Periodjämförelse saknas"
                     : `${percent(view.changePercent)} · ${period === "1D" ? "verifierad dagsförändring" : "värde, inte investeringsavkastning"}`}</small>
             </div>
-            <div className="portfolio-metric"><span>Idag</span>
+            <div className="portfolio-metric"><span>{dailyChange?.label ?? "Idag"}</span>
                 <strong className={color(dailyChange?.complete && !valuesLoading ? dailyChange.changeSek : null)}>
                     {dailyChange?.complete && !valuesLoading ? signed(dailyChange.changeSek, formatSek) : "–"}
                 </strong>
                 <small className={color(dailyChange?.complete && !valuesLoading ? dailyChange.changePercent : null)}>
                     {dailyChange?.complete && !valuesLoading ? percent(dailyChange.changePercent)
-                        : `Ofullständigt underlag · ${valuesLoading ? "–" : Math.floor(dailyChange?.coveragePercent ?? 0)} % kurstäckning`}
+                        : dailyChange?.instrumentCoveragePercent != null ? "Ofullständigt underlag"
+                            : `Ofullständigt underlag · ${valuesLoading ? "–" : Math.floor(dailyChange?.coveragePercent ?? 0)} % kurstäckning`}
                 </small>
                 {!dailyChange?.complete && <span className="portfolio-metric-note">{dailyChange?.reasons?.[0]}</span>}
+                {dailyChange?.instrumentCoveragePercent != null && <span className="portfolio-metric-note">
+                    Instrumentkurser {valuesLoading ? "–" : Math.floor(dailyChange.instrumentCoveragePercent)} % · Dagsförändring i SEK {valuesLoading ? "–" : Math.floor(dailyChange.sekCoveragePercent)} %
+                </span>}
+                {dailyChange?.referenceFx && <span className="portfolio-metric-note">Dagliga referensvalutakurser från Frankfurter, inte intradag-FX.</span>}
             </div>
             <div className="portfolio-metric"><span>Kapitalförändring</span>
                 <strong className={color(profit)}>{profit == null ? "–" : signed(profit)}</strong>
                 <small className={color(profitPercent)}>{profitPercent == null ? "Jämförelse mot insatt kapital" : `${percent(profitPercent)} mot insatt kapital`}</small>
             </div>
         </div>
+        {dailyChange?.positions?.some(position => !position.covered || position.navChange) && <details className="portfolio-daily-coverage">
+            <summary>Underlag per innehav</summary>
+            <ul>{dailyChange.positions.filter(position => !position.covered || position.navChange).map((position, index) => <li key={`${position.id ?? position.name}-${index}`}>
+                <strong>{position.name}</strong>{position.reasons.length > 0 && <span> — {position.reasons.join("; ")}</span>}
+                {position.navChange && <span> · {position.navChange.label} {position.navChange.previousDate} → {position.navChange.date}: {percent(position.navChange.percent)}</span>}
+            </li>)}</ul>
+        </details>}
         <div className="portfolio-chart-toolbar">
             <div className="portfolio-periods" role="group" aria-label="Välj historikperiod">{PORTFOLIO_PERIODS.map((item) =>
                 <button key={item.id} type="button" aria-pressed={period === item.id}

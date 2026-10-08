@@ -13,7 +13,8 @@ import Settings from "./pages/Settings.jsx";
 import Help from "./pages/Help.jsx";
 import {useEffect, useState, useRef} from "react";
 import { createInFlightRequests } from "./utils/requestDeduplication.js";
-import { runAtomicQuoteRefresh, mergeQuoteRefresh, portfolioDisplayValue } from "./utils/atomicQuoteRefresh.js";
+import { runAtomicQuoteRefresh, mergeQuoteRefresh, portfolioDisplayValue, attachDailyReferences } from "./utils/atomicQuoteRefresh.js";
+import { getHoldingDailyReference } from "./services/dailyReferenceData.js";
 import getInstrumentKey from "./utils/instrumentKey.js";
 import {
     calculatePortfolioValue,
@@ -184,6 +185,7 @@ function App() {
         }
 
         const expectedUser = userId;
+        const reference = getHoldingDailyReference(holding).catch(() => ({}));
         const data = await loadQuote(holding, onDiagnostics);
 
         if (!data?.price) {
@@ -254,7 +256,7 @@ function App() {
                     : item
             )
         );
-        return { holding: savedHolding, checkedAt: data.checkedAt };
+        return { holding: savedHolding, checkedAt: data.checkedAt, dailyReference: await reference };
     };
 
     const updateAllHoldingPrices = async (
@@ -1258,6 +1260,7 @@ function App() {
                         : null,
                 priceUpdatedAt:
                     priceData?.date ?? null,
+                dailyReference: { nav: priceData?.navComparison },
             };
         });
 
@@ -1565,6 +1568,7 @@ function App() {
             24 * 60 * 60 * 1000;
 
         const shouldCreateSnapshot =
+            // eslint-disable-next-line react-hooks/purity -- This clock read runs exclusively inside useEffect, never during render.
             Date.now() - lastCreatedAt >= twentyFourHours;
 
         if (!shouldCreateSnapshot) {
@@ -1619,7 +1623,7 @@ function App() {
                         liveValuation={evaluateLiveValuation({ publication: quotePublication,
                             ready: !valuesLoading, inputs: valuationInputs })}
                         historyReady={historyReady}
-                        dailyHoldings={holdingsForDisplay}
+                        dailyHoldings={attachDailyReferences(holdingsForDisplay, quoteChecks, userId)}
                         updatingPrices={priceUpdatesInProgress > 0}
                         valuesLoading={valuesLoading}
                         transactions={transactions}

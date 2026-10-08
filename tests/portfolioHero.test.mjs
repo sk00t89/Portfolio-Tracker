@@ -33,6 +33,12 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     assert.match(refreshing, /<h1>125000 SEK<\/h1>/, 'refresh keeps the saved total');
     const partial = render({ dailyChange: { complete: false, coveragePercent: 67.9, changeSek: 999999, reasons: ['Ofullständiga valutakurser'] } });
     assert.match(partial, /67 % kurstäckning/);
+    const diagnostic = render({dailyChange:{complete:false,coveragePercent:67,instrumentCoveragePercent:100,sekCoveragePercent:67,
+        referenceFx:true,reasons:['NAV för idag saknas'],positions:[{id:'f',name:'Avanza Zero',covered:false,reasons:['Senaste NAV 2026-10-07'],
+            navChange:{label:'Senast publicerade NAV-förändring',date:'2026-10-07',previousDate:'2026-10-06',percent:-1}}]}});
+    assert.match(diagnostic,/Instrumentkurser 100 %/);assert.match(diagnostic,/Dagsförändring i SEK 67 %/);
+    assert.match(diagnostic,/Dagliga referensvalutakurser från Frankfurter/);
+    assert.match(diagnostic,/Underlag per innehav/);assert.match(diagnostic,/Avanza Zero/);assert.match(diagnostic,/2026-10-06 → 2026-10-07/);
     assert.doesNotMatch(partial, /999999/);
     assert.match(partial, /2 verkliga observationer/, 'incomplete current quotes do not hide valid historical snapshots');
     assert.match(render({ history: { points: [] } }), /Din historik börjar här/);

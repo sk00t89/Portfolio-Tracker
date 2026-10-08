@@ -1,48 +1,11 @@
 import { apiFetch } from "./apiClient.js";
+import { createReferenceFxClient } from "./referenceFxClient.js";
 
-const CACHE_TIME = 24 * 60 * 60 * 1000;
+export const getReferenceExchangeRates = createReferenceFxClient({ request: apiFetch, storage: localStorage });
 
 export const getExchangeRate = async (from, to) => {
-    const cacheKey = `exchangeRate_${from}_${to}`;
-    const saved = localStorage.getItem(cacheKey);
-
-    if (saved) {
-        const parsed = JSON.parse(saved);
-
-        const isFresh =
-            Date.now() - parsed.fetchedAt < CACHE_TIME;
-
-        if (isFresh) {
-            return parsed.rate;
-        }
-    }
-
-    const response = await apiFetch(`/api/currency/${from}/${to}`);
-
-    if (!response.ok) {
-        throw new Error(
-            `Kunde inte hämta valutakurs ${from}/${to}`
-        );
-    }
-
-    const data = await response.json();
-    const rate = Number(data.rate);
-
-    if (!Number.isFinite(rate) || rate <= 0) {
-        throw new Error(
-            `Ogiltig valutakurs för ${from}/${to}`
-        );
-    }
-
-    localStorage.setItem(
-        cacheKey,
-        JSON.stringify({
-            rate,
-            fetchedAt: Date.now(),
-        })
-    );
-
-    return rate;
+    if (from === to) return 1;
+    return (await getReferenceExchangeRates(from, to)).current.rate;
 };
 
 export const getAveragePriceSek = async (holding) => {

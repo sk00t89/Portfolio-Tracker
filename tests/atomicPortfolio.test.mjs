@@ -24,6 +24,7 @@ test("actual App refresh stages Supabase save results and calls setHoldings only
     const body = source.slice(source.indexOf("    const performHoldingPriceUpdate ="), source.indexOf("    const enrichHoldingSmart ="));
     const originals = [holding("a"), holding("b")];
     const waits = originals.map(deferred);
+    const referenceWaits = originals.map(deferred);
     let writes = 0, state = originals, inProgress = 0, publication = null;
     const context = {
         holdings: originals, userId: "u", session: { user: { id: "u" } }, activeUser: { current: "u" },
@@ -36,6 +37,7 @@ test("actual App refresh stages Supabase save results and calls setHoldings only
         normalizeQuoteTimestamp: (value) => value, quoteFreshnessReason: () => null,
         quoteValuationKey: (h) => JSON.stringify(h),
         getExchangeRate() { assert.fail("SEK must not fetch FX"); },
+        getHoldingDailyReference: (h) => referenceWaits[originals.findIndex(item => item.id === h.id)].promise,
         updateDatabaseHoldingQuote: (id, h) => waits[originals.findIndex((item) => item.id === id)].promise.then(() => ({ data: h, error: null })),
         setHoldings(fn) { writes++; state = fn(state); }, setQuoteChecks() {},
         setQuotePublication(value) { publication = value; },
@@ -47,10 +49,13 @@ test("actual App refresh stages Supabase save results and calls setHoldings only
     await Promise.resolve(); await Promise.resolve();
     assert.equal(inProgress, 1);
     waits[0].resolve(); await Promise.resolve(); await Promise.resolve();
+    referenceWaits[0].resolve({});
     assert.equal(writes, 0);
     assert.equal(state, originals);
     assert.equal(publication, null, 'no live endpoint before the atomic publication');
-    waits[1].resolve(); await pending;
+    waits[1].resolve(); await Promise.resolve(); await Promise.resolve();
+    assert.equal(writes, 0, 'FX/NAV comparison must finish before the same atomic publication');
+    referenceWaits[1].resolve({}); await pending;
     assert.equal(writes, 1);
     assert.equal(inProgress, 0);
     assert.equal(publication.userId, 'u');

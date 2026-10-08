@@ -14,6 +14,8 @@ const checks = { html: htmlResponse.ok, javascript: assetResponse.ok,
     quoteVersion: code.includes("market-quotes-v2"),
     atomicRefresh: code.includes("Uppdaterar kurser"),
     dailyCoverage: code.includes("kurstäckning"),
+    datedReferences: code.includes("daily-reference-v1") && code.includes("Instrumentkurser") && code.includes("Dagsförändring i SEK")
+        && code.includes("Underlag per innehav") && code.includes("Dagliga referensvalutakurser från Frankfurter"),
     integratedHistory: code.includes("Portföljöversikt med historik"),
     liveEndpoint: code.includes("Dagens slutpunkt är ett verifierat livevärde"),
     noArtificialIntraday: code.includes("Ingen intradagskurva ritas"),

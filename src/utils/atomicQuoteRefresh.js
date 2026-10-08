@@ -1,4 +1,11 @@
 import { quoteValuationKey } from "./valuationFreshness.js";
+export function attachDailyReferences(holdings, checks, userId) {
+    return holdings.map(holding => {
+        const check = checks[holding.id];
+        return { ...holding, dailyReference: holding.platform === "Lysa" ? holding.dailyReference
+            : check?.userId === userId && check?.valueKey === quoteValuationKey(holding) ? check.dailyReference : null };
+    });
+}
 
 export function portfolioDisplayValue({ currentValue, savedValue, valuesLoading, updating, refreshDisplay, userId }) {
     if (updating && refreshDisplay?.userId === userId) return refreshDisplay.value ?? savedValue ?? null;
@@ -30,6 +37,7 @@ export function mergeQuoteRefresh(current, results, userId) {
         const unchanged = quoteValuationKey(holding) === quoteValuationKey(result.original);
         const saved = unchanged && result.holding;
         checks[holding.id] = { userId, success: Boolean(saved), checkedAt: result.checkedAt,
+            dailyReference: saved ? result.dailyReference : null,
             diagnostics: result.diagnostics, valueKey: saved ? quoteValuationKey(saved) : null };
         return saved ? { ...saved, quoteStale: false } : { ...holding, quoteStale: true };
     });
