@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import AssetList from "../components/AssetList.jsx";
 import Allocation from "../components/Allocation.jsx";
 import AssetForm from "../components/AssetForm.jsx";
@@ -43,7 +44,7 @@ function Dashboard({
     valuesLoading,
     transactions,
 }) {
-    const { currency, setCurrency, formatMoney, rate, error } = useDisplayCurrency();
+    const { currency, formatMoney, rate, error } = useDisplayCurrency();
     const marketStatus = useMarketStatus(dailyHoldings);
     // The completed batch may be newer than the market-status timer. Use its real evaluation clock immediately.
     const valuationNow = Math.max(marketStatus.now, liveValuation?.evaluatedAt ?? 0);
@@ -83,16 +84,8 @@ function Dashboard({
     return (
         <div className="dashboard-grid">
             <ManualAssetsStatus state={manualAssets} email={userEmail} />
-            <div className="dashboard-currency-bar">
-                <label htmlFor="dashboard-currency">Visningsvaluta</label>
-                <select id="dashboard-currency" value={currency} onChange={(event) => setCurrency(event.target.value)}>
-                    <option value="SEK">SEK</option><option value="USD">USD</option><option value="EUR">EUR</option>
-                </select>
-                {error ? <span role="alert">Valutakursen kunde inte hämtas. Välj SEK eller försök igen.</span> :
-                    rate == null && <span role="status">Hämtar valutakurs…</span>}
-            </div>
+            {error ? <p className="history-readiness" role="alert">Visningsvalutan kunde inte laddas. <Link to="/settings">Välj SEK i Inställningar.</Link></p> : rate == null && <p className="history-readiness" role="status">Hämtar visningsvaluta…</p>}
             <PortfolioSummary
-                indexApiFetch={apiFetch}
                 formatMoney={formatMoney}
                 portfolioValue={portfolioValue}
                 investedCapital={investedCapital}
@@ -104,13 +97,19 @@ function Dashboard({
                 today={stockholmDate(valuationNow)}
                 now={valuationNow}
                 liveValuation={liveValuation}
-            />
+            >{!valuesLoading && <>
+                <DailyMovers holdings={dailyHoldings} formatMoney={formatMoney} currency={currency} now={marketStatus.now} />
+                <HoldingsOverview formatMoney={formatMoney} groupedHoldings={groupedHoldings} />
+            </>}</PortfolioSummary>
 
+            {historyReady && portfolioHistory.freshnessReason && <p className="history-readiness" role="status">Historik pausad · se marknad och historikstatus.</p>}
+            <details className="card dashboard-market-details">
+                <summary>Marknad och historikstatus</summary>
             <MarketStatus markets={marketStatus.markets} />
             {!historyReady && <p className="history-readiness" role="status">Historik sparas när portföljens värden är färdigladdade och kompletta.</p>}
             {historyReady && portfolioHistory.freshnessReason && <p className="history-readiness" role="status">Historik pausad: {portfolioHistory.freshnessReason} Uppdatera kurserna under Inställningar.</p>}
+            </details>
             {!valuesLoading && <>
-            <DailyMovers holdings={dailyHoldings} formatMoney={formatMoney} currency={currency} now={marketStatus.now} />
 
             <AssetList
                 formatMoney={formatMoney}

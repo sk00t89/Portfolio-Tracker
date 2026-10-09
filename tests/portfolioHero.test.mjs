@@ -24,20 +24,34 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     assert.match(initial, /IDAG/);
     assert.match(initial, /0.08 %/);
     assert.equal((initial.match(/<section/g) ?? []).length, 1, 'history is inside the same card');
+    assert.ok(initial.indexOf('portfolio-chart-svg') < initial.indexOf('Underlag och förklaringar'));
+    const ordered = render({children:createElement('div',null,'Prioriterade innehav')});
+    assert.ok(ordered.indexOf('portfolio-chart-svg') < ordered.indexOf('Prioriterade innehav'));
+    assert.ok(ordered.indexOf('Prioriterade innehav') < ordered.indexOf('Underlag och förklaringar'));
     assert.equal((initial.match(/aria-pressed=/g) ?? []).length, 7);
-    assert.match(initial, /<select aria-label="Visa index separat"/);
+    assert.match(initial, /<select aria-label="Jämför med index"/);
     assert.doesNotMatch(initial, /<select[^>]+disabled=""/);
     assert.match(initial, /<option value="SIXRX" disabled=""/);
-    assert.match(initial, /Välj ett index för separat utveckling/);
-    assert.match(render({initialIndex:'OMXS30', history:{points:[]}}), /Hämtar indexhistorik/);
-    assert.match(render({initialIndex:'SP500', initialPeriod:'1D', history:{points:[]}}), /Ingen intradagsdata för index/);
+    assert.match(initial, /Välj ett index för jämförelse/);
+    assert.match(render({initialIndex:'OMXS30', history:{points:[]}}), /Din historik börjar här/);
+    assert.match(render({initialIndex:'SP500', initialPeriod:'1D', history:{points:[]}}), /ingen intradagskurva/i);
     assert.match(render({initialIndex:'OMXS30'}), /Jämförelse mot portföljen är avstängd/);
+    for (const initialIndex of ['OMXS30','SP500']) {
+        const selected = render({initialIndex});
+        assert.match(selected,/Portföljvärde i SEK från 2026-10-04 till 2026-10-08/);
+        assert.match(selected,/överlägg ej tillgängligt/);
+        assert.doesNotMatch(selected,/Hämtar indexhistorik|Separat index|portfolio-index-line/);
+        const failed = render({initialIndex,history:{...props.history,error:'Historikfel'}});
+        assert.match(failed,/role="alert">Historikfel/,'index choice never hides the portfolio error');
+    }
     assert.match(initial, /2 verkliga observationer/);
     const refreshing = render({ updatingPrices: true });
     assert.match(refreshing, /Uppdaterar kurser/);
     assert.match(refreshing, /<h1>125000 SEK<\/h1>/, 'refresh keeps the saved total');
     const partial = render({ dailyChange: { complete: false, coveragePercent: 67.9, changeSek: 999999, reasons: ['Ofullständiga valutakurser'] } });
-    assert.match(partial, /Dagens SEK och % saknar komplett verifierat underlag/);
+    assert.match(partial, /Dagsunderlag saknas/);
+    assert.ok(initial.indexOf('portfolio-chart-svg') < initial.indexOf('<summary>Dagens underlag'), 'observed graph precedes collapsed diagnostics');
+    assert.doesNotMatch(initial, /<details[^>]*\bopen(?:=|\s|>)/, 'optional explanations are closed by default');
     const diagnostic = render({dailyChange:{complete:false,coveragePercent:67,instrumentCoveragePercent:100,sekCoveragePercent:67,
         referenceFx:true,reasons:['NAV för idag saknas'],positions:[{id:'f',name:'Avanza Zero',kind:'nav',covered:false,reasons:['Senaste NAV 2026-10-07'],
             diagnostic:{source:'Avanza',referenceCheckedAt:Date.parse('2026-10-08T12:00:00Z'),lastAttemptAt:Date.parse('2026-10-08T12:30:00Z'),referenceValid:true},
@@ -54,11 +68,17 @@ test('integrated hero preserves current total, deposited capital, daily coverage
             portfolioValueSek:52500,coveragePercent:42,positionCount:12},positions:[]}});
     assert.match(subset,/IDAG · DELMÄNGD/);assert.match(subset,/\+420 kr/);assert.match(subset,/2.10 % för delmängden/);
     assert.match(subset,/inte totalportföljen/);assert.match(subset,/42.0 % täckning/);assert.match(subset,/12 positioner/);
+    const compactSubset = subset.slice(subset.indexOf('portfolio-hero-metrics'),subset.indexOf('portfolio-chart-toolbar'));
+    assert.match(compactSubset,/12 innehav · 42.0 % täckning · inte hela portföljen/);
+    assert.match(compactSubset,/2026-10-08/,'the date stays visible before opening the underlying details');
+    assert.doesNotMatch(compactSubset,/Frankfurter|NAV för idag saknas|Senaste instrumentkurser/,'technical details move below the observed graph');
     for (const initialPeriod of ['1D','1V','1M','3M','YTD','1Å','ALL']) {
         for (const initialIndex of ['', 'OMXS30', 'SP500']) {
             const markup = render({initialPeriod, initialIndex, currency:'USD', formatMoney:value=>`${value} USD`});
-            const metrics = markup.slice(markup.indexOf('portfolio-hero-metrics'), markup.indexOf('portfolio-chart-toolbar'));
-            assert.ok(metrics.indexOf('IDAG') < metrics.indexOf('förändring ·'), 'IDAG remains left');
+            const metrics = markup.slice(markup.indexOf('portfolio-hero-metrics'), markup.indexOf('</section>'));
+            assert.ok(metrics.indexOf('IDAG') < metrics.indexOf('förändring ·'), 'IDAG remains above the secondary metrics');
+            assert.ok(markup.indexOf('portfolio-secondary-metrics') > markup.indexOf('portfolio-chart-toolbar'));
+            assert.ok(markup.indexOf('portfolio-today-metric') < markup.indexOf('portfolio-chart-toolbar'));
             assert.ok(metrics.indexOf('förändring ·') < metrics.indexOf('Kapitalförändring'), 'capital remains right');
             assert.match(metrics,/\+100 kr/,'IDAG always uses SEK despite display currency or index');
             assert.match(metrics,/\+0.08 %/);

@@ -22,7 +22,9 @@ test('standalone index uses existing chart with percent, native currency, base d
         assert.match(markup,/5 dagsstaplar saknar slutkurs/);
         assert.match(markup,/\+10.00 %/);
         assert.match(markup,new RegExp(`prisindex i ${data.currency}`));
-        assert.match(markup,/portfolio-index-line/);
+        assert.match(markup,/portfolio-value-line/,'standalone index uses the solid primary curve');
+        assert.ok(markup.indexOf('<figure') < markup.indexOf('<summary>Indexets underlag'), 'source explanations follow the observed curve');
+        assert.doesNotMatch(markup, /<details[^>]*\bopen(?:=|\s|>)/);
         assert.doesNotMatch(markup,/Portföljvärde|Över index|Under index/);
         const single=renderToStaticMarkup(createElement(IndexHistoryContent,{data:{...data,points:[data.points[0]]},onFocus:()=>{}}));
         assert.match(single,/Endast en observation/);

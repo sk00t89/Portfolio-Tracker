@@ -2,13 +2,12 @@ import { useState } from "react";
 import { formatSek } from "../utils/formatting.js";
 import { buildPortfolioPeriod, PORTFOLIO_PERIODS, BENCHMARKS, livePortfolioPoint, availableBenchmarkIds } from "../utils/portfolioPeriod.js";
 import PortfolioHistoryChart from "./PortfolioHistoryChart.jsx";
-import StandaloneIndex from "./StandaloneIndex.jsx";
 import DailyDevelopmentMetric from "./DailyDevelopmentMetric.jsx";
 import DailyComparisonDetails from "./DailyComparisonDetails.jsx";
 
 export default function PortfolioSummary({ portfolioValue, investedCapital, formatMoney = formatSek,
     dailyChange, updatingPrices, valuesLoading, history = { points: [] }, currency = "SEK", today, now,
-    benchmarks = {}, portfolioReturns = null, liveValuation, initialPeriod = "All", indexApiFetch, initialIndex = "" }) {
+    benchmarks = {}, portfolioReturns = null, liveValuation, initialPeriod = "All", initialIndex = "", children }) {
     const [period, setPeriod] = useState(initialPeriod);
     const [benchmarkId, setBenchmarkId] = useState(initialIndex);
     const [focused, setFocused] = useState(null);
@@ -24,7 +23,7 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
     const percent = (value) => `${value >= 0 ? "+" : ""}${value.toFixed(2)} %`;
     const color = (value) => value == null ? "" : value >= 0 ? "positive-text" : "negative-text";
     const benchmarkLabel = BENCHMARKS.find((item) => item.id === benchmarkId)?.label;
-    return <section className="card portfolio-hero" aria-label="Portföljöversikt med historik">
+    return <><section className="card portfolio-hero" aria-label="Portföljöversikt med historik">
         <div className="portfolio-hero-top">
             <div className="portfolio-hero-value">
                 <div className="portfolio-hero-eyebrow"><span className="eyebrow">Total portfölj</span><span className="portfolio-currency-tag">{currency}</span></div>
@@ -32,22 +31,48 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
                 <p>Insatt kapital <strong>{valuesLoading ? "–" : formatMoney(investedCapital)}</strong></p>
             </div>
             <div className="portfolio-hero-status" role="status"><span className={`portfolio-status-dot ${updatingPrices ? "is-updating" : ""}`} />
-                {valuesLoading ? "Läser sparade värden" : updatingPrices ? "Uppdaterar kurser… tidigare värden visas" : "Senaste portföljvärdet"}
+                {valuesLoading ? "Läser sparade värden" : updatingPrices ? "Uppdaterar kurser…" : "Senaste värdet"}
             </div>
         </div>
-        <div className="portfolio-hero-metrics">
+        <div className="portfolio-hero-metrics portfolio-today-metric">
             <DailyDevelopmentMetric dailyChange={dailyChange} valuesLoading={valuesLoading} today={today} />
+        </div>
+        <div className="portfolio-chart-toolbar">
+            <div className="portfolio-periods" role="group" aria-label="Välj historikperiod">{PORTFOLIO_PERIODS.map((item) =>
+                <button key={item.id} type="button" aria-pressed={period === item.id}
+                    onClick={() => { setPeriod(item.id); setFocused(null); }}>{item.label}</button>)}</div>
+            <label className="portfolio-benchmark-picker"><span className="sr-only">Jämför med index</span>
+                <select aria-label="Jämför med index" value={benchmarkId} onChange={(event) => { setBenchmarkId(event.target.value); setFocused(null); }}>
+                    <option value="">Endast portföljen</option>{BENCHMARKS.map((item) => <option key={item.id} value={item.id} disabled={item.id === "SIXRX"}>{item.label}{item.id === "SIXRX" ? " · källa ej verifierad" : ""}</option>)}
+                </select>
+            </label>
+        </div>
+        {period !== "1D" && !view.periodCovered && <p className="portfolio-period-coverage" role="status">
+            {view.first && <strong>Historik tillgänglig sedan {new Intl.DateTimeFormat("sv-SE", {
+                day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Stockholm",
+            }).format(new Date(`${view.first.date}T12:00:00Z`))}. </strong>}
+            Periodjämförelse saknas.
+        </p>}
+        {history.error && <p className="portfolio-chart-notice" role="alert">{history.error}</p>}
+        {benchmarkId && !view.comparison.available && <p className="portfolio-index-blocked" role="status">{benchmarkLabel}: överlägg ej tillgängligt. Portföljhistoriken visas.</p>}
+        {history.loading ? <div className="portfolio-chart-empty" role="status"><strong>Läser din historik…</strong><p>Sparade dagsvärden hämtas från Supabase.</p></div>
+            : <PortfolioHistoryChart view={view} focused={focused} onFocus={setFocused} formatMoney={formatMoney} currency={currency} />}
+        <div className="portfolio-hero-metrics portfolio-secondary-metrics">
             <div className="portfolio-metric"><span>{period === "1D" ? "Dagsförändring" : "Värdeförändring"} · {PORTFOLIO_PERIODS.find((item) => item.id === period)?.label}</span>
                 <strong className={color(view.changeSek)}>{view.changeSek == null ? "–" : signed(view.changeSek)}</strong>
                 <small className={color(view.changePercent)}>{view.changePercent == null ? period === "1D" ? "Ofullständigt dagsunderlag"
                     : view.periodCovered ? "Procent kan inte beräknas från nollvärde" : "Periodjämförelse saknas"
-                    : `${percent(view.changePercent)} · ${period === "1D" ? "verifierad dagsförändring" : "värde, inte investeringsavkastning"}`}</small>
+                    : `${percent(view.changePercent)} · ${period === "1D" ? "dagsförändring" : "värdeförändring"}`}</small>
             </div>
             <div className="portfolio-metric"><span>Kapitalförändring</span>
                 <strong className={color(profit)}>{profit == null ? "–" : signed(profit)}</strong>
                 <small className={color(profitPercent)}>{profitPercent == null ? "Jämförelse mot insatt kapital" : `${percent(profitPercent)} mot insatt kapital`}</small>
             </div>
         </div>
+        </section>
+        {children}
+        <details className="card portfolio-underlying"><summary>Underlag och förklaringar</summary>
+            <DailyDevelopmentMetric dailyChange={dailyChange} valuesLoading={valuesLoading} today={today} detailsOnly />
         <DailyComparisonDetails dailyChange={dailyChange} />
         {dailyChange?.positions?.some(position => position.navObservation || position.navChange) && <details className="portfolio-daily-coverage">
             <summary>Senast publicerade fond-NAV</summary>
@@ -58,44 +83,25 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
                 <span> · Publicerat NAV, inte en intradagskurs.</span>
             </li>)}</ul>
         </details>}
-        <div className="portfolio-chart-toolbar">
-            <div className="portfolio-periods" role="group" aria-label="Välj historikperiod">{PORTFOLIO_PERIODS.map((item) =>
-                <button key={item.id} type="button" aria-pressed={period === item.id}
-                    onClick={() => { setPeriod(item.id); setFocused(null); }}>{item.label}</button>)}</div>
-            <label className="portfolio-benchmark-picker"><span className="sr-only">Visa index separat</span>
-                <select aria-label="Visa index separat" value={benchmarkId} onChange={(event) => { setBenchmarkId(event.target.value); setFocused(null); }}>
-                    <option value="">Portföljhistorik</option>{BENCHMARKS.map((item) => <option key={item.id} value={item.id} disabled={item.id === "SIXRX"}>{item.label}{item.id === "SIXRX" ? " · källa ej verifierad" : ""}</option>)}
-                </select>
-            </label>
-        </div>
-        {!benchmarkId && period !== "1D" && !view.periodCovered && <p className="portfolio-period-coverage" role="status">
-            {view.first && <strong>Historik tillgänglig sedan {new Intl.DateTimeFormat("sv-SE", {
-                day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Stockholm",
-            }).format(new Date(`${view.first.date}T12:00:00Z`))}. </strong>}
-            Periodens avkastning kan ännu inte beräknas. Jämförbar startpunkt eller slutpunkt för hela perioden saknas.
-        </p>}
-        {!benchmarkId && history.error && <p className="portfolio-chart-notice" role="alert">{history.error}</p>}
-        {benchmarkId ? <StandaloneIndex id={benchmarkId} period={period} apiFetch={indexApiFetch} focused={focused} onFocus={setFocused} now={now} />
-            : history.loading ? <div className="portfolio-chart-empty" role="status"><strong>Läser din historik…</strong><p>Sparade dagsvärden hämtas från Supabase.</p></div>
-            : <PortfolioHistoryChart view={view} focused={focused} onFocus={setFocused} formatMoney={formatMoney} currency={currency} />}
+        <details className="portfolio-daily-coverage portfolio-chart-details">
+            <summary>Om grafen och beräkningen</summary>
+            <p className="portfolio-period-coverage">Sparade dagsvärden · dagar utan observation fylls inte i. Ett verifierat livevärde ändrar inte sparad historik.</p>
+            {period !== "1D" && !view.periodCovered && <p className="portfolio-period-coverage">Periodens avkastning kan ännu inte beräknas. Jämförbar startpunkt eller slutpunkt för hela perioden saknas.</p>}
         <div className="portfolio-hero-footer">
             <div><span className="portfolio-footer-label">{view.available ? `${view.first.date} — ${view.last.date}` : "Verkliga observationer"}</span>
                 <span>Insättningar och uttag ingår i värdeförändringen. Investeringsavkastning kräver verifierade kassaflöden.</span>
                 {view.periodCovered && view.calculationStart.date !== view.first?.date && <span>Periodjämförelsens startobservation: {view.calculationStart.date}.</span>}
                 <span>{livePoint ? "Dagens livevärde är visningsdata och ändrar inte sparad historik."
                     : "Livepunkt visas efter en komplett verifierad kursuppdatering. Sparad historik behålls."}</span>
-                {currency !== "SEK" && <span>Visningsbelopp använder aktuell valutakurs. Portföljens periodprocent utgår från SEK. Fristående index visas i sin ursprungsvaluta.</span>}
+                {currency !== "SEK" && <span>Visningsbelopp använder aktuell valutakurs. Portföljens periodprocent utgår från SEK. Indexöverlägg kräver jämförbar avkastning i SEK.</span>}
             </div>
             <div className="portfolio-comparison" role="status">
-                {benchmarkId ? <><span className="portfolio-footer-label">{benchmarkLabel} · separat index</span><span>Jämförelse mot portföljen är avstängd tills verifierad TWR och fullständig kassaflödeshistorik finns.</span></> : activeBenchmark ? view.comparison.available ? <>
-                    <span className="portfolio-footer-label">Mot {benchmarkLabel}</span>
-                    <strong className={color(view.comparison.excessPercentagePoints)}>
-                        {view.comparison.excessPercentagePoints >= 0 ? "+" : ""}{view.comparison.excessPercentagePoints.toFixed(2)} procentenheter
-                        <span role="img" aria-label={view.comparison.excessPercentagePoints >= 0 ? "Över index" : "Under index"}>{view.comparison.excessPercentagePoints >= 0 ? " 😄" : " 😟"}</span>
-                    </strong>
-                </> : <><span className="portfolio-footer-label">{benchmarkLabel} · jämförelse otillgänglig</span><span>{view.comparison.reason}</span></>
-                    : <><span className="portfolio-footer-label">Indexhistorik</span><span>Välj ett index för separat utveckling. Jämförelse mot portföljen kräver verifierad TWR och fullständiga kassaflöden.</span></>}
+                {benchmarkId ? view.comparison.available ? <><span className="portfolio-footer-label">Mot {benchmarkLabel}</span><strong>{view.comparison.excessPercentagePoints.toFixed(2)} procentenheter</strong></>
+                    : <><span className="portfolio-footer-label">{benchmarkLabel} · överlägg spärrat</span><span>{view.comparison.reason}</span><span>Jämförelse mot portföljen är avstängd tills verifierad TWR och fullständig kassaflödeshistorik finns. Index och portfölj måste dessutom ha samma avkastningsbas, valuta och jämförbara värderingstidpunkter.</span></>
+                    : <><span className="portfolio-footer-label">Indexjämförelse</span><span>Välj ett index för jämförelse när verifierad TWR och fullständiga kassaflöden finns. Portföljhistoriken visas alltid.</span></>}
             </div>
         </div>
-    </section>;
+        </details>
+        </details>
+    </>;
 }

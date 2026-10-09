@@ -1,4 +1,5 @@
 import {NavLink} from "react-router-dom";
+import NavigationLinks from "./NavigationLinks.jsx";
 import { signOut } from "../services/authService.js";
 
 function Navbar({
@@ -17,75 +18,12 @@ function Navbar({
     }
 
     return (
-        <nav className="nav-bar">
+        <nav className="nav-bar" aria-label="Huvudnavigation">
             <div className="nav-brand">
                 Portfolio Tracker
             </div>
 
-            <ul className="nav-links">
-                <li>
-                    <NavLink
-                        to="/"
-                        className={({isActive}) =>
-                            isActive ? "nav-link active" : "nav-link"
-                        }
-                    >
-                        Dashboard
-                    </NavLink>
-                </li>
-
-                <li>
-                    <NavLink
-                        to="/holdings"
-                        className={({isActive}) =>
-                            isActive ? "nav-link active" : "nav-link"
-                        }
-                    >
-                        <span>Holdings</span>
-                        {holdingsAttentionCount > 0 && (
-                            <span
-                                className="nav-notification-badge"
-                                title={`${holdingsAttentionCount} saker behöver din uppmärksamhet`}
-                            >
-                                {holdingsAttentionCount}
-                            </span>
-                        )}
-                    </NavLink>
-                </li>
-
-                <li>
-                    <NavLink
-                        to="/import"
-                        className={({isActive}) =>
-                            isActive ? "nav-link active" : "nav-link"
-                        }
-                    >
-                        Import
-                    </NavLink>
-                </li>
-
-                <li>
-                    <NavLink
-                        to="/help"
-                        className={({isActive}) =>
-                            isActive ? "nav-link active" : "nav-link"
-                        }
-                    >
-                        Hjälp
-                    </NavLink>
-                </li>
-
-                <li>
-                    <NavLink
-                        to="/settings"
-                        className={({isActive}) =>
-                            isActive ? "nav-link active" : "nav-link"
-                        }
-                    >
-                        Settings
-                    </NavLink>
-                </li>
-            </ul>
+            <NavigationLinks holdingsAttentionCount={holdingsAttentionCount} />
 
             <div className="nav-actions">
                 <button

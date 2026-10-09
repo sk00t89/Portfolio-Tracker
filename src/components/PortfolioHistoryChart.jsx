@@ -1,8 +1,11 @@
-import { useId } from "react";
+import { useId, useRef } from "react";
 import { nearestHistoryPoint } from "../utils/portfolioPeriod.js";
+import { chartPointerDirection } from "../utils/chartPointerGesture.js";
+import { formatSek } from "../utils/formatting.js";
 
 export default function PortfolioHistoryChart({ view, focused, onFocus, formatMoney, currency }) {
     const gradientId = `portfolio-area-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+    const gesture = useRef(null);
     const comparison = view.comparison.available;
     const index = view.standaloneIndex;
     const points = comparison ? view.comparison.series : view.points.map((point) => ({ ...point, value: point.valueSek }));
@@ -28,15 +31,36 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
         onFocus(nearestHistoryPoint(points, ratio)?.date ?? null);
     };
     const signedPercent = (value) => `${value >= 0 ? "+" : ""}${value.toFixed(2)} %`;
+    const observation = view.points.find(point => point.date === active.date);
     return <figure className={`portfolio-chart ${(comparison ? view.comparison.portfolioPercent : view.visibleChangeSek) < 0 ? "is-negative" : ""}`}>
         <div className="portfolio-chart-readout" aria-live="polite" aria-atomic="true">
             <span>{index ? `${index.label} · ${active.date}` : active.live ? `Live · ${active.date}` : focused ? active.date : "Senast sparat"}</span>
             <strong>{comparison ? signedPercent(active.value) : formatMoney(active.value)}</strong>
             {comparison && <span className="portfolio-index-readout">Index {signedPercent(active.benchmark)}</span>}
         </div>
+        <div className="portfolio-chart-plot">
+        {focused && <div id={`${gradientId}-tooltip`} className="portfolio-point-tooltip" role="tooltip" style={{"--point-x": `${x(active) / 10}%`}}>
+            <span>{active.date} · {index ? "Indexobservation" : observation?.live ? "Verifierat livevärde" : "Sparat portföljvärde"}</span>
+            <strong>{index ? formatMoney(active.value) : observation ? formatSek(observation.valueSek) : "Sparat värde saknas"}</strong>
+            {comparison && <small>Verifierad utveckling {signedPercent(active.value)} · index {signedPercent(active.benchmark)}</small>}
+        </div>}
         <svg viewBox="0 0 1000 250" preserveAspectRatio="none" className="portfolio-chart-svg" role="img"
+            aria-describedby={focused ? `${gradientId}-tooltip` : undefined}
             aria-label={`${index ? `${index.label}, prisindex i ${currency}, utveckling i procent` : comparison ? "Verifierad avkastning" : `Portföljvärde i ${currency}`} från ${points[0].date} till ${points.at(-1).date}. ${points.length} verkliga observationer.${points.at(-1).live ? " Dagens slutpunkt är ett verifierat livevärde." : ""}`}
-            onPointerMove={selectPoint} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); selectPoint(event); }}
+            onPointerMove={event => {
+                if (event.pointerType === "mouse") { selectPoint(event); return; }
+                const start = gesture.current;
+                if (!start || start.pointerId !== event.pointerId) return;
+                if (start.direction === "pending") start.direction = chartPointerDirection(start, {x:event.clientX,y:event.clientY});
+                if (start.direction === "horizontal") { event.currentTarget.setPointerCapture(event.pointerId); selectPoint(event); }
+            }}
+            onPointerDown={event => {
+                if (event.isPrimary === false) return;
+                gesture.current = {x:event.clientX,y:event.clientY,pointerId:event.pointerId,direction:"pending"};
+                selectPoint(event);
+            }}
+            onPointerUp={() => { gesture.current = null; }}
+            onPointerCancel={() => { gesture.current = null; onFocus(null); }}
             onPointerLeave={(event) => { if (event.pointerType === "mouse") onFocus(null); }}>
             <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="currentColor" stopOpacity="0.19" />
@@ -46,17 +70,19 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
             {points.length > 1 && <polygon points={`12,244 ${path} 988,244`} fill={`url(#${gradientId})`} />}
             {comparison && points.length > 1 && <polyline points={points.map((point) => `${x(point)},${y(point.benchmark)}`).join(" ")}
                 className="portfolio-index-line" fill="none" vectorEffect="non-scaling-stroke" />}
-            {points.length > 1 && <polyline points={path} className={index ? "portfolio-index-line" : "portfolio-value-line"} fill="none" vectorEffect="non-scaling-stroke" />}
+            {points.length > 1 && <polyline points={path} className="portfolio-value-line" fill="none" vectorEffect="non-scaling-stroke" />}
             {points.length <= 30 && points.map((point) => <circle key={point.date} cx={x(point)} cy={y(point.value)} r="2.5" className="portfolio-observation" />)}
             <line x1={x(active)} x2={x(active)} y1="12" y2="244" className="portfolio-crosshair" />
             <circle cx={x(active)} cy={y(active.value)} r="5" className="portfolio-active-point" />
         </svg>
+        </div>
         <div className="portfolio-chart-dates"><span>{points[0].date}</span>{points.length > 1 && <span>{points.at(-1).date}</span>}</div>
         <label className="portfolio-chart-scrubber"><span className="sr-only">Utforska sparade observationer</span>
             <input type="range" min="0" max={points.length - 1} step="1" value={activeIndex} disabled={points.length === 1}
+                aria-describedby={focused ? `${gradientId}-tooltip` : undefined}
                 aria-label="Visa sparad historikpunkt" aria-valuetext={`${active.date}: ${comparison ? signedPercent(active.value) : formatMoney(active.value)}`}
                 onChange={(event) => onFocus(points[Number(event.target.value)].date)} />
         </label>
-        <figcaption>{index ? `Separat indexutveckling · basdatum ${points[0].date} · ${index.currency} · utan utdelningar. Linjer förbinder verkliga slutkurser; inga mellanliggande datapunkter skapas.` : comparison ? "Portfölj och index · verifierad avkastning i SEK" : points.at(-1).live ? "Sparade dagsvärden och dagens livevärde · inga mellanliggande observationer skapas" : "Sparade dagsvärden · dagar utan observation fylls inte i"}</figcaption>
+        <figcaption>{index ? `Separat index · basdatum ${points[0].date} · utan utdelningar` : comparison ? "Portfölj och index · verifierad avkastning i SEK" : points.at(-1).live ? "Sparade dagsvärden + verifierat livevärde" : "Sparade dagsvärden"}</figcaption>
     </figure>;
 }

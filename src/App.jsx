@@ -1614,7 +1614,6 @@ function App() {
                 theme={theme}
                 onToggleTheme={toggleTheme}
             />
-            <InstallPrompt />
             <Routes>
                 <Route path="/" element={
                     <Dashboard
@@ -1681,6 +1680,7 @@ function App() {
                         />
                 }/>
             </Routes>
+            <InstallPrompt />
 
 
         </div>

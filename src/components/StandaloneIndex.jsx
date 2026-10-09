@@ -26,7 +26,15 @@ export default function StandaloneIndex({ id, period, apiFetch, focused, onFocus
 
 export function IndexHistoryContent({ data, focused, onFocus }) {
     return <>
-        <p className="portfolio-period-coverage" role="status">{data.label} · prisindex i {data.currency} · {data.zone} · Yahoo Finance.
+        <p className="portfolio-index-status" role="status">{data.label} · prisindex i {data.currency} · basdatum {data.points[0].date}
+            {data.period === "All" && " · högst 10 år"}
+            {data.points[0].date !== data.requestedStart && " · start efter periodgränsen"}
+            {data.missing > 0 && " · dataluckor"}
+        </p>
+        <PortfolioHistoryChart view={standaloneIndexView(data)} focused={focused} onFocus={onFocus}
+            formatMoney={value => `${value >= 0 ? "+" : ""}${value.toFixed(2)} %`} currency={data.currency} />
+        <details className="portfolio-daily-coverage"><summary>Indexets underlag</summary>
+        <p className="portfolio-period-coverage">{data.label} · prisindex i {data.currency} · {data.zone} · Yahoo Finance.
             {data.period === "All" && " ALL visar högst 10 års indexhistorik."}
             {` Basdatum ${data.points[0].date} = 0 %. Önskad period från ${data.requestedStart}.`}
             {data.points[0].date !== data.requestedStart && " Historiken börjar efter periodgränsen; utvecklingen gäller från basdatumet, inte hela kalenderperioden."}
@@ -34,7 +42,6 @@ export function IndexHistoryContent({ data, focused, onFocus }) {
             {data.points.length < 2 && " Endast en observation finns; utvecklingen kan ännu inte beräknas."}
             {` Senaste slutkurs ${data.points.at(-1).date}. Pågående lokal handelsdag utelämnas. Handelsfria dagar och dataluckor fylls inte i; full täckning av alla handelssessioner är inte verifierad.`}
         </p>
-        <PortfolioHistoryChart view={standaloneIndexView(data)} focused={focused} onFocus={onFocus}
-            formatMoney={value => `${value >= 0 ? "+" : ""}${value.toFixed(2)} %`} currency={data.currency} />
+        </details>
     </>;
 }

@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import useDisplayCurrency from "../hooks/useDisplayCurrency.js";
 import {getPortfolioSnapshots} from "../utils/portfolioSnapshots.js";
 import {useState} from "react";
 
@@ -15,6 +17,7 @@ function Settings({
         }
     };
 
+    const { currency, setCurrency, rate, error } = useDisplayCurrency();
     const snapshots = getPortfolioSnapshots();
     const [showSnapshots, setShowSnapshots] = useState(false);
     const [installMessage, setInstallMessage] = useState("");
@@ -79,6 +82,12 @@ function Settings({
             </div>
 
             <div className="settings-grid">
+                <section className="card settings-card"><div><h2>Visningsvaluta</h2><p>Portföljbelopp visas i vald valuta. IDAG visas alltid i SEK.</p></div>
+                    <label htmlFor="settings-currency">Valuta</label><select id="settings-currency" value={currency} onChange={event => setCurrency(event.target.value)}>
+                        <option value="SEK">SEK</option><option value="USD">USD</option><option value="EUR">EUR</option>
+                    </select>{error ? <p role="alert">Valutakursen kunde inte hämtas. Välj SEK eller försök igen.</p> : rate == null && <p role="status">Hämtar valutakurs…</p>}
+                </section>
+                <section className="card settings-card"><div><h2>Hjälp</h2><p>Import, portföljdata och hur värdena visas.</p></div><Link className="ghost-button" to="/help">Öppna hjälp</Link></section>
                 <section className="card settings-card">
                     <div>
                         <h2>Installera appen</h2>
