@@ -28,7 +28,6 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
             <div className="portfolio-hero-value">
                 <div className="portfolio-hero-eyebrow"><span className="eyebrow">Total portfölj</span><span className="portfolio-currency-tag">{currency}</span></div>
                 <h1>{portfolioValue == null ? "–" : formatMoney(portfolioValue)}</h1>
-                <p>Insatt kapital <strong>{valuesLoading ? "–" : formatMoney(investedCapital)}</strong></p>
             </div>
             <div className="portfolio-hero-status" role="status"><span className={`portfolio-status-dot ${updatingPrices ? "is-updating" : ""}`} />
                 {valuesLoading ? "Läser sparade värden" : updatingPrices ? "Uppdaterar kurser…" : "Senaste värdet"}
@@ -37,6 +36,10 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
         <div className="portfolio-hero-metrics portfolio-today-metric">
             <DailyDevelopmentMetric dailyChange={dailyChange} valuesLoading={valuesLoading} today={today} />
         </div>
+        {history.error && <p className="portfolio-chart-notice" role="alert">{history.error}</p>}
+        {benchmarkId && !view.comparison.available && <p className="portfolio-index-blocked" role="status">{benchmarkLabel}: överlägg ej tillgängligt. Portföljhistoriken visas.</p>}
+        {history.loading ? <div className="portfolio-chart-empty" role="status"><strong>Läser din historik…</strong><p>Sparade dagsvärden hämtas från Supabase.</p></div>
+            : <PortfolioHistoryChart view={view} focused={focused} onFocus={setFocused} formatMoney={formatMoney} currency={currency} />}
         <div className="portfolio-chart-toolbar">
             <div className="portfolio-periods" role="group" aria-label="Välj historikperiod">{PORTFOLIO_PERIODS.map((item) =>
                 <button key={item.id} type="button" aria-pressed={period === item.id}
@@ -53,16 +56,14 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
             }).format(new Date(`${view.first.date}T12:00:00Z`))}. </strong>}
             Periodjämförelse saknas.
         </p>}
-        {history.error && <p className="portfolio-chart-notice" role="alert">{history.error}</p>}
-        {benchmarkId && !view.comparison.available && <p className="portfolio-index-blocked" role="status">{benchmarkLabel}: överlägg ej tillgängligt. Portföljhistoriken visas.</p>}
-        {history.loading ? <div className="portfolio-chart-empty" role="status"><strong>Läser din historik…</strong><p>Sparade dagsvärden hämtas från Supabase.</p></div>
-            : <PortfolioHistoryChart view={view} focused={focused} onFocus={setFocused} formatMoney={formatMoney} currency={currency} />}
         <div className="portfolio-hero-metrics portfolio-secondary-metrics">
+            <div className="portfolio-metric"><span>Insatt kapital</span><strong>{valuesLoading ? "–" : formatMoney(investedCapital)}</strong></div>
             <div className="portfolio-metric"><span>{period === "1D" ? "Dagsförändring" : "Värdeförändring"} · {PORTFOLIO_PERIODS.find((item) => item.id === period)?.label}</span>
                 <strong className={color(view.changeSek)}>{view.changeSek == null ? "–" : signed(view.changeSek)}</strong>
                 <small className={color(view.changePercent)}>{view.changePercent == null ? period === "1D" ? "Ofullständigt dagsunderlag"
                     : view.periodCovered ? "Procent kan inte beräknas från nollvärde" : "Periodjämförelse saknas"
                     : `${percent(view.changePercent)} · ${period === "1D" ? "dagsförändring" : "värdeförändring"}`}</small>
+                {period === "All" && view.first && !view.first.live && <small>Från första sparade observationen · {view.first.date}</small>}
             </div>
             <div className="portfolio-metric"><span>Kapitalförändring</span>
                 <strong className={color(profit)}>{profit == null ? "–" : signed(profit)}</strong>
@@ -86,6 +87,7 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
         <details className="portfolio-daily-coverage portfolio-chart-details">
             <summary>Om grafen och beräkningen</summary>
             <p className="portfolio-period-coverage">Sparade dagsvärden · dagar utan observation fylls inte i. Ett verifierat livevärde ändrar inte sparad historik.</p>
+            {period === "All" && <p className="portfolio-period-coverage">ALL omfattar tillgänglig sparad historik. Värdeförändringen gäller från första sparade observationen, inte från när portföljen skapades.</p>}
             {period !== "1D" && !view.periodCovered && <p className="portfolio-period-coverage">Periodens avkastning kan ännu inte beräknas. Jämförbar startpunkt eller slutpunkt för hela perioden saknas.</p>}
         <div className="portfolio-hero-footer">
             <div><span className="portfolio-footer-label">{view.available ? `${view.first.date} — ${view.last.date}` : "Verkliga observationer"}</span>

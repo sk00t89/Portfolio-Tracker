@@ -21,6 +21,8 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     assert.match(initial, /<h1>125000 SEK<\/h1>/, 'latest live total stays separate from last history observation');
     assert.match(initial, /80000 SEK/);
     assert.match(initial, /45000 SEK/);
+    assert.match(initial, /Från första sparade observationen · 2026-10-04/);
+    assert.match(initial, /inte från när portföljen skapades/);
     assert.match(initial, /IDAG/);
     assert.match(initial, /0.08 %/);
     assert.equal((initial.match(/<section/g) ?? []).length, 1, 'history is inside the same card');
@@ -66,11 +68,11 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     const subset = render({dailyChange:{complete:false,instrumentCoveragePercent:100,sekCoveragePercent:42,reasons:['NAV för idag saknas'],
         subset:{available:true,currentDate:'2026-10-08',previousDate:'2026-10-07',changeSek:420,changePercent:2.1,
             portfolioValueSek:52500,coveragePercent:42,positionCount:12},positions:[]}});
-    assert.match(subset,/IDAG · DELMÄNGD/);assert.match(subset,/\+420 kr/);assert.match(subset,/2.10 % för delmängden/);
+    assert.match(subset,/Delmängd · 42,0 % täckning/);assert.match(subset,/\+420 kr/);assert.match(subset,/2.10 %/);
     assert.match(subset,/inte totalportföljen/);assert.match(subset,/42.0 % täckning/);assert.match(subset,/12 positioner/);
-    const compactSubset = subset.slice(subset.indexOf('portfolio-hero-metrics'),subset.indexOf('portfolio-chart-toolbar'));
-    assert.match(compactSubset,/12 innehav · 42.0 % täckning · inte hela portföljen/);
-    assert.match(compactSubset,/2026-10-08/,'the date stays visible before opening the underlying details');
+    const compactSubset = subset.slice(subset.indexOf('portfolio-hero-metrics'),subset.indexOf('<figure'));
+    assert.match(compactSubset,/Delmängd · 42,0 % täckning/);
+    assert.doesNotMatch(compactSubset,/2026-10-08|12 innehav/,'dates and counts stay in expandable details');
     assert.doesNotMatch(compactSubset,/Frankfurter|NAV för idag saknas|Senaste instrumentkurser/,'technical details move below the observed graph');
     for (const initialPeriod of ['1D','1V','1M','3M','YTD','1Å','ALL']) {
         for (const initialIndex of ['', 'OMXS30', 'SP500']) {

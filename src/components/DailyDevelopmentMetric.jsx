@@ -23,11 +23,10 @@ export default function DailyDevelopmentMetric({ dailyChange, valuesLoading, tod
         </div>
     </details>;
     return <div className="portfolio-metric portfolio-metric-today" aria-label="Dagens utveckling i SEK">
-        <span>IDAG{subset ? " · DELMÄNGD" : ""}</span>
+        <span>IDAG</span>
         <strong className={color(display?.changeSek)}>{display ? signed(display.changeSek) : "–"}</strong>
-        <small className={color(display?.changePercent)}>{display ? `${percent(display.changePercent)}${subset ? " för delmängden" : ""}`
+        <small className={color(display?.changePercent)}>{display ? `${percent(display.changePercent)}`
             : valuesLoading ? "Läser underlag…" : "Dagsunderlag saknas"}</small>
-        <span className="portfolio-metric-date">{today}</span>
-        {subset && <span className="portfolio-data-status">{subset.positionCount} innehav · {subset.coveragePercent == null ? "täckning okänd" : `${subset.coveragePercent.toFixed(1)} % täckning`} · inte hela portföljen</span>}
+        {subset && <span className="portfolio-data-status">Delmängd · {subset.coveragePercent == null ? "täckning okänd" : `${subset.coveragePercent.toFixed(1).replace(".", ",")} % täckning`}</span>}
     </div>;
 }
