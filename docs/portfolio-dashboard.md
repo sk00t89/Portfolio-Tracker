@@ -22,9 +22,9 @@ Under pågående uppdatering hålls totalvärdet fryst enligt befintligt flöde,
 
 Periodbeloppen är **värdeförändring**, inklusive insättningar/uttag. De betecknas inte som investeringsavkastning. Befintlig kapitalförändring mot insatt kapital och den strikt verifierade dagsberäkningen behålls. Historiken ligger i SEK. Vid annan visningsvaluta konverteras visningsbelopp med aktuell kurs, tydligt märkt; periodens procent beräknas på SEK-värdena, inte på uppskattad historisk FX.
 
-## Indexadapter — förberedd, ännu inte ansluten
+## Fristående indexhistorik och skyddad portföljjämförelse
 
-Valen OMXS30, SIXRX och S&P 500 finns men är inaktiva utan en ansluten verifierad datakälla. Kodgranskning visar ingen indexadapter eller indexhistorikendpoint i Express/market-api. Skrivskyddad kontroll av Supabase visar inga särskilda index-, benchmark-, return- eller cashflowtabeller. Appen levererar ännu varken verifierade indexserier eller ett komplett underlag för tidsvägd portföljavkastning. Jämförelsen visar därför uttryckligen att den är otillgänglig. Ingen extern indexkälla eller API-nyckel har lagts till.
+OMXS30 och S&P 500 kan nu väljas som fristående prisindex med historiska dagsstängningar från Yahoo Finance, via en gemensam Express/market-api-adapter. SIXRX förblir inaktivt. Perioder, verifiering, felhantering och kvarstående begränsningar beskrivs i [index-history.md](index-history.md). Indexkurvan normaliseras från första verkliga observationen i perioden och använder sin ursprungsvaluta. Denna adapter ger inget underlag för portföljjämförelse och skapar inga portföljvärden. Appen saknar fortfarande ett komplett verifierat TWR-/kassaflödesunderlag; jämförelse mot portföljen är avstängd.
 
 `PortfolioSummary` kan senare ta emot `portfolioReturns` och `benchmarks`, med serier för samma exakta start/slut och värderingstidpunkter. `compareVerifiedBenchmark` kräver:
 

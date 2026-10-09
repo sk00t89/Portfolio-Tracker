@@ -21,7 +21,9 @@ const checks = { html: htmlResponse.ok, javascript: assetResponse.ok,
     integratedHistory: code.includes("Portföljöversikt med historik"),
     liveEndpoint: code.includes("Dagens slutpunkt är ett verifierat livevärde"),
     noArtificialIntraday: code.includes("Ingen intradagskurva ritas"),
-    inactiveIndexes: code.includes("Ingen verifierad indexkälla är ansluten"),
+    standaloneIndexes: code.includes("index-history-v1") && code.includes("Visa index separat")
+        && code.includes("högst 10 års indexhistorik") && code.includes("Ingen intradagsdata för index")
+        && code.includes("Jämförelse mot portföljen är avstängd") && code.includes("Försök igen"),
     partialPeriodHistory: code.includes("Historik tillgänglig sedan") && code.includes("Periodens avkastning kan ännu inte beräknas"),
     verifiedReturnGuard: code.includes("Investeringsavkastning kräver verifierade kassaflöden"),
     edgeBackend: code.includes("https://ertvxedbqcqydeypnorm.supabase.co/functions/v1/market-api") };

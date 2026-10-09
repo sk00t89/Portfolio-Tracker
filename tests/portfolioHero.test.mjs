@@ -25,8 +25,13 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     assert.match(initial, /0.08 %/);
     assert.equal((initial.match(/<section/g) ?? []).length, 1, 'history is inside the same card');
     assert.equal((initial.match(/aria-pressed=/g) ?? []).length, 7);
-    assert.match(initial, /<select[^>]+disabled=""/);
-    assert.match(initial, /Ingen verifierad indexkälla är ansluten/);
+    assert.match(initial, /<select aria-label="Visa index separat"/);
+    assert.doesNotMatch(initial, /<select[^>]+disabled=""/);
+    assert.match(initial, /<option value="SIXRX" disabled=""/);
+    assert.match(initial, /Välj ett index för separat utveckling/);
+    assert.match(render({initialIndex:'OMXS30', history:{points:[]}}), /Hämtar indexhistorik/);
+    assert.match(render({initialIndex:'SP500', initialPeriod:'1D', history:{points:[]}}), /Ingen intradagsdata för index/);
+    assert.match(render({initialIndex:'OMXS30'}), /Jämförelse mot portföljen är avstängd/);
     assert.match(initial, /2 verkliga observationer/);
     const refreshing = render({ updatingPrices: true });
     assert.match(refreshing, /Uppdaterar kurser/);

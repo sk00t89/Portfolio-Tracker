@@ -2,6 +2,7 @@ import AssetList from "../components/AssetList.jsx";
 import Allocation from "../components/Allocation.jsx";
 import AssetForm from "../components/AssetForm.jsx";
 import PortfolioSummary from "../components/PortfolioSummary.jsx";
+import { apiFetch } from "../services/apiClient.js";
 import CryptoOverview from "../components/CryptoOverview.jsx";
 import {
     calculateInvestedCapital,
@@ -88,6 +89,7 @@ function Dashboard({
                     rate == null && <span role="status">Hämtar valutakurs…</span>}
             </div>
             <PortfolioSummary
+                indexApiFetch={apiFetch}
                 formatMoney={formatMoney}
                 portfolioValue={portfolioValue}
                 investedCapital={investedCapital}

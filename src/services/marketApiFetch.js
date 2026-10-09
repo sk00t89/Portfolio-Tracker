@@ -26,6 +26,9 @@ export function createMarketApiFetch({ baseUrl, apiKey, getSession, fetcher = fe
                 const error = new Error(!response.ok ? "MARKET_API_REQUEST_FAILED" : "MARKET_API_VERSION_MISMATCH");
                 error.code = error.message;
                 error.httpStatus = response.status;
+                if (path.startsWith("/api/index-history?") && typeof body?.code === "string" && /^INDEX_[A-Z_]+$/.test(body.code)) {
+                    error.indexCode = body.code;
+                }
                 error.diagnostics = safeQuoteDiagnostics(body?.diagnostics);
                 throw error;
             }

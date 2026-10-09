@@ -4,6 +4,7 @@ import { nearestHistoryPoint } from "../utils/portfolioPeriod.js";
 export default function PortfolioHistoryChart({ view, focused, onFocus, formatMoney, currency }) {
     const gradientId = `portfolio-area-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
     const comparison = view.comparison.available;
+    const index = view.standaloneIndex;
     const points = comparison ? view.comparison.series : view.points.map((point) => ({ ...point, value: point.valueSek }));
     const active = points.find((point) => point.date === focused) ?? points.at(-1);
     if (!view.available) return <div className="portfolio-chart-empty" role="status">
@@ -14,7 +15,7 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
     </div>;
     const values = points.flatMap((point) => comparison ? [point.value, point.benchmark] : [point.value]);
     const min = Math.min(...values), max = Math.max(...values);
-    const padding = Math.max((max - min) * 0.18, Math.abs(max) * 0.005, comparison ? 0.1 : 1);
+    const padding = Math.max((max - min) * 0.18, Math.abs(max) * 0.005, comparison || index ? 0.1 : 1);
     const bottom = min - padding, top = max + padding;
     const firstTime = Date.parse(points[0].date), span = Date.parse(points.at(-1).date) - firstTime;
     const x = (point) => span === 0 ? 500 : 12 + (Date.parse(point.date) - firstTime) / span * 976;
@@ -29,12 +30,12 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
     const signedPercent = (value) => `${value >= 0 ? "+" : ""}${value.toFixed(2)} %`;
     return <figure className={`portfolio-chart ${(comparison ? view.comparison.portfolioPercent : view.visibleChangeSek) < 0 ? "is-negative" : ""}`}>
         <div className="portfolio-chart-readout" aria-live="polite" aria-atomic="true">
-            <span>{active.live ? `Live · ${active.date}` : focused ? active.date : "Senast sparat"}</span>
+            <span>{index ? `${index.label} · ${active.date}` : active.live ? `Live · ${active.date}` : focused ? active.date : "Senast sparat"}</span>
             <strong>{comparison ? signedPercent(active.value) : formatMoney(active.value)}</strong>
             {comparison && <span className="portfolio-index-readout">Index {signedPercent(active.benchmark)}</span>}
         </div>
         <svg viewBox="0 0 1000 250" preserveAspectRatio="none" className="portfolio-chart-svg" role="img"
-            aria-label={`${comparison ? "Verifierad avkastning" : `Portföljvärde i ${currency}`} från ${points[0].date} till ${points.at(-1).date}. ${points.length} verkliga observationer.${points.at(-1).live ? " Dagens slutpunkt är ett verifierat livevärde." : ""}`}
+            aria-label={`${index ? `${index.label}, prisindex i ${currency}, utveckling i procent` : comparison ? "Verifierad avkastning" : `Portföljvärde i ${currency}`} från ${points[0].date} till ${points.at(-1).date}. ${points.length} verkliga observationer.${points.at(-1).live ? " Dagens slutpunkt är ett verifierat livevärde." : ""}`}
             onPointerMove={selectPoint} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); selectPoint(event); }}
             onPointerLeave={(event) => { if (event.pointerType === "mouse") onFocus(null); }}>
             <defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -45,7 +46,7 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
             {points.length > 1 && <polygon points={`12,244 ${path} 988,244`} fill={`url(#${gradientId})`} />}
             {comparison && points.length > 1 && <polyline points={points.map((point) => `${x(point)},${y(point.benchmark)}`).join(" ")}
                 className="portfolio-index-line" fill="none" vectorEffect="non-scaling-stroke" />}
-            {points.length > 1 && <polyline points={path} className="portfolio-value-line" fill="none" vectorEffect="non-scaling-stroke" />}
+            {points.length > 1 && <polyline points={path} className={index ? "portfolio-index-line" : "portfolio-value-line"} fill="none" vectorEffect="non-scaling-stroke" />}
             {points.length <= 30 && points.map((point) => <circle key={point.date} cx={x(point)} cy={y(point.value)} r="2.5" className="portfolio-observation" />)}
             <line x1={x(active)} x2={x(active)} y1="12" y2="244" className="portfolio-crosshair" />
             <circle cx={x(active)} cy={y(active.value)} r="5" className="portfolio-active-point" />
@@ -56,6 +57,6 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
                 aria-label="Visa sparad historikpunkt" aria-valuetext={`${active.date}: ${comparison ? signedPercent(active.value) : formatMoney(active.value)}`}
                 onChange={(event) => onFocus(points[Number(event.target.value)].date)} />
         </label>
-        <figcaption>{comparison ? "Portfölj och index · verifierad avkastning i SEK" : points.at(-1).live ? "Sparade dagsvärden och dagens livevärde · inga mellanliggande observationer skapas" : "Sparade dagsvärden · dagar utan observation fylls inte i"}</figcaption>
+        <figcaption>{index ? `Separat indexutveckling · basdatum ${points[0].date} · ${index.currency} · utan utdelningar. Linjer förbinder verkliga slutkurser; inga mellanliggande datapunkter skapas.` : comparison ? "Portfölj och index · verifierad avkastning i SEK" : points.at(-1).live ? "Sparade dagsvärden och dagens livevärde · inga mellanliggande observationer skapas" : "Sparade dagsvärden · dagar utan observation fylls inte i"}</figcaption>
     </figure>;
 }
