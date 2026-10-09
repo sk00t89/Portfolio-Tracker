@@ -523,7 +523,10 @@ p {
 .portfolio-daily-coverage summary { cursor: pointer; padding: 8px 0; }
 .portfolio-daily-coverage ul { padding-left: 18px; }
 .portfolio-daily-coverage li { margin: 8px 0; overflow-wrap: anywhere; }
-.portfolio-benchmark-picker select { padding: 9px 11px; font-size: 12px; border-color: var(--border-soft); background: transparent; }
+.portfolio-benchmark-picker select { padding: 9px 11px; font-size: 12px; border-color: var(--border-soft); background-color: var(--surface-soft); color: var(--text); color-scheme: dark; }
+.portfolio-benchmark-picker option { background-color: var(--surface); color: var(--text); }
+.portfolio-benchmark-picker option:disabled { color: var(--muted); }
+:root[data-theme="light"] .portfolio-benchmark-picker select { color-scheme: light; }
 .portfolio-benchmark-picker select:disabled { opacity: .6; cursor: not-allowed; }
 .portfolio-chart { margin: 0; color: var(--accent); }
 .portfolio-chart.is-negative { color: var(--danger); }
