@@ -3,6 +3,8 @@ import { formatSek } from "../utils/formatting.js";
 import { buildPortfolioPeriod, PORTFOLIO_PERIODS, BENCHMARKS, livePortfolioPoint, availableBenchmarkIds } from "../utils/portfolioPeriod.js";
 import PortfolioHistoryChart from "./PortfolioHistoryChart.jsx";
 import StandaloneIndex from "./StandaloneIndex.jsx";
+import DailyDevelopmentMetric from "./DailyDevelopmentMetric.jsx";
+import DailyComparisonDetails from "./DailyComparisonDetails.jsx";
 
 export default function PortfolioSummary({ portfolioValue, investedCapital, formatMoney = formatSek,
     dailyChange, updatingPrices, valuesLoading, history = { points: [] }, currency = "SEK", today, now,
@@ -14,15 +16,13 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
     const availableIndexes = availableBenchmarkIds(benchmarks, now);
     const activeBenchmark = availableIndexes.includes(benchmarkId) ? benchmarkId : "";
     const view = buildPortfolioPeriod({ points: history.points, period, today, now, portfolioReturns, livePoint,
-        dailyChange: valuesLoading ? null : dailyChange,
+        dailyChange: valuesLoading ? null : dailyChange?.today ?? dailyChange,
         benchmark: benchmarks[activeBenchmark] ?? null });
     const profit = portfolioValue == null || valuesLoading ? null : portfolioValue - investedCapital;
     const profitPercent = profit != null && investedCapital > 0 ? profit / investedCapital * 100 : null;
     const signed = (value, formatter = formatMoney) => `${value >= 0 ? "+" : ""}${formatter(value)}`;
     const percent = (value) => `${value >= 0 ? "+" : ""}${value.toFixed(2)} %`;
     const color = (value) => value == null ? "" : value >= 0 ? "positive-text" : "negative-text";
-    const subset = !valuesLoading && !dailyChange?.complete && dailyChange?.subset?.available ? dailyChange.subset : null;
-    const dailyDisplay = valuesLoading ? null : dailyChange?.complete ? dailyChange : subset;
     const benchmarkLabel = BENCHMARKS.find((item) => item.id === benchmarkId)?.label;
     return <section className="card portfolio-hero" aria-label="Portföljöversikt med historik">
         <div className="portfolio-hero-top">
@@ -36,43 +36,19 @@ export default function PortfolioSummary({ portfolioValue, investedCapital, form
             </div>
         </div>
         <div className="portfolio-hero-metrics">
+            <DailyDevelopmentMetric dailyChange={dailyChange} valuesLoading={valuesLoading} today={today} />
             <div className="portfolio-metric"><span>{period === "1D" ? "Dagsförändring" : "Värdeförändring"} · {PORTFOLIO_PERIODS.find((item) => item.id === period)?.label}</span>
                 <strong className={color(view.changeSek)}>{view.changeSek == null ? "–" : signed(view.changeSek)}</strong>
                 <small className={color(view.changePercent)}>{view.changePercent == null ? period === "1D" ? "Ofullständigt dagsunderlag"
                     : view.periodCovered ? "Procent kan inte beräknas från nollvärde" : "Periodjämförelse saknas"
                     : `${percent(view.changePercent)} · ${period === "1D" ? "verifierad dagsförändring" : "värde, inte investeringsavkastning"}`}</small>
             </div>
-            <div className="portfolio-metric"><span>{subset ? `${subset.currentDate === today ? "Idag" : subset.currentDate} · DELMÄNGD` : dailyChange?.label ?? "Idag"}</span>
-                <strong className={color(dailyDisplay?.changeSek)}>
-                    {dailyDisplay ? signed(dailyDisplay.changeSek, formatSek) : "–"}
-                </strong>
-                <small className={color(dailyDisplay?.changePercent)}>
-                    {dailyDisplay ? `${percent(dailyDisplay.changePercent)}${subset ? " för delmängden" : ""}`
-                        : dailyChange?.instrumentCoveragePercent != null ? "Ofullständigt underlag"
-                            : `Ofullständigt underlag · ${valuesLoading ? "–" : Math.floor(dailyChange?.coveragePercent ?? 0)} % kurstäckning`}
-                </small>
-                {!dailyChange?.complete && <span className="portfolio-metric-note">{dailyChange?.reasons?.[0]}</span>}
-                {subset && <>
-                    <span className="portfolio-metric-note">DELMÄNGD — inte totalportföljen. Fullständig total dagsförändring saknas.</span>
-                    <span className="portfolio-metric-note">{subset.previousDate} → {subset.currentDate} · {subset.positionCount} positioner</span>
-                    <span className="portfolio-metric-note">{formatSek(subset.portfolioValueSek)} av portföljens visade värde · {subset.coveragePercent == null ? "Andel kan inte beräknas" : `${subset.coveragePercent.toFixed(1)} % täckning`}</span>
-                </>}
-                {dailyChange?.instrumentCoveragePercent != null && <span className="portfolio-metric-note">
-                    Instrumentkurser {valuesLoading ? "–" : Math.floor(dailyChange.instrumentCoveragePercent)} % · Dagsförändring i SEK {valuesLoading ? "–" : Math.floor(dailyChange.sekCoveragePercent)} %
-                </span>}
-                {dailyChange?.referenceFx && <span className="portfolio-metric-note">Dagliga referensvalutakurser från Frankfurter, inte intradag-FX.</span>}
-            </div>
             <div className="portfolio-metric"><span>Kapitalförändring</span>
                 <strong className={color(profit)}>{profit == null ? "–" : signed(profit)}</strong>
                 <small className={color(profitPercent)}>{profitPercent == null ? "Jämförelse mot insatt kapital" : `${percent(profitPercent)} mot insatt kapital`}</small>
             </div>
         </div>
-        {dailyChange?.positions?.some(position => !position.covered) && <details className="portfolio-daily-coverage">
-            <summary>Underlag per innehav</summary>
-            <ul>{dailyChange.positions.filter(position => !position.covered).map((position, index) => <li key={`${position.id ?? position.name}-${index}`}>
-                <strong>{position.name}</strong>{position.reasons.length > 0 && <span> — {position.reasons.join("; ")}</span>}
-            </li>)}</ul>
-        </details>}
+        <DailyComparisonDetails dailyChange={dailyChange} />
         {dailyChange?.positions?.some(position => position.navObservation || position.navChange) && <details className="portfolio-daily-coverage">
             <summary>Senast publicerade fond-NAV</summary>
             <ul>{dailyChange.positions.filter(position => position.navObservation || position.navChange).map((position, index) => <li key={`${position.id ?? position.name}-${index}`}>

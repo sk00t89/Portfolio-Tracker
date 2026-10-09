@@ -21,7 +21,7 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     assert.match(initial, /<h1>125000 SEK<\/h1>/, 'latest live total stays separate from last history observation');
     assert.match(initial, /80000 SEK/);
     assert.match(initial, /45000 SEK/);
-    assert.match(initial, /Idag/);
+    assert.match(initial, /IDAG/);
     assert.match(initial, /0.08 %/);
     assert.equal((initial.match(/<section/g) ?? []).length, 1, 'history is inside the same card');
     assert.equal((initial.match(/aria-pressed=/g) ?? []).length, 7);
@@ -37,19 +37,38 @@ test('integrated hero preserves current total, deposited capital, daily coverage
     assert.match(refreshing, /Uppdaterar kurser/);
     assert.match(refreshing, /<h1>125000 SEK<\/h1>/, 'refresh keeps the saved total');
     const partial = render({ dailyChange: { complete: false, coveragePercent: 67.9, changeSek: 999999, reasons: ['Ofullständiga valutakurser'] } });
-    assert.match(partial, /67 % kurstäckning/);
+    assert.match(partial, /Dagens SEK och % saknar komplett verifierat underlag/);
     const diagnostic = render({dailyChange:{complete:false,coveragePercent:67,instrumentCoveragePercent:100,sekCoveragePercent:67,
-        referenceFx:true,reasons:['NAV för idag saknas'],positions:[{id:'f',name:'Avanza Zero',covered:false,reasons:['Senaste NAV 2026-10-07'],
+        referenceFx:true,reasons:['NAV för idag saknas'],positions:[{id:'f',name:'Avanza Zero',kind:'nav',covered:false,reasons:['Senaste NAV 2026-10-07'],
+            diagnostic:{source:'Avanza',referenceCheckedAt:Date.parse('2026-10-08T12:00:00Z'),lastAttemptAt:Date.parse('2026-10-08T12:30:00Z'),referenceValid:true},
             navChange:{label:'Senast publicerade NAV-förändring',date:'2026-10-07',previousDate:'2026-10-06',percent:-1}}]}});
-    assert.match(diagnostic,/Instrumentkurser 100 %/);assert.match(diagnostic,/Dagsförändring i SEK 67 %/);
+    assert.match(diagnostic,/Senaste instrumentkurser 100 %/);assert.match(diagnostic,/Dagsförändring i SEK 67 %/);
     assert.match(diagnostic,/Dagliga referensvalutakurser från Frankfurter/);
     assert.match(diagnostic,/Underlag per innehav/);assert.match(diagnostic,/Avanza Zero/);assert.match(diagnostic,/2026-10-06 → 2026-10-07/);
     assert.match(diagnostic,/Senast publicerade fond-NAV/);
+    assert.match(diagnostic,/NAV-värderingsdatum: saknas; publiceringstid saknas/);
+    assert.match(diagnostic,/Källa: Avanza/);assert.match(diagnostic,/Referensgiltighet: verifierad daterad observation/);
+    assert.match(diagnostic,/senaste hämtningsförsök/);
     const subset = render({dailyChange:{complete:false,instrumentCoveragePercent:100,sekCoveragePercent:42,reasons:['NAV för idag saknas'],
         subset:{available:true,currentDate:'2026-10-08',previousDate:'2026-10-07',changeSek:420,changePercent:2.1,
             portfolioValueSek:52500,coveragePercent:42,positionCount:12},positions:[]}});
-    assert.match(subset,/Idag · DELMÄNGD/);assert.match(subset,/\+420 kr/);assert.match(subset,/2.10 % för delmängden/);
+    assert.match(subset,/IDAG · DELMÄNGD/);assert.match(subset,/\+420 kr/);assert.match(subset,/2.10 % för delmängden/);
     assert.match(subset,/inte totalportföljen/);assert.match(subset,/42.0 % täckning/);assert.match(subset,/12 positioner/);
+    for (const initialPeriod of ['1D','1V','1M','3M','YTD','1Å','ALL']) {
+        for (const initialIndex of ['', 'OMXS30', 'SP500']) {
+            const markup = render({initialPeriod, initialIndex, currency:'USD', formatMoney:value=>`${value} USD`});
+            const metrics = markup.slice(markup.indexOf('portfolio-hero-metrics'), markup.indexOf('portfolio-chart-toolbar'));
+            assert.ok(metrics.indexOf('IDAG') < metrics.indexOf('förändring ·'), 'IDAG remains left');
+            assert.ok(metrics.indexOf('förändring ·') < metrics.indexOf('Kapitalförändring'), 'capital remains right');
+            assert.match(metrics,/\+100 kr/,'IDAG always uses SEK despite display currency or index');
+            assert.match(metrics,/\+0.08 %/);
+        }
+    }
+    const previous = render({dailyChange:{today:{complete:false,currentDate:'2026-10-08',reasons:['Börsen har inte öppnat'],
+        subset:null},latestSessionSubsets:[{previousDate:'2026-10-06',currentDate:'2026-10-07',changeSek:123456,
+            changePercent:1,positionCount:1,coveragePercent:50}],positions:[]}});
+    assert.doesNotMatch(previous.slice(previous.indexOf('portfolio-hero-metrics'),previous.indexOf('<details')),/123/);
+    assert.match(previous,/Senaste verifierade handelssessioner · inte IDAG/);
     const loadingSubset = render({valuesLoading:true,dailyChange:{complete:false,subset:{available:true,changeSek:999999,changePercent:2}}});
     assert.doesNotMatch(loadingSubset,/999999|DELMÄNGD/);
     assert.doesNotMatch(partial, /999999/);

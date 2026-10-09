@@ -2,7 +2,10 @@ import { quoteValuationKey } from "./valuationFreshness.js";
 export function attachDailyReferences(holdings, checks, userId) {
     return holdings.map(holding => {
         const check = checks[holding.id];
-        return { ...holding, dailyReference: holding.platform === "Lysa" ? holding.dailyReference
+        const same = check?.userId === userId && check?.valueKey === quoteValuationKey(holding);
+        const source = same ? check.diagnostics?.findLast(d => d.outcome === "accepted")?.provider : null;
+        return { ...holding, dailyQuoteCheck: holding.platform === "Lysa" ? holding.dailyQuoteCheck : same ? { checkedAt: check.checkedAt, source } : null,
+            dailyReference: holding.platform === "Lysa" ? holding.dailyReference
             : check?.userId === userId && check?.valueKey === quoteValuationKey(holding) ? check.dailyReference : null };
     });
 }

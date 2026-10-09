@@ -49,9 +49,9 @@ test('SEK movement includes both instrument and reference-FX movement with prior
     assert.equal(calculatePortfolioDailyChange({holdings:[h]},now).changeSek,420);assert.deepEqual(h,copy);
     assert.equal(calculatePortfolioDailyChange({holdings:[stock({quantity:1e308})]},now).complete,false);
 });
-test('missing, wrong-pair, old-check and fabricated timestamp FX never produce exact SEK return',()=>{
+test('missing, wrong-pair, future-check and fabricated timestamp FX never produce exact SEK return',()=>{
     for(const bad of [{...fx(),observations:[]},{...fx(),observations:fx().observations.map(x=>({...x,from:'EUR'}))},
-        {...fx(),observations:fx().observations.map(x=>({...x,checkedAt:now-21*60_000}))},
+        {...fx(),observations:fx().observations.map(x=>({...x,checkedAt:now+1}))},
         {...fx(),observations:fx().observations.map(x=>({...x,sourceTimestamp:now}))}]) {
         const result=calculatePortfolioDailyChange({holdings:[stock({dailyReference:{fx:bad}})]},now);
         assert.equal(result.complete,false);assert.equal(result.changeSek,null);assert.equal(result.instrumentCoveragePercent,100);

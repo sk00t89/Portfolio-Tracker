@@ -18,6 +18,7 @@ import useDisplayCurrency from "../hooks/useDisplayCurrency.js";
 import ManualAssetsStatus from "../components/ManualAssetsStatus.jsx";
 import MarketStatus from "../components/MarketStatus.jsx";
 import useMarketStatus from "../hooks/useMarketStatus.js";
+import useDailyReferences from "../hooks/useDailyReferences.js";
 import { calculatePortfolioDailyChange } from "../utils/portfolioDailyChange.js";
 import { stockholmDate } from "../utils/calendarDate.js";
 
@@ -27,6 +28,7 @@ function Dashboard({
     assets,
     manualAssets,
     userEmail,
+    userId,
     holdings,
     portfolioValue,
     lysaValue,
@@ -45,7 +47,8 @@ function Dashboard({
     const marketStatus = useMarketStatus(dailyHoldings);
     // The completed batch may be newer than the market-status timer. Use its real evaluation clock immediately.
     const valuationNow = Math.max(marketStatus.now, liveValuation?.evaluatedAt ?? 0);
-    const dailyChange = calculatePortfolioDailyChange({ holdings: dailyHoldings, manualAssets: assets,
+    const comparisonHoldings = useDailyReferences(dailyHoldings, userId, apiFetch, !valuesLoading);
+    const dailyChange = calculatePortfolioDailyChange({ holdings: comparisonHoldings, manualAssets: assets,
         transactions, lysaTransactions }, valuationNow);
     const lysaInvestedCapital =
         calculateLysaDeposits(lysaTransactions);

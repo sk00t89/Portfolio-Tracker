@@ -14,7 +14,6 @@ import Help from "./pages/Help.jsx";
 import {useEffect, useState, useRef} from "react";
 import { createInFlightRequests } from "./utils/requestDeduplication.js";
 import { runAtomicQuoteRefresh, mergeQuoteRefresh, portfolioDisplayValue, attachDailyReferences } from "./utils/atomicQuoteRefresh.js";
-import { getHoldingDailyReference } from "./services/dailyReferenceData.js";
 import getInstrumentKey from "./utils/instrumentKey.js";
 import {
     calculatePortfolioValue,
@@ -185,7 +184,6 @@ function App() {
         }
 
         const expectedUser = userId;
-        const reference = getHoldingDailyReference(holding).catch(() => ({}));
         const data = await loadQuote(holding, onDiagnostics);
 
         if (!data?.price) {
@@ -256,7 +254,7 @@ function App() {
                     : item
             )
         );
-        return { holding: savedHolding, checkedAt: data.checkedAt, dailyReference: await reference };
+        return { holding: savedHolding, checkedAt: data.checkedAt };
     };
 
     const updateAllHoldingPrices = async (
@@ -1260,6 +1258,7 @@ function App() {
                         : null,
                 priceUpdatedAt:
                     priceData?.date ?? null,
+                dailyQuoteCheck: { checkedAt: lysaQuoteCheck.checkedAt, source: "Lysa" },
                 dailyReference: { nav: priceData?.navComparison },
             };
         });
@@ -1619,6 +1618,7 @@ function App() {
             <Routes>
                 <Route path="/" element={
                     <Dashboard
+                        userId={userId}
                         portfolioHistory={portfolioHistory}
                         liveValuation={evaluateLiveValuation({ publication: quotePublication,
                             ready: !valuesLoading, inputs: valuationInputs })}

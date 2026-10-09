@@ -47,12 +47,28 @@ export function calculatePortfolioDailyChange({ holdings = [], manualAssets = []
     const currentDates = [...new Set(positions.map(p => p.currentDate).filter(Boolean))];
     const coverageKnown = !invalidValues && Number.isFinite(total) && total > 0;
     const subsets = buildDailySubsets(positions, { totalValueSek: total, coverageKnown, flowsUnverified, today: stockholmDate(now) });
+    // Preserve dated/session comparisons, but never present yesterday or a NAV pair as IDAG.
+    const todayPositions = positions.map(p => ({ ...p, covered: p.todayCovered === true }));
+    const todaySubsets = buildDailySubsets(todayPositions, { totalValueSek: total, coverageKnown, flowsUnverified, today: stockholmDate(now) });
+    const todayValue = todayPositions.filter(p => p.covered).reduce((sum, p) => sum + p.portfolioValueSek, 0);
+    const todayComplete = complete && todayPositions.filter(p => p.covered).length === positions.length;
+    const todayGroup = todaySubsets[0] ?? null;
+    const todayReasons = [...new Set([...reasons, ...positions.flatMap(p => p.todayReasons ?? p.reasons)])];
+    const latestSessionSubsets = buildDailySubsets(positions.filter(p => p.kind === "listed" && !p.todayCovered),
+        { totalValueSek: total, coverageKnown, flowsUnverified, today: stockholmDate(now) });
+    const today = { complete: todayComplete, changeSek: todayComplete ? current - previous : null,
+        changePercent: todayComplete ? (current / previous - 1) * 100 : null,
+        currentDate: stockholmDate(now), previousDate: todayGroup?.previousDate ?? null,
+        subset: todayComplete ? null : todayGroup, subsets: todaySubsets, reasons: todayReasons,
+        instrumentCoveragePercent: coverageKnown ? instrumentCovered / total * 100 : null,
+        sekCoveragePercent: coverageKnown ? todayValue / total * 100 : null,
+        coveragePercent: coverageKnown ? todayValue / total * 100 : null, referenceFx: positions.some(p => p.referenceFx) };
     return { complete, changeSek: complete ? current - previous : null,
         changePercent: complete ? (current / previous - 1) * 100 : null,
         coveragePercent: total > 0 ? covered / total * 100 : 0,
         instrumentCoveragePercent: total > 0 ? instrumentCovered / total * 100 : 0,
         sekCoveragePercent: total > 0 ? sekCovered / total * 100 : 0,
-        referenceFx: positions.some(p => p.referenceFx), positions, reasons: [...reasons],
+        referenceFx: positions.some(p => p.referenceFx), positions, reasons: [...reasons], today, latestSessionSubsets,
         subsets, subset: subsets[0] ?? null, flowsUnverified, coverageKnown, totalValueSek: coverageKnown ? total : null,
         currentDate: currentDates.length === 1 ? currentDates[0] : null,
         label: currentDates.length === 1 && currentDates[0] !== stockholmDate(now) ? `Senaste handelsdag · ${currentDates[0]}` : "Idag" };

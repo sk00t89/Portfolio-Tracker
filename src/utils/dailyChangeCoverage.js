@@ -1,10 +1,13 @@
-import { quoteFreshnessReason, normalizeQuoteTimestamp, VERIFIED_QUOTE_MAX_AGE } from "./valuationFreshness.js";
+import { quoteFreshnessReason, normalizeQuoteTimestamp } from "./valuationFreshness.js";
 import { isMutualFund } from "../../supabase/functions/_shared/snapshotEngine.js";
 import { validDate } from "../../supabase/functions/_shared/referenceData.js";
 import { zonedParts, getMarketStatus, latestCompletedSession, LISTING_CALENDARS, normalizeMarketCode } from "../../supabase/functions/_shared/marketCalendar.js";
 
 const positive = n => typeof n === "number" && Number.isFinite(n) && n > 0;
-const checked = (p, now) => Number.isFinite(p?.checkedAt) && p.checkedAt <= now && now - p.checkedAt <= VERIFIED_QUOTE_MAX_AGE;
+// An immutable dated observation does not expire when its polling/cache interval ends.
+// Its identity, observation date and applicable comparison session still must match.
+const checked = (p, now) => Number.isFinite(p?.checkedAt) && p.checkedAt > 0 && p.checkedAt <= now
+    && validDate(p.sourceDate) && p.sourceDate <= zonedParts(p.checkedAt, "Europe/Stockholm").date;
 function navValid(p, holding, now) {
     return p?.verified === true && p.kind === "published_nav" && p.isin === holding.isin
         && p.currency === holding.currency && ["Avanza", "Lysa"].includes(p.provider) && p.sourceTimestamp === null
@@ -21,7 +24,9 @@ export function dailyHoldingCoverage(holding, now) {
     const market = LISTING_CALENDARS[normalizeMarketCode(holding.market)];
     const status = getMarketStatus(fund ? "STOCKHOLM" : market, now);
     const session = status.status === "open" ? status : latestCompletedSession(fund ? "STOCKHOLM" : market, now);
-    if (!instrumentCovered) reasons.push(holding.quoteStale ? "Senaste kurskontrollen misslyckades" : "Instrumentkurs saknas eller är fördröjd");
+    const freshnessReason = quoteFreshnessReason(holding, now);
+    if (!instrumentCovered) reasons.push(holding.quoteStale ? "Senaste kurskontrollen misslyckades"
+        : `Instrumentkurs saknas eller är fördröjd: ${freshnessReason ?? "positivt pris eller giltig kurstid saknas"}`);
     if (fund) {
         const nav = holding.dailyReference?.nav;
         if (!navValid(nav?.current, holding, now) || nav.current.price !== price
@@ -64,7 +69,29 @@ export function dailyHoldingCoverage(holding, now) {
     if (!positive(quantity)) reasons.push("Verifierat antal för jämförelsen saknas");
     const currentValue = quantity * currentPrice * currentFx, previousValue = quantity * previousPrice * previousFx;
     if (reasons.length === 0 && (!positive(currentValue) || !positive(previousValue))) reasons.push("SEK-jämförelsevärdet är ogiltigt");
+    const today = zonedParts(now, "Europe/Stockholm").date;
+    const todayReasons = [...reasons];
+    if (fund) todayReasons.push("Fond-NAV visas separat med publicerade värderingsdatum, inte som dagens börsutveckling");
+    else if (status.status === "before_open") todayReasons.push(`Börsen har inte öppnat ${status.date}; senaste handelssession ${session?.date ?? "saknas"}`);
+    else if (status.status === "closed_day") todayReasons.push(`Börsen är stängd ${status.date}: ${status.reason}`);
+    if (!fund && currentDate !== today) todayReasons.push(`Dagens kurstid för ${today} saknas; senaste observation ${currentDate ?? "saknas"}`);
+    const reference = holding.dailyReference;
+    const source = fund ? reference?.nav?.current?.provider ?? holding.provider ?? "NAV-källa saknas"
+        : holding.dailyQuoteCheck?.source ?? "Källa för aktuell kurs saknas";
+    const navCheckedAt = reference?.nav?.current?.checkedAt;
+    const fxCheckedAt = reference?.fx?.current?.checkedAt;
+    const observationChecks = [navCheckedAt, fxCheckedAt].filter(Number.isFinite);
     return { id: holding.id, name: holding.name, instrumentCovered, covered: reasons.length === 0,
+        kind: fund ? "nav" : holding.assetType === "CRYPTO" && !holding.isin && holding.productType !== "ETP" ? "crypto" : "listed",
+        todayCovered: todayReasons.length === 0, todayReasons,
+        diagnostic: { source, quoteTime: timestamp, marketStatus: status.status, expectedDate: session?.date ?? null,
+            quoteCheckedAt: holding.dailyQuoteCheck?.checkedAt ?? null,
+            referenceCheckedAt: observationChecks.length ? Math.max(...observationChecks) : null,
+            lastAttemptAt: reference?.lastAttemptAt ?? null, refreshError: reference?.refreshError ?? null,
+            referenceLoading: reference?.loading ?? false,
+            referenceValid: !fund && !foreign ? null : (!fund || Boolean(navChange)) && (!foreign || (positive(currentFx) && positive(previousFx))),
+            fxSource: foreign ? "Frankfurter · daglig referens" : null,
+            closeDateVerified: !fund && Boolean(holding.previousCloseDate) },
         reasons, currentDate, previousDate, navChange, navObservation, referenceFx: foreign,
         currentValue: reasons.length ? null : currentValue,
         previousValue: reasons.length ? null : previousValue };

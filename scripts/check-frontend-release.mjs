@@ -13,8 +13,10 @@ const code = await assetResponse.text();
 const checks = { html: htmlResponse.ok, javascript: assetResponse.ok,
     quoteVersion: code.includes("market-quotes-v2"),
     atomicRefresh: code.includes("Uppdaterar kurser"),
-    dailyCoverage: code.includes("kurstäckning"),
-    datedReferences: code.includes("daily-reference-v1") && code.includes("Instrumentkurser") && code.includes("Dagsförändring i SEK")
+    dailyCoverage: code.includes("Dagens SEK och % saknar komplett verifierat underlag"),
+    independentToday: code.includes("IDAG") && code.includes("Senaste verifierade handelssessioner · inte IDAG")
+        && code.includes("visibilitychange") && code.includes("Referensgiltighet"),
+    datedReferences: code.includes("daily-reference-v1") && code.includes("Senaste instrumentkurser") && code.includes("Dagsförändring i SEK")
         && code.includes("Underlag per innehav") && code.includes("Dagliga referensvalutakurser från Frankfurter"),
     verifiedSubset: code.includes("DELMÄNGD") && code.includes("inte totalportföljen") && code.includes("av portföljens visade värde")
         && code.includes("Senast publicerade fond-NAV") && code.includes("YAHOO_LISTING_UNVERIFIED"),
