@@ -1,10 +1,13 @@
 # Staging review package — not an executable cloud migration
 
-No cloud project has been created or modified. The SQL under `supabase-test/` is
+No cloud project has been modified by this package. The SQL under `supabase-test/` is
 intentionally guarded by `portfolio_tracker.test_only` and is not a production
 migration. Keep those guards. Do not run `supabase db push` from this repository.
 
 Owner instructions: [create an empty staging project](create-project.sv.md).
+The owner has now supplied staging ref `vutjthqlgzokeylaxpzp`. Review the
+[first-step approval draft](next-step.sv.md) before any cloud action. Its SQL
+is deliberately outside automatic migrations and has only been rehearsed locally.
 Start with synthetic portfolios **and synthetic market data**. Paid market data
 is not a prerequisite for staging's technical tests; real-data pilot acceptance
 remains blocked separately. No external resource is created by our local scripts.
