@@ -1,0 +1,25 @@
+export const publicListedCatalog=[
+    ['AbCellera','CA00288U1066','ABCL','XNAS','USD','STOCK'],['Palantir','US69608A1088','PLTR','XNAS','USD','STOCK'],
+    ['Dicot Pharma','SE0011178458','DICOT','FNSE','SEK','STOCK'],['Evolution','SE0012673267','EVO','XSTO','SEK','STOCK'],
+    ['Latour B','SE0010100958','LATO B','XSTO','SEK','STOCK'],['Plejd','SE0008014476','PLEJD','XSAT','SEK','STOCK'],
+    // Investor identity candidate is supported by the issuer's 2021 share-split announcement.
+    // Nordnet account mapping still needs confirmation; this is not a portfolio import.
+    ['Investor B','SE0015811963','INVE B','XSTO','SEK','STOCK'],
+    ['Dicot TO7','SE0029051242','DICOT TO7','FNSE','SEK','SUBSCRIPTION_OPTION'],
+    ['Valour Arweave','CH1108679304','VALOUR AR SEK','XSAT','SEK','CERTIFICATE'],
+    ['Valour Sui','CH1213604601','VALOUR SUI SEK','XSAT','SEK','CERTIFICATE'],
+    ['Valour Avalanche','CH1114178788','VALOUR AVAX SEK','XSAT','SEK','CERTIFICATE'],
+    ['Valour Bitcoin Zero','CH0585378661','VALOUR BTC 0 SEK','XSAT','SEK','CERTIFICATE'],
+    ['Valour Ethereum Zero','CH1104954362','VALOUR ETH 0 SEK','XSAT','SEK','CERTIFICATE'],
+    ['Valour Gram','CH1161139600','VALOUR GRAM SEK','XSAT','SEK','CERTIFICATE'],
+    ['Valour Polkadot','CH1114178770','VALOUR DOT SEK','XSAT','SEK','CERTIFICATE'],
+    ['Valour Sonic','CH1108679353','VALOUR S SEK','XSAT','SEK','CERTIFICATE'],
+    ['Virtune Avalanche','SE0022050092','VIRAVAX','XSTO','SEK','CERTIFICATE'],
+    ['Virtune Chainlink','SE0021149259','VIRLINK','XSTO','SEK','CERTIFICATE'],
+    ['Virtune Altcoin Index','SE0023260716','VIRALT','XSTO','SEK','CERTIFICATE'],
+    ['Virtune Cardano','SE0021630449','VIRADA','XSTO','SEK','CERTIFICATE'],
+    ['Virtune Ethereum','SE0020541639','VIRSETHS','XSTO','SEK','CERTIFICATE'],
+    ['Virtune Polkadot','SE0021148129','VIRDOT','XSTO','SEK','CERTIFICATE'],
+    ['Virtune Solana','SE0021309754','VIRSOL','XSTO','SEK','CERTIFICATE'],
+    ['Virtune XRP','SE0021486156','VIRXRP','XSTO','SEK','CERTIFICATE'],
+].map(([name,isin,ticker,market,currency,assetType])=>({name,isin,ticker,market,currency,assetType,platform:'Avanza'}));

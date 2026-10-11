@@ -1,5 +1,6 @@
 import { createFundNavProvider } from "./fundNavProviders.js";
 import { createIndexHistoryRoute } from "./indexHistory.js";
+import { createHistoricalIndexFxRoute } from "./historicalIndexFx.js";
 import { createReferenceDataRoutes } from "./referenceDataRoutes.js";
 import { providerHttpError } from "./providerDiagnostics.js";
 import { normalizeYahooSymbol } from "./yahooSymbol.js";
@@ -15,6 +16,7 @@ export function createMarketQuoteRoutes({ fetcher = fetch, clock = Date.now,
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console } = {}) {
     const referenceRoute = createReferenceDataRoutes({ fetcher, clock });
     const indexRoute = createIndexHistoryRoute({ fetcher, clock });
+    const indexFxRoute = createHistoricalIndexFxRoute({ fetcher, clock });
     async function request(url, headers = {}, options = {}) {
         for (let attempt = 0; ; attempt++) {
             let response;
@@ -51,6 +53,8 @@ export function createMarketQuoteRoutes({ fetcher = fetch, clock = Date.now,
     return async function route(url) {
         const index = await indexRoute(url);
         if (index) return index;
+        const indexFx = await indexFxRoute(url);
+        if (indexFx) return indexFx;
         const reference = await referenceRoute(url);
         if (reference) return reference;
         const path = url.pathname.replace(/^.*\/market-api(?=\/api\/)/, "");

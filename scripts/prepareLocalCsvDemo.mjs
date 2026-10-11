@@ -1,0 +1,11 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {randomUUID} from 'node:crypto';
+import {createClient} from '@supabase/supabase-js';
+import {localCredentials,assertLocalDatabase} from './localPerformanceEnvironment.mjs';
+assertLocalDatabase();const credentials=localCredentials();
+const admin=createClient(credentials.url,credentials.serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
+const demo=JSON.parse(readFileSync('supabase-test/demo-users.local','utf8'));
+const email=`csv-demo-${randomUUID().slice(0,8)}@portfolio-test.invalid`;
+const result=await admin.auth.admin.createUser({email,password:demo.password,email_confirm:true});if(result.error)throw result.error;
+demo.users.push({id:result.data.user.id,email});writeFileSync('supabase-test/demo-users.local',JSON.stringify(demo,null,2));
+console.log('Blank synthetic CSV demo user appended in LOCAL test only.');

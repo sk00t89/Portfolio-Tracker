@@ -22,10 +22,12 @@ import useMarketStatus from "../hooks/useMarketStatus.js";
 import useDailyReferences from "../hooks/useDailyReferences.js";
 import { calculatePortfolioDailyChange } from "../utils/portfolioDailyChange.js";
 import { stockholmDate } from "../utils/calendarDate.js";
+import usePortfolioPerformance from "../hooks/usePortfolioPerformance.js";
+import LedgerDashboard from "../components/LedgerDashboard.jsx";
 
 
 
-function Dashboard({
+function LegacyDashboard({
     assets,
     manualAssets,
     userEmail,
@@ -45,6 +47,7 @@ function Dashboard({
     transactions,
 }) {
     const { currency, formatMoney, rate, error } = useDisplayCurrency();
+    const performance = usePortfolioPerformance(userId);
     const marketStatus = useMarketStatus(dailyHoldings);
     // The completed batch may be newer than the market-status timer. Use its real evaluation clock immediately.
     const valuationNow = Math.max(marketStatus.now, liveValuation?.evaluatedAt ?? 0);
@@ -86,6 +89,10 @@ function Dashboard({
             <ManualAssetsStatus state={manualAssets} email={userEmail} />
             {error ? <p className="history-readiness" role="alert">Visningsvalutan kunde inte laddas. <Link to="/settings">Välj SEK i Inställningar.</Link></p> : rate == null && <p className="history-readiness" role="status">Hämtar visningsvaluta…</p>}
             <PortfolioSummary
+                key={userId ?? "guest"}
+                preferenceScope={userId ?? "guest"}
+                portfolioReturns={performance}
+                marketRequest={apiFetch}
                 formatMoney={formatMoney}
                 portfolioValue={portfolioValue}
                 investedCapital={investedCapital}
@@ -132,11 +139,6 @@ function Dashboard({
                     portfolioValue={portfolioValue}
                 />
             )}
-            <HoldingsOverview
-                formatMoney={formatMoney}
-                groupedHoldings={groupedHoldings}
-            />
-
             <AssetForm
                 addAsset={manualAssets.addAsset}
                 manualAssetsDisabled={!manualAssets.ready || manualAssets.busy}
@@ -150,4 +152,6 @@ function Dashboard({
     );
 }
 
-export default Dashboard;
+export default function Dashboard(props) {
+    return props.ledgerPortfolio ? <LedgerDashboard {...props.ledgerPortfolio} /> : <LegacyDashboard {...props} />;
+}

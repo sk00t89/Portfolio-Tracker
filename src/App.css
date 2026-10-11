@@ -2257,3 +2257,7 @@ p {
   .daily-mover-row > div:last-child { text-align: left; }
   .daily-mover-category p, .daily-mover-row span { font-size: 12px; }
 }
+.ledger-trade-form { display: grid; gap: 12px; }
+.ledger-trade-form label { display: grid; gap: 5px; }
+.ledger-trade-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 640px) { .ledger-trade-fields { grid-template-columns: 1fr; } }

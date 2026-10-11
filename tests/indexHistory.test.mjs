@@ -12,6 +12,20 @@ function fixture(id = 'OMXS30') {
         timestamp:['2026-10-05T14:00:00Z','2026-10-06T14:00:00Z','2026-10-08T14:00:00Z','2026-10-09T13:00:00Z','2026-10-12T14:00:00Z'].map(x=>Date.parse(x)/1000),
         indicators:{quote:[{close:[100,105,110,111,120]}]}}]}};
 }
+
+test('validated index closes are cached across users in one server instance and expire without caching failures', async () => {
+    let calls=0,time=now;
+    const route=createIndexHistoryRoute({clock:()=>time,fetcher:async()=>{
+        calls++;return {ok:true,json:async()=>fixture()};
+    }});
+    const url=new URL('https://x/api/index-history?id=OMXS30&period=1V');
+    const [first,second]=await Promise.all([route(url),route(url)]);
+    assert.equal(first.status,200);assert.equal(second.status,200);assert.equal(calls,1);
+    await route(url);assert.equal(calls,1);
+    time+=16*60000;await route(url);assert.equal(calls,2);
+    const failed=createIndexHistoryRoute({clock:()=>now,fetcher:async()=>{calls++;return {ok:false,status:503};}});
+    await failed(url);await failed(url);assert.equal(calls,4);
+});
 test('both indices retain identity, native currency, local dates and real bar timestamps; unfinished and future bars excluded', () => {
     for (const id of Object.keys(INDEXES)) {
         const data = parseIndexHistory(fixture(id),id,'1V',now);

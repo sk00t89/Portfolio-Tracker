@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {createClient} from '@supabase/supabase-js';
+import {localCredentials,assertLocalDatabase} from './localPerformanceEnvironment.mjs';
+import {syntheticFiles} from './syntheticPortfolioFixtures.mjs';
+assertLocalDatabase();const credentials=localCredentials(),demo=JSON.parse(readFileSync('supabase-test/demo-users.local','utf8'));
+const client=createClient(credentials.url,credentials.anonKey,{auth:{persistSession:false,autoRefreshToken:false}});
+const login=await client.auth.signInWithPassword({email:demo.users[0].email,password:demo.password});assert.ifError(login.error);
+const read=async()=>{const result=await client.rpc('get_portfolio_performance_input');assert.ifError(result.error);return result.data;};
+const before=await read();
+const request=(action,body,headers={})=>fetch(`http://127.0.0.1:55801/api/local-test/import/${action}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${login.data.session.access_token}`,...headers},body:JSON.stringify(body)});
+const rejected=await request('commit',{files:[{...syntheticFiles[0],name:'private-portfolio.csv'}],answers:{scopeConfirmed:true}});assert.equal(rejected.status,422);assert.match((await rejected.json()).error,/endast.*syntetiska/);
+assert.equal((await request('commit',{files:[syntheticFiles[4]]},{Origin:'https://example.invalid'})).status,403);
+const duplicate=await request('commit',{files:[syntheticFiles[4]],answers:{},user_id:demo.users[1].id});assert.equal(duplicate.status,200);assert.equal((await duplicate.json()).duplicate,true);
+assert.deepEqual(await read(),before);
+console.log('PASS LOCAL HTTP: non-fixture portfolio file rejected before write, foreign origin rejected, caller identity cannot be overridden, duplicate import leaves journal/history unchanged.');

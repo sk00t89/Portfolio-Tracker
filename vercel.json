@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "codex/verified-portfolio-pilot": false
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

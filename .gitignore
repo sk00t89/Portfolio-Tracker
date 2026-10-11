@@ -25,3 +25,15 @@ dist-ssr
 .env
 .env.local
 .env.*
+
+# Isolated Supabase test runtime and private local credentials
+supabase-test/supabase/.temp/
+supabase-test/supabase/.branches/
+performance-test/.env.local
+performance-test/dist/
+supabase-test/*.local.jpg
+supabase-test/*.local.*
+docs/local-public-market-job.json
+docs/pilot-public-market-audit.json
+docs/pilot-public-listed-audit.json
+supabase-test/backups.local/

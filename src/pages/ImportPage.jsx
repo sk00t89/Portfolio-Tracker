@@ -5,7 +5,8 @@ import {useState} from "react";
 function ImportPage({
                         importHoldings,
                         importLysaTransactions,
-                        importLysaPerformance
+                        importLysaPerformance,
+                        openingImport,
                     }) {
 
     const [inputFile, setInputFile] = useState([]);
@@ -44,11 +45,11 @@ function ImportPage({
             <div className="page-heading">
                 <span className="eyebrow">CSV-import</span>
                 <h1>Importera portfölj</h1>
-                <p>Ladda upp exportfiler från Avanza, Nordnet eller Lysa.</p>
+                <p>{openingImport ? 'Stäm av öppningsbalans och kassa innan historiken börjar.' : 'Ladda upp exportfiler från Avanza, Nordnet eller Lysa.'}</p>
             </div>
 
             <section className="card import-card">
-
+            {openingImport ?? <>
             <input
                 type="file"
                 accept=".csv,.txt"
@@ -62,6 +63,7 @@ function ImportPage({
                         </p>
                     ))}
                 </div>
+            </>}
             </section>
         </main>
     );

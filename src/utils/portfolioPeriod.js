@@ -1,5 +1,7 @@
 import { createValueSeries, stockholmDate, periodStart } from "./dashboardHistory.js";
 import { normalizeQuoteTimestamp, validateValuationFreshness, VERIFIED_QUOTE_MAX_AGE } from "./valuationFreshness.js";
+import { PERFORMANCE_VERSION } from "./portfolioPerformance.js";
+import { buildDailyPerformanceView } from "./performanceComparison.js";
 
 export const PORTFOLIO_PERIODS = [
     { id: "1D", label: "1D" }, { id: "1V", label: "1V" }, { id: "1M", label: "1M" },
@@ -112,8 +114,17 @@ export function buildPortfolioPeriod({ points = [], period = "All", now = Date.n
         : periodCovered && calculationStart.valueSek > 0 ? changeSek / calculationStart.valueSek * 100 : null;
     const comparison = periodCovered ? compareVerifiedBenchmark(calculationPoints, portfolioReturns, benchmark, now)
         : { available: false, reason: "Jämförbar startpunkt eller slutpunkt för hela perioden saknas." };
-    const displayedDates = new Set(selected.map(point => point.date));
-    if (comparison.available) comparison.series = comparison.series.filter(point => displayedDates.has(point.date));
+    // A normalized comparison must retain its actual zero-percent anchor.
+    if (portfolioReturns?.apiVersion === PERFORMANCE_VERSION) {
+        const performanceView = buildDailyPerformanceView(portfolioReturns, benchmark, period, today, now);
+        if (performanceView.available) return { available: true, points: performanceView.points,
+            first: performanceView.points[0], last: performanceView.points.at(-1), changeSek, changePercent,
+            comparison: performanceView.comparison, performance: performanceView.performance,
+            periodCovered, calculationStart, calculationEnd, dailyAvailable, dailySubsetAvailable,
+            visibleChangeSek: performanceView.performance.series.at(-1).value, historyCount: performanceView.points.length,
+            latestObservation: valid.at(-1), reason: "" };
+        comparison.reason = performanceView.reason;
+    }
     return { available, points: selected, first, last, changeSek, changePercent, comparison,
         periodCovered, calculationStart, calculationEnd,
         visibleChangeSek: selected.length >= 2 ? last.valueSek - first.valueSek : 0,

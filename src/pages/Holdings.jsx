@@ -21,7 +21,9 @@ function Holdings({
                       selectEnrichmentCandidate,
                       searchEnrichmentCandidates,
                       deleteHolding,
-                      handleTransaction
+                      handleTransaction,
+                      renderTransactionForm,
+                      journalManaged = false,
                   }) {
     const [manualSearch, setManualSearch] = useState("");
     const [sortBy, setSortBy] = useState("largest");
@@ -407,10 +409,10 @@ function Holdings({
                                     ) : (
                                         <>
                                             <strong>
-                                                {formatSek(group.totalValue)}
+                                                {group.valueUnavailable ? 'Värdering saknas' : formatSek(group.totalValue)}
                                             </strong>
                                             <span>
-                                                {percentage.toFixed(2)} %
+                                                {group.valueUnavailable || journalManaged && !(portfolioValue > 0) ? '–' : `${percentage.toFixed(2)} %`}
                                             </span>
                                         </>
                                     )}
@@ -438,7 +440,7 @@ function Holdings({
                                             </span>
 
                                         <div className="position-actions">
-                                            {position.platform !== "Lysa" && (
+                                            {position.platform !== "Lysa" && !journalManaged && (
                                                 <button
                                                     className="ghost-button danger-text small-button"
                                                     type="button"
@@ -509,7 +511,8 @@ function Holdings({
                                                 )}
                                         </div>
 
-                                        {selectedPosition?.id === position.id && (
+                                        {selectedPosition?.id === position.id && renderTransactionForm && renderTransactionForm(position)}
+                                        {selectedPosition?.id === position.id && !renderTransactionForm && (
                                             <div className="transaction-form">
                                                 <div className="transaction-position-summary">
                                                     <span>

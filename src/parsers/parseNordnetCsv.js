@@ -1,13 +1,9 @@
+import {delimitedRows,csvNumber} from './delimitedCsv.js';
 const parseNordnetCsv = (string) => {
 
-    const rows = string
-        .replaceAll("\r", "")
-        .replaceAll(",", ".")
-        .split("\n");
-
-    const columns = rows.map((row) => {
-        return row.split("\t");
-    });
+    const columns = delimitedRows(string,'\t');
+    const header=columns[0];
+    const extra=(row,name)=>header.includes(name)?row[header.indexOf(name)]||null:null;
 
     const refinedRows = columns.filter((row) => {
         if (row.includes("Namn") || row[0] === "" ) {
@@ -22,16 +18,19 @@ const parseNordnetCsv = (string) => {
         return {
             name: row[0],
             ticker: null,
-            quantity: Number(row[2]),
-            valueSek: Number(row[8]),
-            averagePriceSek: null,
-            averagePrice: Number(row[3]),
+            quantity: csvNumber(row[2]),
+            valueSek: csvNumber(row[8]),
+            // Native SEK acquisition cost is already SEK; foreign GAV needs separate evidence.
+            averagePriceSek: row[1] === 'SEK' ? csvNumber(row[3]) : null,
+            averagePrice: csvNumber(row[3]),
             currency: row[1],
             country: null,
-            isin: null,
-            market: null,
-            assetType: null,
+            isin: extra(row,'ISIN'),
+            market: extra(row,'Marknad'),
+            assetType: extra(row,'Typ'),
             platform: "Nordnet",
+            accountId: extra(row,'Konto'),
+            importDate: extra(row,'Exportdatum'),
         };
     });
 

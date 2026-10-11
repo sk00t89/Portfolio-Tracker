@@ -51,6 +51,7 @@ export function parseIndexHistory(data, id, period, now) {
         period, requestedStart: start, requestedEnd: today, fetchedAt: new Date(now).toISOString(), missing, points };
 }
 export function createIndexHistoryRoute({ fetcher = fetch, clock = Date.now } = {}) {
+    const cache = new Map(), pending = new Map();
     return async url => {
         const path = url.pathname.replace(/^.*\/market-api(?=\/api\/)/, "");
         if (path !== "/api/index-history") return null;
@@ -59,14 +60,22 @@ export function createIndexHistoryRoute({ fetcher = fetch, clock = Date.now } = 
         let start;
         try { start = indexPeriodStart(period, indexDate(now, INDEXES[id].zone)); }
         catch { return { status: 400, body: { code: "INDEX_PERIOD_UNSUPPORTED" } }; }
+        const key = `${id}:${period}:${indexDate(now, INDEXES[id].zone)}`;
+        const cached = cache.get(key);
+        if (cached && now - cached.at < 15 * 60000) return { status: 200, body: cached.body };
         try {
-            const begin = Math.floor(Date.parse(`${start}T00:00:00Z`) / 1000);
-            const response = await fetcher(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(INDEXES[id].symbol)}?interval=1d&period1=${begin}&period2=${Math.floor(now / 1000)}`, {
-                headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(12000),
-            });
-            if (!response.ok) return { status: 502, body: { code: "INDEX_PROVIDER_HTTP_ERROR", providerStatus: response.status } };
-            const body = parseIndexHistory(await response.json(), id, period, now);
-            return { status: 200, body };
+            if (!pending.has(key)) pending.set(key, (async () => {
+                const begin = Math.floor(Date.parse(`${start}T00:00:00Z`) / 1000);
+                const response = await fetcher(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(INDEXES[id].symbol)}?interval=1d&period1=${begin}&period2=${Math.floor(now / 1000)}`, {
+                    headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(12000),
+                });
+                if (!response.ok) return { status: 502, body: { code: "INDEX_PROVIDER_HTTP_ERROR", providerStatus: response.status } };
+                const body = parseIndexHistory(await response.json(), id, period, now);
+                if (cache.size >= 32) cache.delete(cache.keys().next().value);
+                cache.set(key, { at: now, body });
+                return { status: 200, body };
+            })().finally(() => pending.delete(key)));
+            return await pending.get(key);
         } catch (error) {
             return { status: 502, body: { code: ["INDEX_IDENTITY_MISMATCH", "INDEX_INVALID_DATA", "INDEX_DATA_UNAVAILABLE"].includes(error.code)
                 ? error.code : "INDEX_PROVIDER_UNAVAILABLE" } };

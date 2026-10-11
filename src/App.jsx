@@ -1,4 +1,5 @@
 import "./App.css";
+import {localPerformanceMode} from './utils/localPerformanceMode.js';
 import usePortfolioHistory from "./hooks/usePortfolioHistory.js";
 import useManualAssets from "./hooks/useManualAssets.js";
 import { normalizeQuoteTimestamp, quoteFreshnessReason, quoteValuationKey, VERIFIED_QUOTE_MAX_AGE } from "./utils/valuationFreshness.js";
@@ -11,7 +12,7 @@ import Holdings from "./pages/Holdings.jsx";
 import ImportPage from "./pages/ImportPage.jsx";
 import Settings from "./pages/Settings.jsx";
 import Help from "./pages/Help.jsx";
-import {useEffect, useState, useRef} from "react";
+import {useEffect, useState, useRef, lazy, Suspense} from "react";
 import { createInFlightRequests } from "./utils/requestDeduplication.js";
 import { runAtomicQuoteRefresh, mergeQuoteRefresh, portfolioDisplayValue, attachDailyReferences } from "./utils/atomicQuoteRefresh.js";
 import getInstrumentKey from "./utils/instrumentKey.js";
@@ -72,13 +73,14 @@ import {
 } from "./services/database.js";
 
 const PRICE_UPDATE_INTERVAL = 20 * 60 * 1000;
+const PerformanceTestApp = lazy(() => import('./localTest/PerformanceTestApp.jsx'));
 const runPriceRefresh = createInFlightRequests();
 const quoteProviders = { getYahooPrice, getNordnetPriceByIsin, getNordnetPriceByInstrumentId,
     getAvanzaPriceByIsin, getAvanzaPriceByInstrumentId, getCryptoPrice, getFundNav };
 
 
 
-function App() {
+function LegacyApp() {
 
 
     // =========================================
@@ -1687,4 +1689,7 @@ function App() {
     );
 }
 
-export default App;
+export default function App() {
+    return localPerformanceMode(import.meta.env, window.location.origin)
+        ? <Suspense fallback={<p>Läser lokal portfölj…</p>}><PerformanceTestApp/></Suspense> : <LegacyApp/>;
+}

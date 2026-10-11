@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'performance-test/dist']),
 
   {
     files: ['src/**/*.{js,jsx}'],
@@ -23,7 +23,7 @@ export default defineConfig([
   },
 
   {
-    files: ['server/**/*.js'],
+    files: ['server/**/*.js', 'scripts/*LocalPerformance*.mjs', 'scripts/localPerformance*.mjs', 'scripts/*LocalHistory*.mjs', 'scripts/localHistory*.mjs', 'scripts/syntheticPortfolioFixtures.mjs', 'scripts/*LocalCsv*.mjs', 'scripts/*LocalImport*.mjs'],
     extends: [
       js.configs.recommended,
     ],

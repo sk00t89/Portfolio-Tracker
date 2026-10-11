@@ -8,7 +8,8 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
     const gesture = useRef(null);
     const comparison = view.comparison.available;
     const index = view.standaloneIndex;
-    const points = comparison ? view.comparison.series : view.points.map((point) => ({ ...point, value: point.valueSek }));
+    const percentage = comparison || Boolean(view.performance) || Boolean(index);
+    const points = comparison ? view.comparison.series : view.performance ? view.performance.series : view.points.map((point) => ({ ...point, value: point.valueSek }));
     const active = points.find((point) => point.date === focused) ?? points.at(-1);
     if (!view.available) return <div className="portfolio-chart-empty" role="status">
         <span className="portfolio-empty-icon" aria-hidden="true">↗</span>
@@ -35,18 +36,18 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
     return <figure className={`portfolio-chart ${(comparison ? view.comparison.portfolioPercent : view.visibleChangeSek) < 0 ? "is-negative" : ""}`}>
         <div className="portfolio-chart-readout" aria-live="polite" aria-atomic="true">
             <span>{index ? `${index.label} · ${active.date}` : active.live ? `Live · ${active.date}` : focused ? active.date : "Senast sparat"}</span>
-            <strong>{comparison ? signedPercent(active.value) : formatMoney(active.value)}</strong>
+            <strong>{percentage ? signedPercent(active.value) : formatMoney(active.value)}</strong>
             {comparison && <span className="portfolio-index-readout">Index {signedPercent(active.benchmark)}</span>}
         </div>
         <div className="portfolio-chart-plot">
         {focused && <div id={`${gradientId}-tooltip`} className="portfolio-point-tooltip" role="tooltip" style={{"--point-x": `${x(active) / 10}%`}}>
             <span>{active.date} · {index ? "Indexobservation" : observation?.live ? "Verifierat livevärde" : "Sparat portföljvärde"}</span>
             <strong>{index ? formatMoney(active.value) : observation ? formatSek(observation.valueSek) : "Sparat värde saknas"}</strong>
-            {comparison && <small>Verifierad utveckling {signedPercent(active.value)} · index {signedPercent(active.benchmark)}</small>}
+            {percentage && <small>{view.performance?.methodLabel ?? "Verifierad utveckling"} {signedPercent(active.value)}{comparison && ` · index ${signedPercent(active.benchmark)}`}</small>}
         </div>}
         <svg viewBox="0 0 1000 250" preserveAspectRatio="none" className="portfolio-chart-svg" role="img"
             aria-describedby={focused ? `${gradientId}-tooltip` : undefined}
-            aria-label={`${index ? `${index.label}, prisindex i ${currency}, utveckling i procent` : comparison ? "Verifierad avkastning" : `Portföljvärde i ${currency}`} från ${points[0].date} till ${points.at(-1).date}. ${points.length} verkliga observationer.${points.at(-1).live ? " Dagens slutpunkt är ett verifierat livevärde." : ""}`}
+            aria-label={`${index ? `${index.label}, prisindex i ${currency}, utveckling i procent` : view.performance ? `Portföljavkastning i SEK, ${view.performance.methodLabel}` : comparison ? "Verifierad avkastning" : `Portföljvärde i ${currency}`} från ${points[0].date} till ${points.at(-1).date}. ${points.length} verkliga observationer.${points.at(-1).live ? " Dagens slutpunkt är ett verifierat livevärde." : ""}`}
             onPointerMove={event => {
                 if (event.pointerType === "mouse") { selectPoint(event); return; }
                 const start = gesture.current;
@@ -80,9 +81,11 @@ export default function PortfolioHistoryChart({ view, focused, onFocus, formatMo
         <label className="portfolio-chart-scrubber"><span className="sr-only">Utforska sparade observationer</span>
             <input type="range" min="0" max={points.length - 1} step="1" value={activeIndex} disabled={points.length === 1}
                 aria-describedby={focused ? `${gradientId}-tooltip` : undefined}
-                aria-label="Visa sparad historikpunkt" aria-valuetext={`${active.date}: ${comparison ? signedPercent(active.value) : formatMoney(active.value)}`}
+                aria-label="Visa sparad historikpunkt" aria-valuetext={`${active.date}: ${percentage ? signedPercent(active.value) : formatMoney(active.value)}`}
                 onChange={(event) => onFocus(points[Number(event.target.value)].date)} />
         </label>
-        <figcaption>{index ? `Separat index · basdatum ${points[0].date} · utan utdelningar` : comparison ? "Portfölj och index · verifierad avkastning i SEK" : points.at(-1).live ? "Sparade dagsvärden + verifierat livevärde" : "Sparade dagsvärden"}</figcaption>
+        <figcaption>{index ? `Separat index · basdatum ${points[0].date} · utan utdelningar` : view.performance
+            ? `${comparison ? "Portfölj och prisindex" : "Portfölj"} · ${view.performance.methodLabel} · SEK · basdatum ${points[0].date}`
+            : comparison ? "Portfölj och index · verifierad avkastning i SEK" : points.at(-1).live ? "Sparade dagsvärden + verifierat livevärde" : "Sparade dagsvärden"}</figcaption>
     </figure>;
 }

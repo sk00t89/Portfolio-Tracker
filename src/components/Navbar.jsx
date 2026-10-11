@@ -7,6 +7,8 @@ function Navbar({
                     holdingsAttentionCount = 0,
                     theme = "dark",
                     onToggleTheme,
+                    onLogout,
+                    logoutDisabled = false,
                 }) {
 
     async function handleLogout() {
@@ -65,7 +67,8 @@ function Navbar({
                         <button
                             className="danger-button nav-logout-button"
                             type="button"
-                            onClick={handleLogout}
+                            onClick={onLogout ?? handleLogout}
+                            disabled={logoutDisabled}
                         >
                             Logout
                         </button>

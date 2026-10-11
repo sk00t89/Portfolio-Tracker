@@ -34,7 +34,7 @@ function HoldingsOverview({groupedHoldings, formatMoney = formatSek}) {
 
                 <div className="section-total">
                     <strong>
-                        {formatMoney(groupedHoldingsTotalValue)}
+                        {groupedHoldings.some(holding => holding.valueUnavailable) ? 'Värdering saknas' : formatMoney(groupedHoldingsTotalValue)}
                     </strong>
                     <span>Värdepapper och Lysa</span>
                 </div>
@@ -156,12 +156,12 @@ function HoldingsOverview({groupedHoldings, formatMoney = formatSek}) {
                             </div>
 
                             <strong className="holding-overview-value">
-                                {formatMoney(holding.totalValue)}
+                                {holding.valueUnavailable ? 'Värdering saknas' : formatMoney(holding.totalValue)}
                                 {holding.positions.some((position) => position.quoteStale) && <small className="muted"> · Inaktuell kurs</small>}
                             </strong>
 
                             <span className="muted holding-overview-share">
-                                {percentage.toFixed(2)} %
+                                {holding.valueUnavailable ? '–' : `${percentage.toFixed(2)} %`}
                             </span>
                         </div>
                     );
