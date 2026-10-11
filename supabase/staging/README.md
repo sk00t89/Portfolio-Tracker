@@ -4,6 +4,28 @@ No cloud project has been created or modified. The SQL under `supabase-test/` is
 intentionally guarded by `portfolio_tracker.test_only` and is not a production
 migration. Keep those guards. Do not run `supabase db push` from this repository.
 
+Owner instructions: [create an empty staging project](create-project.sv.md).
+Start with synthetic portfolios **and synthetic market data**. Paid market data
+is not a prerequisite for staging's technical tests; real-data pilot acceptance
+remains blocked separately. No external resource is created by our local scripts.
+
+## Focused readiness review
+
+| Part | Verified locally | Exact work before cloud staging use |
+| --- | --- | --- |
+| DDL installation | `npm run test:local-migrations` applies all six reviewed files atomically to a fresh local scratch database; injected error leaves no partial tables/functions | Derive a separate versioned migration with a staging-only environment guard and exact approved project identity. Keep local guards intact. No cloud-ready migration is claimed. |
+| RLS / RPC | Seven RLS tables, seventeen functions; two synthetic owner identities isolated; read-only security audit passes | Recheck owners/grants/functions with managed Supabase Auth and two separate authenticated test users. Scratch Auth is only a SQL dependency stub, not a login-service test. |
+| Import / trade / history | Existing local synthetic flows and atomic ledger RPCs | Configure a dedicated staging server/transport and synthetic instrument/provider registry. Existing local client/API origins deliberately reject cloud projects; do not loosen those guards or reuse production keys. |
+| Activation / jobs | Local worker can use fictional portfolios | Staging-only origin allowlist, closed signup/test-user allowlist, independent secrets and explicit environment check. Start scheduler and real-user activation off; later enable only the synthetic staging job. Never deploy the development branch to production. |
+| Backup / restore | Encrypted local public+Auth restore and eleven table fingerprints | Separate retained encryption keys/backup storage; restore into a separate approved target with jobs off. Recheck role owners, Auth login, Storage objects, secrets and scheduling. Local rehearsal does not prove managed-cloud recovery. |
+
+The fresh-database migration rehearsal creates only a uniquely named database in
+the verified local Docker container. It uses a minimal `auth.users` / `auth.uid()`
+dependency stub and the cluster's existing roles, and checks original baseline,
+holdings and snapshot fingerprints. It never resets the existing stack, accepts
+remote credentials or removes a database. Scratch databases remain for inspection.
+The local backup test also leaves its separate restored database for inspection.
+
 Review the local installation order:
 
 1. `supabase/proposals/portfolio-performance-v1.sql`: isolated baseline, journal,
@@ -36,8 +58,9 @@ usable long-term backup. Local cluster roles are reused; Storage, role-owner
 restoration, PITR, cloud secrets and scheduler recovery remain staging acceptance
 tests. Scheduler must stay disabled in a restore environment.
 
-After licensed sources and missing-date recovery are verified, stage the full
-synthetic chain and collect at least one real trading week. Verify late NAV,
+Stage the synthetic chain independently of market-data purchasing. For a later
+real-data pilot, verify licensed sources and missing-date recovery and collect at
+least one real trading week. Verify late NAV,
 closures, source corrections, stopped collector/retry, backdated trades, backup
 and restore. This cannot be replaced with replaying five historical days today.
 
