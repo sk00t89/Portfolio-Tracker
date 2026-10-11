@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test:local-db": "node scripts/testLocalPerformance.mjs",
+    "test:local-security": "node scripts/auditLocalPerformanceSecurity.mjs",
     "test:local-history": "node scripts/testLocalHistory.mjs",
     "test:local-main-flow": "node scripts/testLocalMainFlow.mjs",
     "test:local-fx": "node scripts/testLocalForeignSettlement.mjs",
