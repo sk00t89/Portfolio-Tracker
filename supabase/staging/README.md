@@ -8,6 +8,9 @@ Owner instructions: [create an empty staging project](create-project.sv.md).
 The owner has now supplied staging ref `vutjthqlgzokeylaxpzp`. Review the
 [first-step approval draft](next-step.sv.md) before any cloud action. Its SQL
 is deliberately outside automatic migrations and has only been rehearsed locally.
+The cloud preflight stopped at the project's existing automatic-RLS function.
+See the [read-only review and revised approval draft](auto-rls-review.sv.md).
+The original approval does not authorize the revised file or a cloud run.
 Start with synthetic portfolios **and synthetic market data**. Paid market data
 is not a prerequisite for staging's technical tests; real-data pilot acceptance
 remains blocked separately. No external resource is created by our local scripts.

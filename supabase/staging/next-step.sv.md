@@ -5,7 +5,10 @@ Målprojekt: **vutjthqlgzokeylaxpzp**, endast
 Ägaren uppger Stockholm / eu-north-1, Free och ett tomt projekt.
 En läsande kontroll av `/auth/v1/health` gav HTTP 401 utan nyckel.
 Det bekräftar en svarande API-adress, men verifierar inte region, plan,
-projektägare eller databasens innehåll. Ingen autentiserad molnåtkomst har gjorts.
+projektägare eller databasens innehåll. Den senare inloggade kontrollen verifierade
+projektet och stoppade vid den befintliga funktionen `rls_auto_enable`.
+Ingen migration kördes. Se [granskning och separat reviderat utkast](auto-rls-review.sv.md);
+det kräver nytt godkännande. Nedan beskrivs fortfarande originalutkastets scope.
 
 ## Exakt vad första steget ändrar
 
