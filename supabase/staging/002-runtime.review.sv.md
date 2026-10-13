@@ -4,7 +4,9 @@
 Exakt körbart granskningsutkast: [002-runtime.approval.sql](002-runtime.approval.sql).
 Det ligger utanför automatiska migrationer. Kör inte `supabase db push`.
 SHA-256 för SQL med LF-normaliserade radslut:
-`8b81188f3056ce1fee33444b95762ec7b2d0cf9696862c05ef473c743cd6f35b`.
+`d05fed65438fe2b35332f007c93012f26585d114fb6b5e42cfa15926843399d4`.
+Detta reviderade utkast ersätter versionen med SHA `8b81188f…`.
+Slutgranskning och full rättighetsmatris: [002-runtime.security.sv.md](002-runtime.security.sv.md).
 
 ## Exakta ändringar
 
@@ -18,10 +20,10 @@ SHA-256 för SQL med LF-normaliserade radslut:
   synthetic-only. Den innehåller inga användar- eller portföljdata. Service har
   bara SELECT där, klienter ingen åtkomst. Detta är en miljömarkör, inte ett
   tekniskt bevis på vilket Supabase-projekt SQL Editor är anslutet till.
-- Skapa 15 funktioner: `require_staging_synthetic_user`,
+- Skapa 16 funktioner: `require_staging_synthetic_user`,
   `require_staging_performance_test`, `validate_staging_opening`,
   `staging_cash_delta`, `replay_staging_performance_ledger`,
-  `initialize_staging_performance_portfolio`, `register_staging_portfolio_trade`,
+  `initialize_staging_performance_portfolio`, `register_staging_trade_for_owner`, `register_staging_portfolio_trade`,
   `publish_staging_performance_observations`, `get_staging_performance_environment`,
   `get_staging_performance_worker_input`, `commit_staging_performance_import`,
   `correct_staging_portfolio_trade`, `publish_staging_history_batch`,

@@ -35,6 +35,8 @@ test('approval draft is deterministic and keeps synthetic account guards on serv
     const sql=readFileSync(draftPath,'utf8').replaceAll('\r\n','\n');assert.equal(sql,buildStagingRuntimeDraft());
     assert.equal([...sql.matchAll(/^begin;$/gm)].length,1);assert.equal([...sql.matchAll(/^commit;$/gm)].length,1);
     assert.doesNotMatch(sql,/portfolio_tracker\.test_only|public\.\w*local_performance|public\.\w*local_portfolio/);
+    assert.doesNotMatch(sql,/set_config\s*\(/i);
+    assert.match(sql,/register_staging_trade_for_owner\(p_user_id,e,gen_random_uuid\(\),b.revision,null\)/);
     for(const name of ['commit_staging_performance_import','get_staging_performance_worker_input','publish_staging_performance_observations','publish_staging_history_batch']) {
         const source=sql.slice(sql.indexOf(`create function public.${name}(`));
         assert.match(source.slice(0,source.indexOf('end $$;')),/require_staging_synthetic_user\(p_user_id\)/);

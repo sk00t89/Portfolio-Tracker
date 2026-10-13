@@ -27,6 +27,27 @@ export function buildStagingRuntimeDraft() {
         '$1\n    perform public.require_staging_synthetic_user(p_user_id);');
     body=body.replace('v_state=public.replay_staging_performance_ledger(p_baseline,', 'perform public.validate_staging_opening(p_baseline);\n    v_state=public.replay_staging_performance_ledger(p_baseline,');
     body=body.replace("v_baseline=p_plan||jsonb_build_object('verified',true", "perform public.validate_staging_opening(p_plan);\n        v_baseline=p_plan||jsonb_build_object('verified',true");
+    const tradeStart=body.indexOf('create function public.register_staging_portfolio_trade(');
+    const tradeEnd=body.indexOf('end $$;',tradeStart)+7;
+    if(tradeStart<0||tradeEnd<7)throw new Error('Trade source boundary missing');
+    let internalTrade=body.slice(tradeStart,tradeEnd)
+        .replace('register_staging_portfolio_trade(', 'register_staging_trade_for_owner(p_user_id uuid,')
+        .replace('v_user uuid=auth.uid()', 'v_user uuid=p_user_id')
+        .replace('perform public.require_staging_performance_test();', 'perform public.require_staging_performance_test();\n    perform public.require_staging_synthetic_user(p_user_id);');
+    internalTrade=internalTrade.replace("if not found then raise exception 'Opening balance required'; end if;",
+        "if not found then raise exception 'Opening balance required'; end if;\n    if not exists(select 1 from jsonb_array_elements(b.baseline->'positions') p where p->>'accountId'=p_draft->>'accountId' and p->>'instrumentId'=p_draft->>'instrumentId' and p->>'currency'=p_draft->>'currency') then raise exception 'Known synthetic position required';end if;");
+    body=body.slice(0,tradeStart)+internalTrade+`
+revoke all on function public.register_staging_trade_for_owner(uuid,jsonb,uuid,bigint,jsonb) from public,anon,authenticated,service_role;
+create function public.register_staging_portfolio_trade(p_draft jsonb,p_request_id uuid,p_expected_revision bigint,p_deposit jsonb default null) returns jsonb
+language plpgsql security definer set search_path='' as $$ begin
+    return public.register_staging_trade_for_owner(auth.uid(),p_draft,p_request_id,p_expected_revision,p_deposit);
+end $$;`+body.slice(tradeEnd);
+    body=body.replace("perform set_config('request.jwt.claim.sub',p_user_id::text,true);", '-- No JWT claim changes: use the private explicit-owner trade helper.');
+    body=body.replace('perform public.register_staging_portfolio_trade(e,gen_random_uuid(),b.revision,null);', 'perform public.register_staging_trade_for_owner(p_user_id,e,gen_random_uuid(),b.revision,null);');
+    // Explicitly revoke inherited/default grants too, including service_role.
+    body=body.replace(/(revoke all on function public\.[^;]*?) from [^;]+;/g,'$1 from public,anon,authenticated,service_role;');
+    body+=`\nrevoke all on function public.get_portfolio_performance_input() from public,anon,authenticated,service_role;
+grant execute on function public.get_portfolio_performance_input() to authenticated;\n`;
     return `-- REVIEW DRAFT ONLY. NO CLOUD EXECUTION AUTHORIZED.
 -- Intended project: vutjthqlgzokeylaxpzp. SQL cannot verify a Supabase project ID.
 -- Mandatory dashboard/API identity verification before any approved cloud run.
@@ -84,18 +105,20 @@ revoke all on public.staging_runtime_environment from public,anon,authenticated,
 grant select on public.staging_runtime_environment to service_role;
 create function public.require_staging_synthetic_user(p_user_id uuid) returns void
 language plpgsql stable security definer set search_path='' as $$ begin
+    if auth.uid() is not null and auth.uid() is distinct from p_user_id then
+        raise exception 'Owner does not match session' using errcode='42501';end if;
     if not exists(select 1 from auth.users where id=p_user_id and email like '%@portfolio-test.invalid'
         and raw_app_meta_data->>'portfolio_staging_synthetic'='true') then
         raise exception 'Marked synthetic staging account required' using errcode='42501';end if;
 end $$;
-revoke all on function public.require_staging_synthetic_user(uuid) from public,anon,authenticated;
+revoke all on function public.require_staging_synthetic_user(uuid) from public,anon,authenticated,service_role;
 create function public.require_staging_performance_test() returns void
 language plpgsql stable security definer set search_path='' as $$ begin
     if not exists(select 1 from public.staging_runtime_environment where project_ref='vutjthqlgzokeylaxpzp'
         and runtime_version='staging-runtime-v1' and synthetic_only) then raise exception 'Staging identity missing';end if;
     if auth.uid() is not null then perform public.require_staging_synthetic_user(auth.uid());end if;
 end $$;
-revoke all on function public.require_staging_performance_test() from public,anon,authenticated;
+revoke all on function public.require_staging_performance_test() from public,anon,authenticated,service_role;
 create function public.validate_staging_opening(p_baseline jsonb) returns void
 language plpgsql stable set search_path='' as $$ declare p jsonb;begin
     if p_baseline->>'source' is distinct from 'synthetic_test' then raise exception 'Synthetic opening required';end if;
@@ -105,7 +128,7 @@ language plpgsql stable set search_path='' as $$ declare p jsonb;begin
             then raise exception 'Synthetic instrument registry required';end if;
     end loop;
 end $$;
-revoke all on function public.validate_staging_opening(jsonb) from public,anon,authenticated;
+revoke all on function public.validate_staging_opening(jsonb) from public,anon,authenticated,service_role;
 ${body}
 notify pgrst,'reload schema';
 commit;

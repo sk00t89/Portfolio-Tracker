@@ -58,18 +58,20 @@ revoke all on public.staging_runtime_environment from public,anon,authenticated,
 grant select on public.staging_runtime_environment to service_role;
 create function public.require_staging_synthetic_user(p_user_id uuid) returns void
 language plpgsql stable security definer set search_path='' as $$ begin
+    if auth.uid() is not null and auth.uid() is distinct from p_user_id then
+        raise exception 'Owner does not match session' using errcode='42501';end if;
     if not exists(select 1 from auth.users where id=p_user_id and email like '%@portfolio-test.invalid'
         and raw_app_meta_data->>'portfolio_staging_synthetic'='true') then
         raise exception 'Marked synthetic staging account required' using errcode='42501';end if;
 end $$;
-revoke all on function public.require_staging_synthetic_user(uuid) from public,anon,authenticated;
+revoke all on function public.require_staging_synthetic_user(uuid) from public,anon,authenticated,service_role;
 create function public.require_staging_performance_test() returns void
 language plpgsql stable security definer set search_path='' as $$ begin
     if not exists(select 1 from public.staging_runtime_environment where project_ref='vutjthqlgzokeylaxpzp'
         and runtime_version='staging-runtime-v1' and synthetic_only) then raise exception 'Staging identity missing';end if;
     if auth.uid() is not null then perform public.require_staging_synthetic_user(auth.uid());end if;
 end $$;
-revoke all on function public.require_staging_performance_test() from public,anon,authenticated;
+revoke all on function public.require_staging_performance_test() from public,anon,authenticated,service_role;
 create function public.validate_staging_opening(p_baseline jsonb) returns void
 language plpgsql stable set search_path='' as $$ declare p jsonb;begin
     if p_baseline->>'source' is distinct from 'synthetic_test' then raise exception 'Synthetic opening required';end if;
@@ -79,7 +81,7 @@ language plpgsql stable set search_path='' as $$ declare p jsonb;begin
             then raise exception 'Synthetic instrument registry required';end if;
     end loop;
 end $$;
-revoke all on function public.validate_staging_opening(jsonb) from public,anon,authenticated;
+revoke all on function public.validate_staging_opening(jsonb) from public,anon,authenticated,service_role;
 
 select public.require_staging_performance_test();
 
@@ -98,7 +100,7 @@ begin
         a||jsonb_build_object('amount',v_balance+p_delta) else a end) into v_cash from jsonb_array_elements(p_state->'cash') a;
     return jsonb_set(p_state,'{cash}',v_cash);
 end $$;
-revoke all on function public.staging_cash_delta(jsonb,text,text,numeric) from public,anon,authenticated;
+revoke all on function public.staging_cash_delta(jsonb,text,text,numeric) from public,anon,authenticated,service_role;
 
 create function public.replay_staging_performance_ledger(p_baseline jsonb,p_events jsonb) returns jsonb
 language plpgsql immutable set search_path='' as $$
@@ -162,7 +164,7 @@ begin
     end loop;
     return v_state;
 end $$;
-revoke all on function public.replay_staging_performance_ledger(jsonb,jsonb) from public,anon,authenticated;
+revoke all on function public.replay_staging_performance_ledger(jsonb,jsonb) from public,anon,authenticated,service_role;
 
 create function public.initialize_staging_performance_portfolio(p_baseline jsonb) returns jsonb
 language plpgsql security definer set search_path='' as $$
@@ -192,19 +194,21 @@ begin
         values(v_user,v_baseline,v_state,'complete','complete');
     return jsonb_build_object('revision',0,'ledgerState',v_state,'baseline',v_baseline);
 end $$;
-revoke all on function public.initialize_staging_performance_portfolio(jsonb) from public,anon;
+revoke all on function public.initialize_staging_performance_portfolio(jsonb) from public,anon,authenticated,service_role;
 grant execute on function public.initialize_staging_performance_portfolio(jsonb) to authenticated;
 
-create function public.register_staging_portfolio_trade(p_draft jsonb,p_request_id uuid,p_expected_revision bigint,p_deposit jsonb default null) returns jsonb
+create function public.register_staging_trade_for_owner(p_user_id uuid,p_draft jsonb,p_request_id uuid,p_expected_revision bigint,p_deposit jsonb default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare v_user uuid=auth.uid();b public.portfolio_performance_baselines%rowtype;v_date date;v_sequence integer;v_event jsonb;
+declare v_user uuid=p_user_id;b public.portfolio_performance_baselines%rowtype;v_date date;v_sequence integer;v_event jsonb;
     v_events jsonb;v_state jsonb;v_existing jsonb;v_request jsonb;v_amount numeric;v_deposit jsonb;v_final_revision bigint;
     v_fx jsonb;v_native numeric;v_sek numeric;v_conversion boolean;
 begin
     perform public.require_staging_performance_test();
+    perform public.require_staging_synthetic_user(p_user_id);
     if v_user is null then raise exception 'Authentication required' using errcode='42501'; end if;
     select * into b from public.portfolio_performance_baselines where user_id=v_user for update;
     if not found then raise exception 'Opening balance required'; end if;
+    if not exists(select 1 from jsonb_array_elements(b.baseline->'positions') p where p->>'accountId'=p_draft->>'accountId' and p->>'instrumentId'=p_draft->>'instrumentId' and p->>'currency'=p_draft->>'currency') then raise exception 'Known synthetic position required';end if;
     v_request=jsonb_build_object('draft',p_draft,'deposit',p_deposit);
     select event->'request' into v_existing from public.portfolio_ledger_events where user_id=v_user and event_id=p_request_id;
     if found then
@@ -277,7 +281,12 @@ begin
         where user_id=v_user returning revision into v_final_revision;
     return jsonb_build_object('revision',v_final_revision,'ledgerState',v_state,'duplicate',false);
 end $$;
-revoke all on function public.register_staging_portfolio_trade(jsonb,uuid,bigint,jsonb) from public,anon;
+revoke all on function public.register_staging_trade_for_owner(uuid,jsonb,uuid,bigint,jsonb) from public,anon,authenticated,service_role;
+create function public.register_staging_portfolio_trade(p_draft jsonb,p_request_id uuid,p_expected_revision bigint,p_deposit jsonb default null) returns jsonb
+language plpgsql security definer set search_path='' as $$ begin
+    return public.register_staging_trade_for_owner(auth.uid(),p_draft,p_request_id,p_expected_revision,p_deposit);
+end $$;
+revoke all on function public.register_staging_portfolio_trade(jsonb,uuid,bigint,jsonb) from public,anon,authenticated,service_role;
 grant execute on function public.register_staging_portfolio_trade(jsonb,uuid,bigint,jsonb) to authenticated;
 
 create function public.publish_staging_performance_observations(p_user_id uuid,p_revision bigint,p_observations jsonb) returns void
@@ -301,7 +310,7 @@ begin
             values(p_user_id,(o->>'date')::date,p_revision,o);
     end loop;
 end $$;
-revoke all on function public.publish_staging_performance_observations(uuid,bigint,jsonb) from public,anon,authenticated;
+revoke all on function public.publish_staging_performance_observations(uuid,bigint,jsonb) from public,anon,authenticated,service_role;
 grant execute on function public.publish_staging_performance_observations(uuid,bigint,jsonb) to service_role;
 
 create function public.get_staging_performance_environment() returns jsonb
@@ -309,7 +318,7 @@ language plpgsql stable security definer set search_path='' as $$ begin
     perform public.require_staging_performance_test();
     return jsonb_build_object('environment','portfolio-performance-staging','syntheticOnly',true,'projectRef','vutjthqlgzokeylaxpzp','runtimeVersion','staging-runtime-v1');
 end $$;
-revoke all on function public.get_staging_performance_environment() from public;
+revoke all on function public.get_staging_performance_environment() from public,anon,authenticated,service_role;
 grant execute on function public.get_staging_performance_environment() to anon,authenticated,service_role;
 
 create or replace function public.get_portfolio_performance_input() returns jsonb
@@ -370,7 +379,7 @@ language plpgsql stable security definer set search_path='' as $$ begin
             from public.portfolio_performance_observations o where o.user_id=b.user_id and o.revision=b.revision),'[]'::jsonb))
         from public.portfolio_performance_baselines b where b.user_id=p_user_id);
 end $$;
-revoke all on function public.get_staging_performance_worker_input(uuid) from public,anon,authenticated;
+revoke all on function public.get_staging_performance_worker_input(uuid) from public,anon,authenticated,service_role;
 grant execute on function public.get_staging_performance_worker_input(uuid) to service_role;
 
 create function public.commit_staging_performance_import(p_user_id uuid,p_import_key text,p_plan jsonb,p_revision bigint default null) returns jsonb
@@ -411,7 +420,7 @@ begin
     else
         if p_revision is distinct from b.revision then raise exception 'Reload before import' using errcode='40001';end if;
         if p_plan->>'kind'='transactions' then
-            perform set_config('request.jwt.claim.sub',p_user_id::text,true);
+            -- No JWT claim changes: use the private explicit-owner trade helper.
             for e in select * from jsonb_array_elements(p_plan->'events') loop
                 if nullif(e->>'externalReference','') is null then raise exception 'Stable transaction reference required';end if;
                 select * into old from public.portfolio_ledger_events where user_id=p_user_id and account_key=e->>'accountId' and source='synthetic_test' and external_reference=e->>'externalReference';
@@ -433,7 +442,7 @@ begin
                         if e->>'matchPolicy' is distinct from 'new_trade' and exists(select 1 from public.portfolio_ledger_events a where a.user_id=p_user_id and a.external_reference is null
                             and a.trade_date=(e->>'date')::date and a.account_key=e->>'accountId' and a.event->'kind'=e->'kind' and a.event->'quantity'=e->'quantity'
                             and a.event->'unitPrice'=e->'unitPrice' and a.event->'fee'=e->'fee' and a.event->'instrumentId'=e->'instrumentId' and a.event->'currency'=e->'currency') then raise exception 'Confirm potentially duplicated manual trade';end if;
-                        perform public.register_staging_portfolio_trade(e,gen_random_uuid(),b.revision,null);
+                        perform public.register_staging_trade_for_owner(p_user_id,e,gen_random_uuid(),b.revision,null);
                         v_inserted=v_inserted+1;
                     end if;
                     select * into b from public.portfolio_performance_baselines where user_id=p_user_id;
@@ -462,7 +471,7 @@ begin
     insert into public.staging_performance_imports(user_id,import_key,kind,payload,result) values(p_user_id,p_import_key,p_plan->>'kind',p_plan,v_result);
     return v_result;
 end $$;
-revoke all on function public.commit_staging_performance_import(uuid,text,jsonb,bigint) from public,anon,authenticated;
+revoke all on function public.commit_staging_performance_import(uuid,text,jsonb,bigint) from public,anon,authenticated,service_role;
 grant execute on function public.commit_staging_performance_import(uuid,text,jsonb,bigint) to service_role;
 
 create function public.correct_staging_portfolio_trade(p_event_id uuid,p_patch jsonb,p_request_id uuid,p_expected_revision bigint) returns jsonb
@@ -515,7 +524,7 @@ begin
     insert into public.staging_performance_corrections(user_id,request_id,event_id,revision,previous_event,patch) values(v_user,p_request_id,p_event_id,v_revision,v_previous,p_patch);
     return jsonb_build_object('revision',v_revision,'ledgerState',v_state);
 end $$;
-revoke all on function public.correct_staging_portfolio_trade(uuid,jsonb,uuid,bigint) from public,anon;
+revoke all on function public.correct_staging_portfolio_trade(uuid,jsonb,uuid,bigint) from public,anon,authenticated,service_role;
 grant execute on function public.correct_staging_portfolio_trade(uuid,jsonb,uuid,bigint) to authenticated;
 create function public.publish_staging_history_batch(p_user_id uuid,p_revision bigint,p_observations jsonb) returns void
 language plpgsql security definer set search_path='' as $$
@@ -542,7 +551,7 @@ begin
             on conflict(user_id,revision,valuation_date) do update set status='saved',reason=null,attempted_at=now();
     end loop;
 end $$;
-revoke all on function public.publish_staging_history_batch(uuid,bigint,jsonb) from public,anon,authenticated;
+revoke all on function public.publish_staging_history_batch(uuid,bigint,jsonb) from public,anon,authenticated,service_role;
 grant execute on function public.publish_staging_history_batch(uuid,bigint,jsonb) to service_role;
 
 
@@ -580,7 +589,7 @@ begin
     update public.portfolio_performance_baselines set ledger_state=v_state,cash_flow_coverage=b.cash_flow_coverage,cost_coverage=b.cost_coverage where user_id=v_user returning revision into v_revision;
     return jsonb_build_object('revision',v_revision,'ledgerState',v_state);
 end $$;
-revoke all on function public.register_staging_portfolio_cash(jsonb,uuid,bigint) from public,anon;
+revoke all on function public.register_staging_portfolio_cash(jsonb,uuid,bigint) from public,anon,authenticated,service_role;
 grant execute on function public.register_staging_portfolio_cash(jsonb,uuid,bigint) to authenticated;
 
 
@@ -639,10 +648,13 @@ begin
     end if;
     return jsonb_build_object('inserted',inserted,'unchanged',unchanged,'corrected',corrected,'revisedPortfolios',users_changed);
 end $$;
-revoke all on function public.archive_staging_market_batch(jsonb) from public,anon,authenticated;
+revoke all on function public.archive_staging_market_batch(jsonb) from public,anon,authenticated,service_role;
 grant execute on function public.archive_staging_market_batch(jsonb) to service_role;
 
 
+
+revoke all on function public.get_portfolio_performance_input() from public,anon,authenticated,service_role;
+grant execute on function public.get_portfolio_performance_input() to authenticated;
 
 notify pgrst,'reload schema';
 commit;
