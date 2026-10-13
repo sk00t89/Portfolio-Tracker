@@ -4,6 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "staging:build": "vite build --config vite.staging.config.js",
+    "staging:ui": "vite --config vite.staging.config.js",
+    "staging:plan": "node scripts/stagingAppServer.mjs --plan",
+    "test:staging-runtime-local": "node scripts/testStagingRuntime.mjs",
     "test:local-db": "node scripts/testLocalPerformance.mjs",
     "test:local-security": "node scripts/auditLocalPerformanceSecurity.mjs",
     "test:local-migrations": "node scripts/testLocalPerformanceMigration.mjs",

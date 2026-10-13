@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {createClient} from '@supabase/supabase-js';
 import {assertLocalDatabase,localCredentials,runLocalSql} from './localPerformanceEnvironment.mjs';
-import {createLocalHistoryRuntime} from './localHistoryRuntime.mjs';
+import {createSyntheticHistoryRuntime} from './localHistoryRuntime.mjs';
 import {ledgerCostBasis} from '../src/utils/ledgerCostBasis.js';
-assertLocalDatabase();const c=localCredentials(),admin=createClient(c.url,c.serviceKey,{auth:{persistSession:false}}),history=createLocalHistoryRuntime(admin);
+// Replay the dated fixture; never extrapolate it to the day the test is run.
+assertLocalDatabase();const c=localCredentials(),admin=createClient(c.url,c.serviceKey,{auth:{persistSession:false}}),history=createSyntheticHistoryRuntime(admin,{now:Date.parse('2026-10-10T12:00:00Z')});
 const ok=r=>{assert.ifError(r.error);return r.data;},users=[];
 const legacy=()=>runLocalSql("select md5(coalesce((select jsonb_agg(to_jsonb(h) order by id)::text from public.holdings h),'')||coalesce((select jsonb_agg(to_jsonb(p) order by user_id,valuation_date)::text from public.portfolio_daily_values p),''));");
 const beforeLegacy=legacy();

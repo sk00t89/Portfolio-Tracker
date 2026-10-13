@@ -31,6 +31,7 @@ supabase-test/supabase/.temp/
 supabase-test/supabase/.branches/
 performance-test/.env.local
 performance-test/dist/
+staging-app/dist/
 supabase-test/*.local.jpg
 supabase-test/*.local.*
 docs/local-public-market-job.json

@@ -1,20 +1,20 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useMemo,useState} from 'react';
 import {importReconciliationSummary} from '../utils/importReconciliationSummary.js';
+import {createLocalLedgerImportTransport} from '../services/localLedgerImportTransport.js';
 
-export default function LedgerCsvImport({client,onImported,busy,onWorking}) {
+export default function LedgerCsvImport({client,onImported,busy,onWorking,transport}) {
+    const importTransport=useMemo(()=>transport??createLocalLedgerImportTransport(client),[transport,client]);
     const [fixtures,setFixtures]=useState([]),[files,setFiles]=useState([]),[answers,setAnswers]=useState({}),[plan,setPlan]=useState(null);
     const [working,setWorking]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
     const [reviewed,setReviewed]=useState('');
     const [advanced,setAdvanced]=useState(false);
     const isOpeningFile=file=>/^(?:Namn[;\t]|Konto;(?:Valuta|ISIN))/.test(file.text.replace(/^\uFEFF/,''));
     useEffect(()=>{onWorking?.(working);return()=>onWorking?.(false);},[working,onWorking]);
-    useEffect(()=>{let active=true;fetch('/api/local-test/fixtures').then(r=>r.json()).then(data=>{if(active)setFixtures(data.files);}).catch(()=>{if(active)setError('Starta den lokala testservern.');});return()=>{active=false;};},[]);
+    useEffect(()=>{let active=true;importTransport.fixtures().then(files=>{if(active)setFixtures(files);}).catch(()=>{if(active)setError('Testfilerna kunde inte läsas. Kontrollera anslutningen och försök igen.');});return()=>{active=false;};},[importTransport]);
     const request=async action=>{
         setWorking(true);setError('');setMessage('');
         try {
-            const session=await client.auth.getSession();
-            const response=await fetch(`/api/local-test/import/${action}`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${session.data.session?.access_token}`},body:JSON.stringify({files,answers})});
-            const data=await response.json();if(!response.ok)throw new Error(data.error);
+            const data=await importTransport.request(action,files,answers);
             if(action==='preview'){setPlan(data);setReviewed(JSON.stringify({files,answers}));}
             else{await onImported();setPlan(null);setMessage(data.warning??(data.duplicate?'Filen är redan importerad. Inga dubbletter skapades.':'Importen är sparad och historiken är uppdaterad.'));}
         }catch(failure){setError(failure.message);}finally{setWorking(false);}

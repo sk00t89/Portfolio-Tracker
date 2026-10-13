@@ -1,5 +1,17 @@
 # Staging review package — not an executable cloud migration
 
+Current integration assessment (13 October 2026):
+[end-to-end staging plan](end-to-end-plan.sv.md). The revised foundation and
+two-user cloud isolation test were completed in earlier approved steps; the
+test accounts and rows were cleaned up. The historical preflight notes below
+describe those earlier approval stages, not the current migration status.
+The staging runtime, app transport and deployment are still pending.
+
+The local runtime/client preparation is now available in
+[002-runtime.review.sv.md](002-runtime.review.sv.md), with the exact standalone
+[approval SQL](002-runtime.approval.sql) and [E2E test plan](end-to-end-test.sv.md).
+These new cloud steps have not been approved or run.
+
 No cloud project has been modified by this package. The SQL under `supabase-test/` is
 intentionally guarded by `portfolio_tracker.test_only` and is not a production
 migration. Keep those guards. Do not run `supabase db push` from this repository.

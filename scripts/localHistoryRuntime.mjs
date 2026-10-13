@@ -32,7 +32,12 @@ export function syntheticHistoricalProvider() {
     }};
 }
 const unwrap=result=>{if(result.error)throw result.error;return result.data;};
-export function createLocalHistoryRuntime(admin) {
+export function createSyntheticHistoryRuntime(rawAdmin,{staging=false,now}={}) {
+    // Explicit adapter selection, never inferred from a URL or an environment file.
+    const admin=staging?{
+        rpc:(name,args)=>rawAdmin.rpc(name.replaceAll('local_performance','staging_performance').replaceAll('local_history','staging_history').replace('archive_local_market_batch','archive_staging_market_batch'),args),
+        from:name=>rawAdmin.from(name.replace('local_performance','staging_performance')),
+    }:rawAdmin;
     const provider=syntheticHistoricalProvider();
     const archiveKey=p=>`archive:price:${p.instrumentId}:${p.currency}:${p.date}`;
     const archive={read:async p=>unwrap(await admin.from('local_performance_market_cache').select('observation').eq('cache_key',archiveKey(p)).maybeSingle())?.observation,
@@ -64,10 +69,14 @@ export function createLocalHistoryRuntime(admin) {
     const database={input:async userId=>unwrap(await admin.rpc('get_local_performance_worker_input',{p_user_id:userId})),
         publish:async(userId,revision,observations)=>unwrap(await admin.rpc('publish_local_history_batch',{p_user_id:userId,p_revision:revision,p_observations:observations})),
         failure:async(userId,revision,date,reason)=>unwrap(await admin.from('local_performance_runs').upsert({user_id:userId,revision,valuation_date:date,status:'failed',reason},{onConflict:'user_id,revision,valuation_date'}))};
-    const publicHistory=createPublicDatabaseHistory(admin);
+    const publicHistory=staging?null:createPublicDatabaseHistory(admin);
     return {market,database,archive,collect:seed,update:async userId=>{
         const input=await database.input(userId);
-        if(input?.baseline?.syntheticPublicDemo===true)return publicHistory.update(userId);
-        await seed();return updatePerformanceHistory({userId,database,market});
+        if(input?.baseline?.syntheticPublicDemo===true){
+            if(!publicHistory)throw new Error('Only synthetic prices are enabled in staging.');
+            return publicHistory.update(userId);
+        }
+        await seed();return updatePerformanceHistory({userId,database,market,...(now===undefined?{}:{now})});
     }};
 }
+export function createLocalHistoryRuntime(admin){return createSyntheticHistoryRuntime(admin);}
